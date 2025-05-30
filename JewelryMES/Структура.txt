@@ -1,0 +1,82 @@
+PS C:\Users\Mor\Documents\GitHub\gui1c\JewelryMES> tree /F
+Структура папок
+Серийный номер тома: 38F1-162B
+C:.
+│   main.py
+│   README.md
+│   Структура.txt
+│
+├───core
+│   │   catalogs.py
+│   │   com_bridge.py
+│   │   config_parser.py
+│   │   data_bridge.py
+│   │   models.py
+│   │   __init__.py
+│   │
+│   └───__pycache__
+│           catalogs.cpython-310.pyc
+│           com_bridge.cpython-310.pyc
+│           config_parser.cpython-310.pyc
+│           __init__.cpython-310.pyc
+│
+├───data
+│       1Cv8.1CD.cfl
+│       1Cv8.dt
+│       ConfigDumpInfo.xml
+│       Configuration.xml
+│       prod_cache.json
+│
+├───logic
+│   │   loss_calc.py
+│   │   production_docs.py
+│   │   validation.py
+│   │   __init__.py
+│   │
+│   └───__pycache__
+│           production_docs.cpython-310.pyc
+│
+├───pages
+│   │   admin_page.py
+│   │   assembly_page.py
+│   │   casting_in_page.py
+│   │   casting_page.py
+│   │   catalogs_page.py
+│   │   giis_page.py
+│   │   inspection_page.py
+│   │   kit_page.py
+│   │   marking_page.py
+│   │   orders_page.py
+│   │   payroll_page.py
+│   │   planning_page.py
+│   │   plating_page.py
+│   │   polish_page.py
+│   │   release_page.py
+│   │   routes_page.py
+│   │   sanding_page.py
+│   │   shipment_page.py
+│   │   stats_page.py
+│   │   stock_page.py
+│   │   stone_set_page.py
+│   │   tumbling_page.py
+│   │   wax_page.py
+│   │   __init__.py
+│   │
+│   └───__pycache__
+│           orders_page.cpython-310.pyc
+│           wax_page.cpython-310.pyc
+│           __init__.cpython-310.pyc
+│
+├───resources
+│   │   style.qss
+│   │
+│   └───icons
+├───UBioSDK20190326
+└───widgets
+        charts.py
+        dialogs.py
+        forms.py
+        tables.py
+        __init__.py
+
+PS C:\Users\Mor\Documents\GitHub\gui1c\JewelryMES>
