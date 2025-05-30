@@ -6,6 +6,8 @@
 
 import sys
 from pathlib import Path
+from pages.form_builder_page import FormBuilderPage   # ← новая строка
+
 
 # Добавляем пути для импорта
 base_dir = Path(__file__).parent.resolve()
@@ -52,6 +54,7 @@ MENU_ITEMS = [
     ("🏷️  Маркировка",        "marking"),
     ("🌐  ГИИС ДМДК",         "giis"),
     ("📚  Справочники",       "catalogs"),
+    ("🔧  Конструктор форм",  "form_builder"),
 ]
 
 HEADER_H       = 38
@@ -130,6 +133,7 @@ class Main(QMainWindow):
             self.menu.addItem(title)
             if key == "orders":    page = OrdersPage()
             elif key == "wax":     page = WaxPage()
+            elif key == "form_builder":  page = FormBuilderPage()
             else:                  page = StubPage(title.strip())
             self.pages.addWidget(page)
 
