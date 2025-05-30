@@ -1,0 +1,6 @@
+*.1CD
+*.dt
+*.rar
+*.bak
+__pycache__/
+*.pyc
