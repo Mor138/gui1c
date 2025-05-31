@@ -6,6 +6,7 @@ C:.
 │   .gitignore
 │   main.py
 │   README.md
+│   structured_form_fields.json
 │   Структура.txt
 │
 ├───core
@@ -38,12 +39,15 @@ C:.
 │
 ├───logic
 │   │   loss_calc.py
+│   │   normalize_catalogs.py
 │   │   production_docs.py
 │   │   validation.py
 │   │   __init__.py
 │   │
 │   └───__pycache__
+│           normalize_catalogs.cpython-310.pyc
 │           production_docs.cpython-310.pyc
+│           __init__.cpython-310.pyc
 │
 ├───pages
 │   │   admin_page.py
@@ -72,6 +76,7 @@ C:.
 │   │   __init__.py
 │   │
 │   └───__pycache__
+│           catalogs_page.cpython-310.pyc
 │           form_builder_page.cpython-310.pyc
 │           form_pages.cpython-310.pyc
 │           orders_page.cpython-310.pyc
@@ -83,11 +88,15 @@ C:.
 │   │
 │   └───icons
 ├───widgets
-│       charts.py
-│       dialogs.py
-│       forms.py
-│       tables.py
-│       __init__.py
+│   │   charts.py
+│   │   dialogs.py
+│   │   forms.py
+│   │   tables.py
+│   │   __init__.py
+│   │
+│   └───__pycache__
+│           tables.cpython-310.pyc
+│           __init__.cpython-310.pyc
 │
 └───__pycache__
         form_renderer.cpython-310.pyc
