@@ -7,6 +7,7 @@
 import sys
 from pathlib import Path
 from pages.form_builder_page import FormBuilderPage   # ← новая строка
+from pages.form_pages import DynamicFormPage
 
 
 # Добавляем пути для импорта
@@ -134,7 +135,7 @@ class Main(QMainWindow):
             if key == "orders":    page = OrdersPage()
             elif key == "wax":     page = WaxPage()
             elif key == "form_builder":  page = FormBuilderPage()
-            else:                  page = StubPage(title.strip())
+            else: page = DynamicFormPage(key)
             self.pages.addWidget(page)
 
         self.menu.currentRowChanged.connect(self.pages.setCurrentIndex)
