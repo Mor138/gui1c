@@ -1,14 +1,12 @@
+
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##############################################################################
-#  Jewelry MES — оболочка + страница «Заказы»                 • PyQt5 • v0.3b
+#  Jewelry MES — оболочка + страницы интерфейса                     • PyQt5 •
 ##############################################################################
 
 import sys
 from pathlib import Path
-from pages.form_builder_page import FormBuilderPage   # ← новая строка
-from pages.form_pages import DynamicFormPage
-
 
 # Добавляем пути для импорта
 base_dir = Path(__file__).parent.resolve()
@@ -27,14 +25,14 @@ from PyQt5.QtWidgets import (
 # Страницы
 from pages.orders_page import OrdersPage
 from pages.wax_page import WaxPage
+from pages.form_pages import DynamicFormPage  # универсальные вкладки
 
-# ──────────────────────────────── UI Константы ────────────────────────────────
 APP = "Jewelry MES (shell-only)"
 VER = "v0.3b"
 
 MENU_ITEMS = [
     ("📄  Заказы",            "orders"),
-    ("🖨️  Воскование / 3D печать","wax"),
+    ("🖨️  Воскование / 3D печать", "wax"),
     ("🔥  Отливка",           "casting"),
     ("📥  Приём литья",       "casting_in"),
     ("📦  Комплектация",      "kit"),
@@ -54,8 +52,7 @@ MENU_ITEMS = [
     ("💰  Зарплата",          "payroll"),
     ("🏷️  Маркировка",        "marking"),
     ("🌐  ГИИС ДМДК",         "giis"),
-    ("📚  Справочники",       "catalogs"),
-    ("🔧  Конструктор форм",  "form_builder"),
+    ("📚  Справочники",       "catalogs")
 ]
 
 HEADER_H       = 38
@@ -78,7 +75,7 @@ QListWidget QScrollBar:vertical{width:0px;background:transparent;}
 QListWidget:hover QScrollBar:vertical{width:8px;}
 """
 
-# ───────────────────────  Заглушка страницы  ──────────────────────────────
+# Заглушка
 class StubPage(QWidget):
     def __init__(self, title: str):
         super().__init__()
@@ -88,18 +85,16 @@ class StubPage(QWidget):
         lbl.setFont(QFont("Arial", 22, QFont.Bold))
         v.addWidget(lbl, alignment=Qt.AlignTop)
 
-# ───────────────────────  Главное окно  ──────────────────────────────
+# Главное окно
 class Main(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(f"{APP} — {VER}")
         self.resize(1400, 800)
 
-        # Оболочка
         central = QWidget(); self.setCentralWidget(central)
         outer = QVBoxLayout(central); outer.setContentsMargins(0, 0, 0, 0)
 
-        # Верхняя панель
         header = QWidget(); header.setFixedHeight(HEADER_H)
         header.setStyleSheet(HEADER_CSS)
         h_lay = QHBoxLayout(header); h_lay.setContentsMargins(6, 0, 10, 0)
@@ -117,7 +112,6 @@ class Main(QMainWindow):
         h_lay.addStretch(1)
         outer.addWidget(header)
 
-        # Тело интерфейса
         body = QWidget()
         body_lay = QHBoxLayout(body); body_lay.setContentsMargins(0, 0, 0, 0)
 
@@ -129,13 +123,14 @@ class Main(QMainWindow):
         body_lay.addWidget(self.pages, 1)
         outer.addWidget(body, 1)
 
-        # Добавляем страницы
         for title, key in MENU_ITEMS:
             self.menu.addItem(title)
-            if key == "orders":    page = OrdersPage()
-            elif key == "wax":     page = WaxPage()
-            elif key == "form_builder":  page = FormBuilderPage()
-            else: page = DynamicFormPage(key)
+            if key == "orders":
+                page = OrdersPage()
+            elif key == "wax":
+                page = WaxPage()
+            else:
+                page = DynamicFormPage(key)
             self.pages.addWidget(page)
 
         self.menu.currentRowChanged.connect(self.pages.setCurrentIndex)
@@ -148,7 +143,8 @@ class Main(QMainWindow):
         self.btn_toggle.setText("◀" if self.sidebar_open else "▶")
         self.btn_toggle.setToolTip("Свернуть меню" if self.sidebar_open else "Развернуть меню")
 
-# ───────────────────────────────  main()  ────────────────────────────────
+
+# Точка входа
 if __name__ == "__main__":
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
     app = QApplication(sys.argv); app.setStyle("Fusion")
