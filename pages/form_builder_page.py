@@ -1,5 +1,3 @@
-# JewelryMES/pages/form_builder_page.py
-
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton, QTextEdit,
     QTreeWidget, QTreeWidgetItem, QHBoxLayout, QComboBox
@@ -9,13 +7,14 @@ from pathlib import Path
 from core.form_builder import open_form_builder
 
 STRUCTURED_FIELDS_PATH = Path("structured_form_fields.json")
-TABS = ["Заказы", "Планирование", "Отгрузка", "Палата", "Гальваника"]  # можно расширить
-
+SCHEMA_DIR = Path("form_schemas")
 
 class FormBuilderPage(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.fields = self._load_fields()
+        self.tabs = self._load_tabs()
+        self.current_tab = None
         self.init_ui()
 
     def _load_fields(self):
@@ -24,46 +23,52 @@ class FormBuilderPage(QWidget):
                 return json.load(f)
         return {}
 
+    def _load_tabs(self):
+        return [f.stem for f in SCHEMA_DIR.glob("*.json")]
+
     def init_ui(self):
         layout = QVBoxLayout(self)
 
-        # Выбор вкладки
-        top_bar = QHBoxLayout()
-        top_bar.addWidget(QLabel("Вкладка:"))
-        self.tab_selector = QComboBox()
-        self.tab_selector.addItems(TABS)
-        top_bar.addWidget(self.tab_selector)
-        self.edit_btn = QPushButton("🛠 Редактировать отображение")
-        self.edit_btn.clicked.connect(self.open_editor)
-        top_bar.addStretch()
-        top_bar.addWidget(self.edit_btn)
+        hlayout = QHBoxLayout()
+        hlayout.addWidget(QLabel("Выберите вкладку:"))
+        self.cmb_tabs = QComboBox()
+        self.cmb_tabs.addItems(self.tabs)
+        self.cmb_tabs.currentTextChanged.connect(self._on_tab_changed)
+        hlayout.addWidget(self.cmb_tabs)
+        layout.addLayout(hlayout)
 
-        layout.addLayout(top_bar)
+        tree_layout = QHBoxLayout()
 
         self.tree = QTreeWidget()
         self.tree.setHeaderLabel("Структура полей")
-        self.tree.itemClicked.connect(self.show_path)
-        layout.addWidget(self.tree, 4)
+        self.tree.itemClicked.connect(self._on_field_selected)
+        tree_layout.addWidget(self.tree, 2)
 
-        right = QVBoxLayout()
         self.preview = QTextEdit()
         self.preview.setReadOnly(True)
-        self.btn_add = QPushButton("Добавить в форму")
-        self.btn_add.clicked.connect(self.add_field)
-        right.addWidget(QLabel("Информация о поле:"))
-        right.addWidget(self.preview, 1)
-        right.addWidget(self.btn_add)
+        tree_layout.addWidget(self.preview, 1)
 
-        wrap = QHBoxLayout()
-        wrap.addLayout(layout, 2)
-        wrap.addLayout(right, 1)
-        self.setLayout(wrap)
+        layout.addLayout(tree_layout)
 
+        btns = QHBoxLayout()
+        self.btn_add = QPushButton("➕ Добавить в форму")
+        self.btn_edit = QPushButton("⚙️ Редактировать форму")
+        self.btn_add.clicked.connect(self._add_field)
+        self.btn_edit.clicked.connect(self._open_editor)
+        btns.addWidget(self.btn_add)
+        btns.addStretch()
+        btns.addWidget(self.btn_edit)
+        layout.addLayout(btns)
+
+        self._on_tab_changed(self.cmb_tabs.currentText())
+
+    def _on_tab_changed(self, tab):
+        self.current_tab = tab
+        self.tree.clear()
+        self.preview.clear()
         self._populate_tree()
 
     def _populate_tree(self):
-        self.tree.clear()
-
         def add_children(parent, struct, prefix=""):
             for key, value in struct.items():
                 if isinstance(value, dict) and "field" in value:
@@ -81,16 +86,31 @@ class FormBuilderPage(QWidget):
             add_children(root, subtree)
             root.setExpanded(True)
 
-    def show_path(self, item):
+    def _on_field_selected(self, item):
         path = item.data(0, 1)
         if path:
-            self.preview.setText(f"DataPath: {path}")
+            self.preview.setText(f"{path}")
 
-    def add_field(self):
-        path = self.preview.toPlainText()
-        if path:
-            print(f"Добавлено поле: {path}")
+    def _add_field(self):
+        if not self.current_tab:
+            return
+        path = self.preview.toPlainText().strip()
+        if not path:
+            return
+        schema_path = SCHEMA_DIR / f"{self.current_tab}.json"
+        fields = []
+        if schema_path.exists():
+            with open(schema_path, "r", encoding="utf-8") as f:
+                fields = json.load(f)
 
-    def open_editor(self):
-        tab = self.tab_selector.currentText()
-        open_form_builder(tab)
+        field_name = path.split(".")[-1]
+        fields.append({"name": field_name, "field": path, "type": "Строка"})
+
+        with open(schema_path, "w", encoding="utf-8") as f:
+            json.dump(fields, f, ensure_ascii=False, indent=2)
+
+        self.preview.setText(f"Добавлено: {field_name} → {path}")
+
+    def _open_editor(self):
+        if self.current_tab:
+            open_form_builder(self.current_tab)
