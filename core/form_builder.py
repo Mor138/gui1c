@@ -1,8 +1,6 @@
-# JewelryMES/core/form_builder.py
-
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QTableWidget,
-    QTableWidgetItem, QHeaderView, QPushButton, QComboBox
+    QTableWidgetItem, QHeaderView, QPushButton, QComboBox, QLineEdit
 )
 import json
 from pathlib import Path
@@ -24,19 +22,21 @@ class FormEditorWindow(QDialog):
     def __init__(self, tab_name):
         super().__init__()
         self.tab_name = tab_name
-        self.setWindowTitle(f"Форма вкладки: {tab_name}")
+        self.setWindowTitle(f"Конструктор формы: {tab_name}")
         self.resize(700, 460)
 
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel(f"🧩 Настройка полей для вкладки: {tab_name}"))
+        layout.addWidget(QLabel(f"🔧 Поля формы вкладки: {tab_name}"))
 
         self.table = QTableWidget()
-        self.table.setColumnCount(2)
-        self.table.setHorizontalHeaderLabels(["Поле", "Тип данных"])
+        self.table.setColumnCount(3)
+        self.table.setHorizontalHeaderLabels(["Имя столбца", "Поле данных", "Тип данных"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table.setEditTriggers(QTableWidget.DoubleClicked)
         layout.addWidget(self.table)
 
-        buttons = QHBoxLayout()
+        # Кнопки
+        btns = QHBoxLayout()
         self.btn_add = QPushButton("➕ Добавить")
         self.btn_del = QPushButton("🗑️ Удалить")
         self.btn_save = QPushButton("💾 Сохранить")
@@ -47,12 +47,12 @@ class FormEditorWindow(QDialog):
         self.btn_save.clicked.connect(self._save)
         self.btn_close.clicked.connect(self.close)
 
-        buttons.addWidget(self.btn_add)
-        buttons.addWidget(self.btn_del)
-        buttons.addStretch()
-        buttons.addWidget(self.btn_save)
-        buttons.addWidget(self.btn_close)
-        layout.addLayout(buttons)
+        btns.addWidget(self.btn_add)
+        btns.addWidget(self.btn_del)
+        btns.addStretch()
+        btns.addWidget(self.btn_save)
+        btns.addWidget(self.btn_close)
+        layout.addLayout(btns)
 
         self._load()
 
@@ -61,24 +61,22 @@ class FormEditorWindow(QDialog):
         path = SCHEMA_DIR / f"{self.tab_name}.json"
         if not path.exists():
             return
-
         with open(path, "r", encoding="utf-8") as f:
             fields = json.load(f)
-
         for field in fields:
-            self._add_row(field["name"], field["type"])
+            self._add_row(field.get("name", ""), field.get("field", ""), field.get("type", "Строка"))
 
-    def _add_row(self, name="", dtype="Строка"):
+    def _add_row(self, name="", field="", dtype="Строка"):
         row = self.table.rowCount()
         self.table.insertRow(row)
-
         self.table.setItem(row, 0, QTableWidgetItem(name))
+        self.table.setItem(row, 1, QTableWidgetItem(field))
 
         combo = QComboBox()
         combo.addItems(FIELD_TYPES)
         if dtype in FIELD_TYPES:
             combo.setCurrentText(dtype)
-        self.table.setCellWidget(row, 1, combo)
+        self.table.setCellWidget(row, 2, combo)
 
     def _del_row(self):
         row = self.table.currentRow()
@@ -89,10 +87,12 @@ class FormEditorWindow(QDialog):
         fields = []
         for i in range(self.table.rowCount()):
             name_item = self.table.item(i, 0)
-            combo = self.table.cellWidget(i, 1)
-            if name_item and combo:
+            field_item = self.table.item(i, 1)
+            combo = self.table.cellWidget(i, 2)
+            if name_item and field_item and combo:
                 fields.append({
                     "name": name_item.text(),
+                    "field": field_item.text(),
                     "type": combo.currentText()
                 })
         path = SCHEMA_DIR / f"{self.tab_name}.json"
