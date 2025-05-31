@@ -1,7 +1,9 @@
-PS C:\Users\Mor\Documents\GitHub\gui1c\JewelryMES> tree /F
+PS C:\Users\Mor\Documents\GitHub\gui1c> tree /F
 Структура папок
 Серийный номер тома: 38F1-162B
 C:.
+│   .gitattributes
+│   .gitignore
 │   main.py
 │   README.md
 │   Структура.txt
@@ -11,6 +13,7 @@ C:.
 │   │   com_bridge.py
 │   │   config_parser.py
 │   │   data_bridge.py
+│   │   form_builder.py
 │   │   models.py
 │   │   __init__.py
 │   │
@@ -18,14 +21,20 @@ C:.
 │           catalogs.cpython-310.pyc
 │           com_bridge.cpython-310.pyc
 │           config_parser.cpython-310.pyc
+│           form_builder.cpython-310.pyc
+│           models.cpython-310.pyc
 │           __init__.cpython-310.pyc
 │
 ├───data
 │       1Cv8.1CD.cfl
-│       1Cv8.dt
 │       ConfigDumpInfo.xml
 │       Configuration.xml
 │       prod_cache.json
+│
+├───form_schemas
+│       orders.json
+│       wax.json
+│       Заказы.json
 │
 ├───logic
 │   │   loss_calc.py
@@ -63,6 +72,8 @@ C:.
 │   │   __init__.py
 │   │
 │   └───__pycache__
+│           form_builder_page.cpython-310.pyc
+│           form_pages.cpython-310.pyc
 │           orders_page.cpython-310.pyc
 │           wax_page.cpython-310.pyc
 │           __init__.cpython-310.pyc
@@ -71,12 +82,14 @@ C:.
 │   │   style.qss
 │   │
 │   └───icons
-├───UBioSDK20190326
-└───widgets
-        charts.py
-        dialogs.py
-        forms.py
-        tables.py
-        __init__.py
+├───widgets
+│       charts.py
+│       dialogs.py
+│       forms.py
+│       tables.py
+│       __init__.py
+│
+└───__pycache__
+        form_renderer.cpython-310.pyc
 
-PS C:\Users\Mor\Documents\GitHub\gui1c\JewelryMES>
+PS C:\Users\Mor\Documents\GitHub\gui1c>
