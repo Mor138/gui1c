@@ -15,6 +15,8 @@ sys.path.append(str(base_dir / "pages"))
 sys.path.append(str(base_dir / "core"))
 sys.path.append(str(base_dir / "logic"))
 
+from core.com_bridge import COM1CBridge
+bridge = COM1CBridge("C:\\Users\\Mor\\Desktop\\1C\\proiz")
 from PyQt5.QtCore    import Qt
 from PyQt5.QtGui     import QFont, QCursor
 from PyQt5.QtWidgets import (
@@ -25,6 +27,7 @@ from PyQt5.QtWidgets import (
 # Страницы
 from pages.orders_page import OrdersPage
 from pages.wax_page import WaxPage
+from pages.catalogs_page import CatalogsPage
 
 
 APP = "Jewelry MES (shell-only)"
@@ -129,7 +132,10 @@ class Main(QMainWindow):
                 page = OrdersPage()
             elif key == "wax":
                 page = WaxPage()
-            else: page = StubPage(title.strip())
+            elif key == "catalogs":
+                page = CatalogsPage(bridge)  # ← вот это обязательно!
+            else:
+                page = StubPage(title.strip())
             self.pages.addWidget(page)
 
         self.menu.currentRowChanged.connect(self.pages.setCurrentIndex)
