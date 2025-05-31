@@ -1,33 +1,26 @@
-import uuid
+import pywintypes
 from datetime import datetime
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QVBoxLayout, QFormLayout, QComboBox, QDateEdit,
     QSpinBox, QDoubleSpinBox, QTableWidget, QTableWidgetItem, QPushButton,
-    QMessageBox, QHeaderView, QCheckBox, QTabWidget, QHBoxLayout, QLineEdit
+    QMessageBox, QHeaderView, QTabWidget, QHBoxLayout
 )
 from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt
 from core.com_bridge import COM1CBridge
 
 bridge = COM1CBridge("C:\\Users\\Mor\\Desktop\\1C\\proiz")
 
 class OrdersPage(QWidget):
-    COLS = ["Артикул", "Наим.", "Металл", "Проба", "Цвет", "Вставки",
-            "Размер", "Кол-во", "Вес, г", "Комментарий"]
+    COLS = ["Артикул", "Наим.", "ВариантИзготовления", "Размер", "Кол-во", "Вес, г"]
 
     def __init__(self):
         super().__init__()
         self.articles = bridge.get_articles()
-        self.variants = bridge.get_manufacturing_options()
         self.organizations = bridge.list_catalog_items("Организации")
         self.counterparties = bridge.list_catalog_items("Контрагенты")
         self.contracts = bridge.list_catalog_items("ДоговорыКонтрагентов")
         self.warehouses = bridge.list_catalog_items("Склады")
-
-        self.metals = sorted({v["metal"] for v in self.variants.values()})
-        self.hallmarks = sorted({v["hallmark"] for v in self.variants.values()})
-        self.colors = sorted({v["color"] for v in self.variants.values()})
-        self.inserts = sorted({a["insert"] for a in self.articles.values() if a.get("insert")})
+        self.variants = bridge.list_catalog_items("ВариантыИзготовленияНоменклатуры")
 
         self._ui()
         self._load_orders()
@@ -39,25 +32,18 @@ class OrdersPage(QWidget):
 
         self.frm_new = QWidget()
         v = QVBoxLayout(self.frm_new)
-        v.setContentsMargins(40, 30, 40, 30)
 
         hdr = QLabel("Заказ в производство")
         hdr.setFont(QFont("Arial", 22, QFont.Bold))
         v.addWidget(hdr)
 
         form = QFormLayout()
-        v.addLayout(form)
-
-        self.ed_num = QLabel(datetime.now().strftime("%Y%m%d-") + uuid.uuid4().hex[:4])
+        self.ed_num = QLabel(bridge.get_next_order_number())
         self.d_date = QDateEdit(datetime.now()); self.d_date.setCalendarPopup(True)
-
-        self.c_org = QComboBox(); self.c_org.addItems([x.get("Description", "—") for x in self.organizations])
-        self.c_contr = QComboBox(); self.c_contr.addItems([x.get("Description", "—") for x in self.counterparties])
-        self.c_ctr = QComboBox(); self.c_ctr.addItems([x.get("Description", "Купля-продажа") for x in self.contracts])
-        self.c_wh = QComboBox(); self.c_wh.addItems([x.get("Description", "Основной") for x in self.warehouses])
-
-        self.chk_ok = QCheckBox("Согласовано")
-        self.chk_res = QCheckBox("Резервировать товары")
+        self.c_org = QComboBox(); self.c_org.addItems([x["Description"] for x in self.organizations])
+        self.c_contr = QComboBox(); self.c_contr.addItems([x["Description"] for x in self.counterparties])
+        self.c_ctr = QComboBox(); self.c_ctr.addItems([x["Description"] for x in self.contracts])
+        self.c_wh = QComboBox(); self.c_wh.addItems([x["Description"] for x in self.warehouses])
 
         for lab, w in [
             ("Номер", self.ed_num), ("Дата", self.d_date),
@@ -65,8 +51,7 @@ class OrdersPage(QWidget):
             ("Договор", self.c_ctr), ("Склад", self.c_wh)
         ]:
             form.addRow(lab, w)
-        form.addRow(self.chk_ok)
-        form.addRow(self.chk_res)
+        v.addLayout(form)
 
         self.tbl = QTableWidget(0, len(self.COLS))
         self.tbl.setHorizontalHeaderLabels(self.COLS)
@@ -108,32 +93,31 @@ class OrdersPage(QWidget):
 
         art = QComboBox(); art.setEditable(True); art.addItems(self.articles.keys())
         name = QTableWidgetItem("")
-        metal = QComboBox(); metal.addItems(self.metals or ["Золото", "Серебро"])
-        probe = QComboBox(); probe.addItems(self.hallmarks or ["585", "750"])
-        color = QComboBox(); color.addItems(self.colors or ["Красный", "Белый", "Желтый"])
-        ins = QComboBox(); ins.addItems(self.inserts or ["Фианит", "Нет"])
+        variant = QComboBox()
         size = QDoubleSpinBox(); size.setDecimals(1); size.setRange(0.5, 50.0)
         qty = QSpinBox(); qty.setRange(1, 999); qty.setValue(1)
         wgt = QDoubleSpinBox(); wgt.setDecimals(3); wgt.setMaximum(9999)
-        cmnt = QLineEdit()
 
-        widgets = [art, name, metal, probe, color, ins, size, qty, wgt, cmnt]
+        widgets = [art, name, variant, size, qty, wgt]
         for c, w in enumerate(widgets):
-            if isinstance(w, (QComboBox, QSpinBox, QDoubleSpinBox, QLineEdit)):
+            if isinstance(w, (QComboBox, QSpinBox, QDoubleSpinBox)):
                 self.tbl.setCellWidget(r, c, w)
             else:
                 self.tbl.setItem(r, c, w)
 
+        def update_variants():
+            selected_art = art.currentText()
+            variant.clear()
+            filtered = [v["Description"] for v in self.variants if v["Description"].startswith(selected_art)]
+            variant.addItems(filtered or ["—"])
+
         def fill():
             card = self.articles.get(art.currentText(), {})
-            variant = self.variants.get(art.currentText(), {})
             name.setText(card.get("name", ""))
-            metal.setCurrentText(variant.get("metal", ""))
-            probe.setCurrentText(variant.get("hallmark", ""))
-            color.setCurrentText(variant.get("color", ""))
+            if card.get("size"):
+                size.setValue(float(card["size"]))
             wgt.setValue(round(card.get("w", 0) * qty.value(), 3))
-            if card.get("size"): size.setValue(float(card["size"]))
-            ins.setCurrentText(card.get("insert", ""))
+            update_variants()
 
         art.currentTextChanged.connect(fill)
         qty.valueChanged.connect(fill)
@@ -144,12 +128,32 @@ class OrdersPage(QWidget):
             self.tbl.removeRow(self.tbl.rowCount() - 1)
 
     def _new_order(self):
-        self.ed_num.setText(datetime.now().strftime("%Y%m%d-") + uuid.uuid4().hex[:4])
+        self.ed_num.setText(bridge.get_next_order_number())
         self.tbl.setRowCount(0)
         self._add_row()
         self.tabs.setCurrentIndex(0)
 
     def _post(self):
+        fields = {
+            "Организация": bridge.get_ref("Организации", self.c_org.currentText()),
+            "Контрагент": bridge.get_ref("Контрагенты", self.c_contr.currentText()),
+            "Дата": pywintypes.Time(self.d_date.date().toPyDate()),
+        }
+
+        items = []
+        for row in range(self.tbl.rowCount()):
+            art = self.tbl.cellWidget(row, 0).currentText()
+            items.append({
+                "Номенклатура": bridge.get_ref("Номенклатура", art),
+                "ВариантИзготовления": self.tbl.cellWidget(row, 2).currentText(),
+                "Размер": self.tbl.cellWidget(row, 3).value(),
+                "Количество": self.tbl.cellWidget(row, 4).value(),
+                "Вес": self.tbl.cellWidget(row, 5).value(),
+            })
+
+        number = bridge.create_order(fields, items)
+        self.ed_num.setText(number)
+        self._load_orders()
         QMessageBox.information(self, "Готово", "Проведено!")
 
     def _post_close(self):
@@ -172,7 +176,7 @@ class OrdersPage(QWidget):
         dlg.setWindowTitle(f"Заказ №{o['num']} от {o['date']}")
         rows = o.get("rows", [])
         txt = "\n".join([
-            f"{r['article']}  [{r['metal']} {r['hallmark']} {r['color']}]  x{r['qty']}  {r['w']} г — {r['comment']}"
+            f"{r['article']} [{r['variant']}] {r['qty']}шт {r['w']}г"
             for r in rows
         ]) or "(нет строк)"
         dlg.setText(txt)
