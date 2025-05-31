@@ -25,7 +25,7 @@ from PyQt5.QtWidgets import (
 # Страницы
 from pages.orders_page import OrdersPage
 from pages.wax_page import WaxPage
-from pages.form_pages import DynamicFormPage  # универсальные вкладки
+
 
 APP = "Jewelry MES (shell-only)"
 VER = "v0.3b"
@@ -129,8 +129,7 @@ class Main(QMainWindow):
                 page = OrdersPage()
             elif key == "wax":
                 page = WaxPage()
-            else:
-                page = DynamicFormPage(key)
+            else: page = StubPage(title.strip())
             self.pages.addWidget(page)
 
         self.menu.currentRowChanged.connect(self.pages.setCurrentIndex)
