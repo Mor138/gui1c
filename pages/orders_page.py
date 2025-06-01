@@ -3,9 +3,10 @@ from datetime import datetime
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QVBoxLayout, QFormLayout, QComboBox, QDateEdit,
     QSpinBox, QDoubleSpinBox, QTableWidget, QTableWidgetItem, QPushButton,
-    QMessageBox, QHeaderView, QTabWidget, QHBoxLayout
+    QMessageBox, QHeaderView, QTabWidget, QHBoxLayout, QAbstractItemView
 )
 from PyQt5.QtGui import QFont
+from PyQt5.QtCore import Qt
 from core.com_bridge import COM1CBridge
 
 bridge = COM1CBridge("C:\\Users\\Mor\\Desktop\\1C\\proiz")
@@ -31,7 +32,6 @@ class OrdersPage(QWidget):
 
         self.frm_new = QWidget()
         v = QVBoxLayout(self.frm_new)
-
         hdr = QLabel("Заказ в производство")
         hdr.setFont(QFont("Arial", 22, QFont.Bold))
         v.addWidget(hdr)
@@ -45,13 +45,13 @@ class OrdersPage(QWidget):
         self.c_wh = QComboBox(); self.c_wh.addItems([x["Description"] for x in self.warehouses])
         self.status_combo = QComboBox(); self.status_combo.addItems(self.production_statuses)
 
-        for lab, w in [
+        for label, widget in [
             ("Номер", self.ed_num), ("Дата", self.d_date),
             ("Организация", self.c_org), ("Контрагент", self.c_contr),
             ("Договор", self.c_ctr), ("Склад", self.c_wh),
             ("Вид продукции", self.status_combo)
         ]:
-            form.addRow(lab, w)
+            form.addRow(label, widget)
         v.addLayout(form)
 
         self.tbl = QTableWidget(0, len(self.COLS))
@@ -62,30 +62,40 @@ class OrdersPage(QWidget):
         self._add_row()
 
         btns = QHBoxLayout()
-        for txt, slot in [
+        for label, func in [
             ("+ строка", self._add_row),
             ("− строка", self._remove_row),
             ("Новый заказ", self._new_order),
-            ("Провести", self._post),
-            ("Провести и закрыть", self._post_close)
+            ("💾 Записать", self._post_close)
         ]:
-            b = QPushButton(txt); b.clicked.connect(slot)
-            btns.addWidget(b)
+            btn = QPushButton(label); btn.clicked.connect(func); btns.addWidget(btn)
         v.addLayout(btns)
-
         self.tabs.addTab(self.frm_new, "Новый заказ")
 
-        self.tbl_orders = QTableWidget(0, 3)
-        self.tbl_orders.setHorizontalHeaderLabels(["№", "Дата", "Контрагент"])
+        self.tbl_orders = QTableWidget(0, 10)
+        self.tbl_orders.setHorizontalHeaderLabels([
+            "✓", "Номер", "Дата", "Вид/статус продукции", "Количество", "Вес",
+            "Организация", "Контрагент", "Договор", "Комментарий"
+        ])
+        self.tbl_orders.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.tbl_orders.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.tbl_orders.cellDoubleClicked.connect(self._show_order)
 
         tab_orders = QWidget()
-        layout_orders = QVBoxLayout(tab_orders)
-        btn_reload = QPushButton("🔄 Обновить список заказов")
-        btn_reload.clicked.connect(self._load_orders)
-        layout_orders.addWidget(btn_reload)
-        layout_orders.addWidget(self.tbl_orders)
+        layout = QVBoxLayout(tab_orders)
+        layout.addWidget(QLabel("📋 Заказы в производстве"))
+
+        buttons = QHBoxLayout()
+        for label, func in [
+            ("🔄 Обновить", self._load_orders),
+            ("✅ Провести отмеченные", self._mass_post),
+            ("🧷 Пометить", lambda: self._mark_deleted(True)),
+            ("📍 Снять пометку", lambda: self._mark_deleted(False)),
+            ("🗑 Удалить", self._delete_selected_order)
+        ]:
+            btn = QPushButton(label); btn.clicked.connect(func); buttons.addWidget(btn)
+        layout.addLayout(buttons)
+        layout.addWidget(self.tbl_orders)
         self.tabs.addTab(tab_orders, "Заказы")
 
     def _add_row(self):
@@ -99,36 +109,29 @@ class OrdersPage(QWidget):
         qty = QSpinBox(); qty.setRange(1, 999); qty.setValue(1)
         wgt = QDoubleSpinBox(); wgt.setDecimals(3); wgt.setMaximum(9999)
 
-        widgets = [art, name, variant, size, qty, wgt]
-        for c, w in enumerate(widgets):
+        for c, w in enumerate([art, name, variant, size, qty, wgt]):
             if isinstance(w, (QComboBox, QSpinBox, QDoubleSpinBox)):
                 self.tbl.setCellWidget(r, c, w)
             else:
                 self.tbl.setItem(r, c, w)
 
         def fill():
-            selected_art = art.currentText().strip()
-            card = self.articles.get(selected_art, {})
+            selected = art.currentText().strip()
+            card = self.articles.get(selected, {})
             name.setText(card.get("name", ""))
-            if card.get("size"):
-                size.setValue(float(card["size"]))
+            if card.get("size"): size.setValue(float(card["size"]))
             wgt.setValue(round(card.get("w", 0) * qty.value(), 3))
-
-            # Получаем варианты динамически по артикулу
             variant.clear()
-            if selected_art:
-                filtered = bridge.get_variants_by_article(selected_art)
-                variant.addItems(filtered or ["—"])
-            else:
-                variant.addItem("—")
+            variant.addItems(bridge.get_variants_by_article(selected) or ["—"])
 
         art.currentTextChanged.connect(fill)
         qty.valueChanged.connect(fill)
         fill()
 
     def _remove_row(self):
-        if self.tbl.rowCount() > 0:
-            self.tbl.removeRow(self.tbl.rowCount() - 1)
+        r = self.tbl.rowCount()
+        if r > 0:
+            self.tbl.removeRow(r - 1)
 
     def _new_order(self):
         self.ed_num.setText(bridge.get_next_order_number())
@@ -143,34 +146,27 @@ class OrdersPage(QWidget):
             "ДоговорКонтрагента": self.c_ctr.currentText(),
             "Склад": self.c_wh.currentText(),
             "Ответственный": "Администратор",
-            "Комментарий": f"Создан через GUI {datetime.now().strftime('%d.%m.%Y %H:%M')}",
+            "Комментарий": f"Создан через GUI {datetime.now():%d.%m.%Y %H:%M}",
             "Дата": pywintypes.Time(self.d_date.date().toPyDate()),
             "ВидСтатусПродукции": self.status_combo.currentText()
         }
-
         items = []
         for row in range(self.tbl.rowCount()):
             art = self.tbl.cellWidget(row, 0).currentText()
             card = self.articles.get(art, {})
-            variant = self.tbl.cellWidget(row, 2).currentText()
-            size = self.tbl.cellWidget(row, 3).value()
-            qty = self.tbl.cellWidget(row, 4).value()
-            wgt = self.tbl.cellWidget(row, 5).value()
-
             items.append({
                 "Номенклатура": card.get("name", ""),
                 "АртикулГП": card.get("name", ""),
-                "ВариантИзготовления": variant,
-                "Размер": size,
-                "Количество": qty,
-                "Вес": wgt,
+                "ВариантИзготовления": self.tbl.cellWidget(row, 2).currentText(),
+                "Размер": self.tbl.cellWidget(row, 3).value(),
+                "Количество": self.tbl.cellWidget(row, 4).value(),
+                "Вес": self.tbl.cellWidget(row, 5).value(),
                 "ЕдиницаИзмерения": "шт"
             })
-
         number = bridge.create_order(fields, items)
         self.ed_num.setText(number)
         self._load_orders()
-        QMessageBox.information(self, "Готово", f"Проведено: заказ №{number}")
+        QMessageBox.information(self, "Готово", f"Сохранено: заказ №{number}")
 
     def _post_close(self):
         self._post()
@@ -182,18 +178,41 @@ class OrdersPage(QWidget):
         for o in self._orders:
             r = self.tbl_orders.rowCount()
             self.tbl_orders.insertRow(r)
-            for c, val in enumerate([o["num"], o["date"], o["contragent"]]):
-                self.tbl_orders.setItem(r, c, QTableWidgetItem(str(val)))
+            chk = QTableWidgetItem(); chk.setCheckState(Qt.Unchecked)
+            self.tbl_orders.setItem(r, 0, chk)
+            status = "🟢" if o.get("posted") else ("❌" if o.get("deleted") else "⚪")
+            vals = [
+                f"{status} {o['num']}", o["date"], o.get("prod_status", ""),
+                o.get("qty", 0), f"{o.get('weight', 0):.3f}",
+                o.get("org", ""), o.get("contragent", ""), o.get("contract", ""), o.get("comment", "")
+            ]
+            for i, v in enumerate(vals):
+                self.tbl_orders.setItem(r, i + 1, QTableWidgetItem(str(v)))
+
+    def _mass_post(self):
+        for i, o in enumerate(self._orders):
+            if self.tbl_orders.item(i, 0).checkState() == Qt.Checked:
+                bridge.post_order(o["num"])
+        self._load_orders()
+
+    def _delete_selected_order(self):
+        selected = [i for i in range(self.tbl_orders.rowCount())
+                    if self.tbl_orders.item(i, 0).checkState() == Qt.Checked]
+        for i in selected:
+            bridge.delete_order_by_number(self._orders[i]["num"])
+        self._load_orders()
+
+    def _mark_deleted(self, mark=True):
+        for i in range(self.tbl_orders.rowCount()):
+            if self.tbl_orders.item(i, 0).checkState() == Qt.Checked:
+                number = self._orders[i]["num"]
+                if mark:
+                    bridge.mark_order_for_deletion(number)
+                else:
+                    bridge.unmark_order_deletion(number)
+        self._load_orders()
 
     def _show_order(self, row, col):
-        if row >= len(self._orders): return
         o = self._orders[row]
-        dlg = QMessageBox()
-        dlg.setWindowTitle(f"Заказ №{o['num']} от {o['date']}")
-        rows = o.get("rows", [])
-        txt = "\n".join([
-            f"{r['nomenclature']} [{r['variant']}] {r['qty']}шт {r['w']}г"
-            for r in rows
-        ]) or "(нет строк)"
-        dlg.setText(txt)
-        dlg.exec_()
+        text = "\n".join([f"{r['nomenclature']} ({r['qty']}шт, {r['w']}г)" for r in o.get("rows", [])]) or "(нет строк)"
+        QMessageBox.information(self, f"Заказ №{o['num']}", f"{o['contragent']}\n\n{text}")
