@@ -11,7 +11,7 @@ from core.com_bridge import COM1CBridge
 bridge = COM1CBridge("C:\\Users\\Mor\\Desktop\\1C\\proiz")
 
 class OrdersPage(QWidget):
-    COLS = ["Артикул", "Наим.", "ВариантИзготовления", "Размер", "Кол-во", "Вес, г"]
+    COLS = ["Артикул", "Наим.", "Вариант", "Размер", "Кол-во", "Вес, г"]
 
     def __init__(self):
         super().__init__()
@@ -20,8 +20,7 @@ class OrdersPage(QWidget):
         self.counterparties = bridge.list_catalog_items("Контрагенты")
         self.contracts = bridge.list_catalog_items("ДоговорыКонтрагентов")
         self.warehouses = bridge.list_catalog_items("Склады")
-        self.variants = bridge.list_catalog_items("ВариантыИзготовленияНоменклатуры")
-
+        self.production_statuses = bridge.get_production_status_variants()
         self._ui()
         self._load_orders()
 
@@ -44,11 +43,13 @@ class OrdersPage(QWidget):
         self.c_contr = QComboBox(); self.c_contr.addItems([x["Description"] for x in self.counterparties])
         self.c_ctr = QComboBox(); self.c_ctr.addItems([x["Description"] for x in self.contracts])
         self.c_wh = QComboBox(); self.c_wh.addItems([x["Description"] for x in self.warehouses])
+        self.status_combo = QComboBox(); self.status_combo.addItems(self.production_statuses)
 
         for lab, w in [
             ("Номер", self.ed_num), ("Дата", self.d_date),
             ("Организация", self.c_org), ("Контрагент", self.c_contr),
-            ("Договор", self.c_ctr), ("Склад", self.c_wh)
+            ("Договор", self.c_ctr), ("Склад", self.c_wh),
+            ("Вид продукции", self.status_combo)
         ]:
             form.addRow(lab, w)
         v.addLayout(form)
@@ -105,19 +106,21 @@ class OrdersPage(QWidget):
             else:
                 self.tbl.setItem(r, c, w)
 
-        def update_variants():
-            selected_art = art.currentText()
-            variant.clear()
-            filtered = [v["Description"] for v in self.variants if v["Description"].startswith(selected_art)]
-            variant.addItems(filtered or ["—"])
-
         def fill():
-            card = self.articles.get(art.currentText(), {})
+            selected_art = art.currentText().strip()
+            card = self.articles.get(selected_art, {})
             name.setText(card.get("name", ""))
             if card.get("size"):
                 size.setValue(float(card["size"]))
             wgt.setValue(round(card.get("w", 0) * qty.value(), 3))
-            update_variants()
+
+            # Получаем варианты динамически по артикулу
+            variant.clear()
+            if selected_art:
+                filtered = bridge.get_variants_by_article(selected_art)
+                variant.addItems(filtered or ["—"])
+            else:
+                variant.addItem("—")
 
         art.currentTextChanged.connect(fill)
         qty.valueChanged.connect(fill)
@@ -135,26 +138,39 @@ class OrdersPage(QWidget):
 
     def _post(self):
         fields = {
-            "Организация": bridge.get_ref("Организации", self.c_org.currentText()),
-            "Контрагент": bridge.get_ref("Контрагенты", self.c_contr.currentText()),
+            "Организация": self.c_org.currentText(),
+            "Контрагент": self.c_contr.currentText(),
+            "ДоговорКонтрагента": self.c_ctr.currentText(),
+            "Склад": self.c_wh.currentText(),
+            "Ответственный": "Администратор",
+            "Комментарий": f"Создан через GUI {datetime.now().strftime('%d.%m.%Y %H:%M')}",
             "Дата": pywintypes.Time(self.d_date.date().toPyDate()),
+            "ВидСтатусПродукции": self.status_combo.currentText()
         }
 
         items = []
         for row in range(self.tbl.rowCount()):
             art = self.tbl.cellWidget(row, 0).currentText()
+            card = self.articles.get(art, {})
+            variant = self.tbl.cellWidget(row, 2).currentText()
+            size = self.tbl.cellWidget(row, 3).value()
+            qty = self.tbl.cellWidget(row, 4).value()
+            wgt = self.tbl.cellWidget(row, 5).value()
+
             items.append({
-                "Номенклатура": bridge.get_ref("Номенклатура", art),
-                "ВариантИзготовления": self.tbl.cellWidget(row, 2).currentText(),
-                "Размер": self.tbl.cellWidget(row, 3).value(),
-                "Количество": self.tbl.cellWidget(row, 4).value(),
-                "Вес": self.tbl.cellWidget(row, 5).value(),
+                "Номенклатура": card.get("name", ""),
+                "АртикулГП": card.get("name", ""),
+                "ВариантИзготовления": variant,
+                "Размер": size,
+                "Количество": qty,
+                "Вес": wgt,
+                "ЕдиницаИзмерения": "шт"
             })
 
         number = bridge.create_order(fields, items)
         self.ed_num.setText(number)
         self._load_orders()
-        QMessageBox.information(self, "Готово", "Проведено!")
+        QMessageBox.information(self, "Готово", f"Проведено: заказ №{number}")
 
     def _post_close(self):
         self._post()
@@ -176,7 +192,7 @@ class OrdersPage(QWidget):
         dlg.setWindowTitle(f"Заказ №{o['num']} от {o['date']}")
         rows = o.get("rows", [])
         txt = "\n".join([
-            f"{r['article']} [{r['variant']}] {r['qty']}шт {r['w']}г"
+            f"{r['nomenclature']} [{r['variant']}] {r['qty']}шт {r['w']}г"
             for r in rows
         ]) or "(нет строк)"
         dlg.setText(txt)
