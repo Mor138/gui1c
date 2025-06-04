@@ -34,28 +34,28 @@ APP = "Jewelry MES (shell-only)"
 VER = "v0.3b"
 
 MENU_ITEMS = [
-    ("📄  Заказы",            "orders"),
-    ("🖨️  Воскование / 3D печать", "wax"),
-    ("🔥  Отливка",           "casting"),
-    ("📥  Приём литья",       "casting_in"),
-    ("📦  Комплектация",      "kit"),
-    ("🛠️  Монтировка",        "assembly"),
-    ("🪚  Шкурка",            "sanding"),
-    ("🔄  Галтовка",          "tumbling"),
-    ("💎  Закрепка",          "stone_set"),
-    ("📏  Палата",            "inspection"),
-    ("✨  Полировка",         "polish"),
-    ("⚡  Гальваника",        "plating"),
-    ("📑  Выпуск",            "release"),
-    ("📤  Отгрузка",          "shipment"),
-    ("📊  Статистика",        "stats"),
-    ("🏬  Склады",            "stock"),
-    ("🗺️  Маршруты",          "routes"),
-    ("🗓️  Планирование",      "planning"),
-    ("💰  Зарплата",          "payroll"),
-    ("🏷️  Маркировка",        "marking"),
-    ("🌐  ГИИС ДМДК",         "giis"),
-    ("📚  Справочники",       "catalogs")
+    ("📄  Заказы",            "orders"),       # → pages/orders_page.py     + logic/production_docs.py
+    ("🖨️  Воскование / 3D печать", "wax"),      # → pages/wax_page.py        + logic/production_docs.py
+    ("🔥  Отливка",           "casting"),      # → pages/casting_page.py    [в разработке]
+    ("📥  Приём литья",       "casting_in"),   # → pages/casting_in_page.py [в разработке]
+    ("📦  Комплектация",      "kit"),          # → pages/kit_page.py        [в разработке]
+    ("🛠️  Монтировка",        "assembly"),     # → pages/assembly_page.py   [в разработке]
+    ("🪚  Шкурка",            "sanding"),      # → pages/sanding_page.py    [в разработке]
+    ("🔄  Галтовка",          "tumbling"),     # → pages/tumbling_page.py   + logic/loss_calc.py
+    ("💎  Закрепка",          "stone_set"),    # → pages/stone_set_page.py  + logic/normalize_catalogs.py
+    ("📏  Палата",            "inspection"),   # → pages/inspection_page.py + logic/validation.py (возможн.)
+    ("✨  Полировка",         "polish"),       # → pages/polish_page.py     [в разработке]
+    ("⚡  Гальваника",        "plating"),      # → pages/plating_page.py    [в разработке]
+    ("📑  Выпуск",            "release"),      # → pages/release_page.py    + logic/production_docs.py
+    ("📤  Отгрузка",          "shipment"),     # → pages/shipment_page.py   [в разработке]
+    ("📊  Статистика",        "stats"),        # → pages/stats_page.py      + widgets/charts.py + logic/loss_calc.py
+    ("🏬  Склады",            "stock"),        # → pages/stock_page.py      + core/com_bridge.py
+    ("🗺️  Маршруты",          "routes"),       # → pages/routes_page.py     [в разработке]
+    ("🗓️  Планирование",      "planning"),     # → pages/planning_page.py   [в разработке]
+    ("💰  Зарплата",          "payroll"),      # → pages/payroll_page.py    [в разработке]
+    ("🏷️  Маркировка",        "marking"),      # → pages/marking_page.py    [в разработке]
+    ("🌐  ГИИС ДМДК",         "giis"),         # → pages/giis_page.py       [в разработке]
+    ("📚  Справочники",       "catalogs")      # → pages/catalogs_page.py   + logic/normalize_catalogs.py + core/catalogs.py
 ]
 
 HEADER_H       = 38
