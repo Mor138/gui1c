@@ -6,16 +6,6 @@ from win32com.client import VARIANT
 from pythoncom import VT_BOOL
 
 # ---------------------------
-# Маппинг значений перечисления
-# ---------------------------
-PRODUCTION_STATUS_MAP = {
-    "СобствМеталлСобствКамни": "Собств металл, собств камни",
-    "СобствМеталлДавКамни":    "Собств металл, дав камни",
-    "ДавМеталлСобствКамни":    "Дав металл, собств камни",
-    "ДавМеталлДавКамни":       "Дав металл, дав камни",
-}
-
-# ---------------------------
 # Безопасное преобразование
 # ---------------------------
 def safe_str(val: Any) -> str:
@@ -24,9 +14,9 @@ def safe_str(val: Any) -> str:
             return ""
         if hasattr(val, "GetPresentation"):
             try:
-                return str(val.GetPresentation())
-            except TypeError:
-                return str(val.GetPresentation)
+                return str(val.GetPresentation())  # ← скобки были обязательны!
+            except Exception:
+                pass
         for attr in ("Presentation", "Description", "Name", "Имя"):
             if hasattr(val, attr):
                 return str(getattr(val, attr))
@@ -36,7 +26,6 @@ def safe_str(val: Any) -> str:
 
 def log(msg: str) -> None:
     print("[LOG]", msg)
-
 
 class COM1CBridge:
     def __init__(self, base_path, usr="Администратор", pwd=""):
@@ -166,14 +155,6 @@ class COM1CBridge:
             }
         return result
 
-    def get_production_status_variants(self) -> list[str]:
-        return [
-            "Собств металл, собств камни",
-            "Собств металл, дав камни",
-            "Дав металл, собств камни",
-            "Дав металл, дав камни"
-        ]
-
     def get_size_ref(self, size_value):
         catalog = getattr(self.catalogs, "Размеры", None)
         if catalog is None:
@@ -204,25 +185,6 @@ class COM1CBridge:
         return [name for name in self._all_variants if name.startswith(prefix)]
 
     def get_catalog_object_by_description(self, catalog_name, description):
-        if catalog_name == "ВидыСтатусыПродукции":
-            predefined = {
-                "Собств металл, собств камни": "СобствМеталлСобствКамни",
-                "Собств металл, дав камни":    "СобствМеталлДавКамни",
-                "Дав металл, собств камни":    "ДавМеталлСобствКамни",
-                "Дав металл, дав камни":       "ДавМеталлДавКамни"
-            }
-            internal = predefined.get(description.strip())
-            if internal:
-                enum = getattr(self.enums, "ВидыСтатусыПродукции", None)
-                if enum:
-                    try:
-                        val = getattr(enum, internal)
-                        log(f"[{catalog_name}] Найден (Enum): {description} → {internal}")
-                        return val
-                    except Exception as e:
-                        log(f"[Enum Error] {catalog_name}.{internal}: {e}")
-            log(f"[{catalog_name}] Не найден по описанию: {description}")
-            return None
 
         catalog = getattr(self.catalogs, catalog_name, None)
         if not catalog:
@@ -263,6 +225,25 @@ class COM1CBridge:
             return f"{prefix}-{next_num:06d}"
         except:
             return "00ЮП-000001"
+            
+    def to_string(self, value):
+        """Возвращает строковое представление значения через 1С Application"""
+        try:
+            return str(self.connection.String(value))
+        except Exception as e:
+            log(f"[to_string] Ошибка получения строки: {e}")
+            return "[??]"  
+
+    def get_production_status_variants(self) -> list[str]:
+        try:
+            enum_type = getattr(self.connection.Enumerations, "ВидыСтатусыПродукции", None)
+            if not enum_type:
+                log("[Enum Error] ВидыСтатусыПродукции не найдено в Enumerations")
+                return []
+            return [str(item.GetPresentation()) for item in enum_type.GetValues()]
+        except Exception as e:
+            log(f"[Enum Error] {e}")
+            return []            
 
     def create_order(self, fields, items):
         doc = self.documents.ЗаказВПроизводство.CreateDocument()
@@ -273,7 +254,7 @@ class COM1CBridge:
             "Ответственный": "Пользователи",
             "Склад": "Склады",
             "ВидСтатусПродукции": "ВидыСтатусыПродукции"
-        }
+        }    
 
         log("Создание заказа. Поля:")
         for k, v in fields.items():
@@ -320,18 +301,38 @@ class COM1CBridge:
 
         try:
             log("Проводим документ...")
+            # Устанавливаем текстовое представление статуса вручную
+            status_enum = getattr(doc, "ВидСтатусПродукции", None)
+            if status_enum and hasattr(status_enum, "Наименование"):
+                doc.ВидСтатусПродукцииИмя = str(status_enum.Наименование)
+            else:
+                doc.ВидСтатусПродукцииИмя = ""
             doc.Write()
             log(f"✅ Документ проведён. Номер: {doc.Number}")
             return str(doc.Number)
         except Exception as e:
             log(f"❌ Ошибка при записи документа: {e}")
             return f"Ошибка: {e}"
+            
+    def list_enum_variants(self, enum_name: str) -> list[str]:
+        enum = getattr(self.enums, enum_name, None)
+        if not enum:
+            log(f"[Enum Error] Перечисление '{enum_name}' не найдено")
+            return []
+        values = []
+        try:
+            for val in enum.Values:
+                values.append(str(val.GetPresentation()))
+        except Exception as e:
+            log(f"[Enum Error] {e}")
+        return values    
 
     def list_orders(self, limit=1000) -> List[Dict[str, Any]]:
         result = []
         doc = getattr(self.documents, "ЗаказВПроизводство", None)
         if doc is None:
             return result
+
         selection = doc.Select()
         while selection.Next() and len(result) < limit:
             obj = selection.GetObject()
@@ -340,24 +341,13 @@ class COM1CBridge:
                 rows.append({
                     "nomenclature": safe_str(getattr(line, "Номенклатура", "")),
                     "variant": safe_str(getattr(line, "ВариантИзготовления", "")),
-                    "status": safe_str(getattr(line, "ВидСтатусПродукции", "")),
+                    "status": safe_str(getattr(line, "ВидСтатусПродукции", "")),  # не обязательно
                     "size": getattr(line, "Размер", 0),
                     "qty": getattr(line, "Количество", 0),
                     "w": getattr(line, "Вес", 0),
                 })
 
-            # 💡 Попытка извлечь .name из перечисления и перевести через маппинг
-            status_obj = getattr(obj, "ВидСтатусПродукции", None)
-            status_code = ""
-
-            try:
-                if status_obj is not None and hasattr(status_obj, "Metadata"):
-                    meta = status_obj.Metadata()
-                    status_code = getattr(meta, "Name", "")
-            except Exception:
-                status_code = ""
-
-            prod_status = PRODUCTION_STATUS_MAP.get(status_code, safe_str(status_obj))
+            prod_status = self.to_string(getattr(obj, "ВидСтатусПродукции", None))
 
             result.append({
                 "num": str(obj.Number),
@@ -373,6 +363,7 @@ class COM1CBridge:
                 "posted": getattr(obj, "Проведен", False),
                 "rows": rows
             })
+
         return result
 
     def list_catalog_items(self, catalog_name, limit=1000):
