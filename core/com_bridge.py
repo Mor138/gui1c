@@ -6,6 +6,16 @@ from win32com.client import VARIANT
 from pythoncom import VT_BOOL
 
 # ---------------------------
+# Маппинг описаний в системные имена перечисления
+# ---------------------------
+PRODUCTION_STATUS_MAP = {
+    "Собств металл, собств камни": "СобствМеталлСобствКамни",
+    "Собств металл, дав камни":    "СобствМеталлДавКамни",
+    "Дав металл, собств камни":    "ДавМеталлСобствКамни",
+    "Дав металл, дав камни":       "ДавМеталлДавКамни",
+}
+
+# ---------------------------
 # Безопасное преобразование
 # ---------------------------
 def safe_str(val: Any) -> str:
@@ -28,6 +38,13 @@ def log(msg: str) -> None:
     print("[LOG]", msg)
 
 class COM1CBridge:
+    PRODUCTION_STATUSES = [
+        "СобствМеталлСобствКамни",
+        "СобствМеталлДавКамни",
+        "ДавМеталлСобствКамни",
+        "ДавМеталлДавКамни"
+    ]
+    
     def __init__(self, base_path, usr="Администратор", pwd=""):
         self.connector = win32com.client.Dispatch("V83.COMConnector")
         self.connection = self.connector.Connect(
@@ -184,20 +201,6 @@ class COM1CBridge:
         prefix = article_prefix.strip() + "-"
         return [name for name in self._all_variants if name.startswith(prefix)]
 
-    def get_catalog_object_by_description(self, catalog_name, description):
-
-        catalog = getattr(self.catalogs, catalog_name, None)
-        if not catalog:
-            log(f"Каталог '{catalog_name}' не найден")
-            return None
-        selection = catalog.Select()
-        while selection.Next():
-            obj = selection.GetObject()
-            if str(obj.Description).strip() == str(description).strip():
-                log(f"[{catalog_name}] Найден: {description}")
-                return obj
-        log(f"[{catalog_name}] Не найден: {description}")
-        return None
 
     def get_ref(self, catalog_name, description):
         obj = self.get_catalog_object_by_description(catalog_name, description)
@@ -232,18 +235,46 @@ class COM1CBridge:
             return str(self.connection.String(value))
         except Exception as e:
             log(f"[to_string] Ошибка получения строки: {e}")
-            return "[??]"  
+            return "[??]"     
+            
+    def get_catalog_object_by_description(self, catalog_name, description):
+        if catalog_name == "ВидыСтатусыПродукции":
+            predefined = {
+                "Собств металл, собств камни": "СобствМеталлСобствКамни",
+                "Собств металл, дав камни":    "СобствМеталлДавКамни",
+                "Дав металл, собств камни":    "ДавМеталлСобствКамни",
+                "Дав металл, дав камни":       "ДавМеталлДавКамни"
+            }
+            internal = predefined.get(description.strip())
+            if internal:
+                enum = getattr(self.enums, "ВидыСтатусыПродукции", None)
+                if enum:
+                    try:
+                        val = getattr(enum, internal)
+                        log(f"[{catalog_name}] Найден (Enum): {description} → {internal}")
+                        return val
+                    except Exception as e:
+                        log(f"[Enum Error] {catalog_name}.{internal}: {e}")
+            log(f"[{catalog_name}] Не найден по описанию: {description}")
+            return None
+
+        catalog = getattr(self.catalogs, catalog_name, None)
+        if not catalog:
+            log(f"Каталог '{catalog_name}' не найден")
+            return None
+        selection = catalog.Select()
+        while selection.Next():
+            obj = selection.GetObject()
+            if str(obj.Description).strip() == str(description).strip():
+                log(f"[{catalog_name}] Найден: {description}")
+                return obj
+        log(f"[{catalog_name}] Не найден: {description}")
+        return None        
+            
 
     def get_production_status_variants(self) -> list[str]:
-        try:
-            enum_type = getattr(self.connection.Enumerations, "ВидыСтатусыПродукции", None)
-            if not enum_type:
-                log("[Enum Error] ВидыСтатусыПродукции не найдено в Enumerations")
-                return []
-            return [str(item.GetPresentation()) for item in enum_type.GetValues()]
-        except Exception as e:
-            log(f"[Enum Error] {e}")
-            return []            
+        return list(PRODUCTION_STATUS_MAP.keys())   
+   
 
     def create_order(self, fields, items):
         doc = self.documents.ЗаказВПроизводство.CreateDocument()
@@ -254,7 +285,18 @@ class COM1CBridge:
             "Ответственный": "Пользователи",
             "Склад": "Склады",
             "ВидСтатусПродукции": "ВидыСтатусыПродукции"
-        }    
+        }
+
+        # Справочники
+        catalog_fields_map = {
+            "Организация": "Организации",
+            "Контрагент": "Контрагенты",
+            "ДоговорКонтрагента": "ДоговорыКонтрагентов",
+            "Ответственный": "Пользователи",
+            "Склад": "Склады",
+        }
+
+        # ← ВАЖНО: внутри метода, чтобы можно было использовать self
 
         log("Создание заказа. Поля:")
         for k, v in fields.items():
@@ -263,6 +305,22 @@ class COM1CBridge:
                 if k == "Склад":
                     log("    ⚠ Поле 'Склад' не устанавливается вручную. Пропускаем.")
                     continue
+
+                if k == "ВидСтатусПродукции":
+                    # Если передано внутреннее имя — преобразуем в описание
+                    reverse_map = {v: k for k, v in PRODUCTION_STATUS_MAP.items()}
+                    if v in reverse_map:
+                        v = reverse_map[v]
+                    
+                    ref = self.get_ref("ВидыСтатусыПродукции", v)
+                    log(f"[ref] {k}: {v} => {ref}")
+                    if ref:
+                        setattr(doc, k, ref)
+                        log(f"    Установлено: {k} (Ref: {ref})")
+                    else:
+                        log(f"    ❌ {k} '{v}' не найден.")
+                    continue
+
                 if k in catalog_fields_map:
                     ref = self.get_ref(catalog_fields_map[k], v)
                     log(f"[ref] {k}: {v} => {ref}")
@@ -272,6 +330,7 @@ class COM1CBridge:
                     else:
                         log(f"    ❌ {k} '{v}' не найден.")
                     continue
+
                 setattr(doc, k, v)
             except Exception as e:
                 log(f"    ❌ Ошибка установки поля {k}: {e}")
@@ -298,37 +357,18 @@ class COM1CBridge:
                 new_row.Вес = float(row.get("Вес", 0))
                 log(f"    -> Примечание: {row.get('Примечание')}")
                 new_row.Примечание = row.get("Примечание", "")
-                
+
             except Exception as e:
                 log(f"    ❌ Ошибка в строке заказа: {e}")
 
         try:
             log("Проводим документ...")
-            # Устанавливаем текстовое представление статуса вручную
-            status_enum = getattr(doc, "ВидСтатусПродукции", None)
-            if status_enum and hasattr(status_enum, "Наименование"):
-                doc.ВидСтатусПродукцииИмя = str(status_enum.Наименование)
-            else:
-                doc.ВидСтатусПродукцииИмя = ""
             doc.Write()
             log(f"✅ Документ проведён. Номер: {doc.Number}")
             return str(doc.Number)
         except Exception as e:
             log(f"❌ Ошибка при записи документа: {e}")
-            return f"Ошибка: {e}"
-            
-    def list_enum_variants(self, enum_name: str) -> list[str]:
-        enum = getattr(self.enums, enum_name, None)
-        if not enum:
-            log(f"[Enum Error] Перечисление '{enum_name}' не найдено")
-            return []
-        values = []
-        try:
-            for val in enum.Values:
-                values.append(str(val.GetPresentation()))
-        except Exception as e:
-            log(f"[Enum Error] {e}")
-        return values    
+            return f"Ошибка: {e}" 
 
     def list_orders(self, limit=1000) -> List[Dict[str, Any]]:
         result = []
