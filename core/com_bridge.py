@@ -296,6 +296,9 @@ class COM1CBridge:
 
                 new_row.Количество = int(row.get("Количество", 1))
                 new_row.Вес = float(row.get("Вес", 0))
+                log(f"    -> Примечание: {row.get('Примечание')}")
+                new_row.Примечание = row.get("Примечание", "")
+                
             except Exception as e:
                 log(f"    ❌ Ошибка в строке заказа: {e}")
 
@@ -341,10 +344,11 @@ class COM1CBridge:
                 rows.append({
                     "nomenclature": safe_str(getattr(line, "Номенклатура", "")),
                     "variant": safe_str(getattr(line, "ВариантИзготовления", "")),
-                    "status": safe_str(getattr(line, "ВидСтатусПродукции", "")),  # не обязательно
+                    "status": safe_str(getattr(line, "ВидСтатусПродукции", "")),  # опционально
                     "size": getattr(line, "Размер", 0),
                     "qty": getattr(line, "Количество", 0),
                     "w": getattr(line, "Вес", 0),
+                    "note": safe_str(getattr(line, "Примечание", ""))  # ← вот это
                 })
 
             prod_status = self.to_string(getattr(obj, "ВидСтатусПродукции", None))
