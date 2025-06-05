@@ -3,7 +3,8 @@ from datetime import datetime
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QVBoxLayout, QFormLayout, QComboBox, QDateEdit,
     QSpinBox, QDoubleSpinBox, QTableWidget, QTableWidgetItem, QPushButton,
-    QMessageBox, QHeaderView, QTabWidget, QHBoxLayout, QAbstractItemView
+    QMessageBox, QHeaderView, QTabWidget, QHBoxLayout, QAbstractItemView,
+    QLineEdit  # ← вот это добавьте
 )
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt
@@ -12,7 +13,7 @@ from core.com_bridge import COM1CBridge
 bridge = COM1CBridge("C:\\Users\\Mor\\Desktop\\1C\\proiz")
 
 class OrdersPage(QWidget):
-    COLS = ["Артикул", "Наим.", "Вариант", "Размер", "Кол-во", "Вес, г"]
+    COLS = ["Артикул", "Наим.", "Вариант", "Размер", "Кол-во", "Вес, г", "Примечание"]
 
     def __init__(self):
         super().__init__()
@@ -21,7 +22,7 @@ class OrdersPage(QWidget):
         self.counterparties = bridge.list_catalog_items("Контрагенты")
         self.contracts = bridge.list_catalog_items("ДоговорыКонтрагентов")
         self.warehouses = bridge.list_catalog_items("Склады")
-        self.production_statuses = bridge.get_production_status_variants()
+        self.production_statuses = []
         self._ui()
         self._load_orders()
 
@@ -66,6 +67,7 @@ class OrdersPage(QWidget):
             ("+ строка", self._add_row),
             ("− строка", self._remove_row),
             ("Новый заказ", self._new_order),
+            ("📋 Копировать строку", self._copy_row),
             ("💾 Записать", self._post_close)
         ]:
             btn = QPushButton(label); btn.clicked.connect(func); btns.addWidget(btn)
@@ -98,19 +100,26 @@ class OrdersPage(QWidget):
         layout.addWidget(self.tbl_orders)
         self.tabs.addTab(tab_orders, "Заказы")
 
-    def _add_row(self):
+    def _add_row(self, copy_from: int = None):
         r = self.tbl.rowCount()
         self.tbl.insertRow(r)
 
         art = QComboBox(); art.setEditable(True); art.addItems(self.articles.keys())
         name = QTableWidgetItem("")
         variant = QComboBox()
-        size = QDoubleSpinBox(); size.setDecimals(1); size.setRange(0.5, 50.0)
+        size = QDoubleSpinBox()
+        size.setDecimals(1)
+        size.setRange(0.5, 50.0)
+        size.setSingleStep(0.5)     # шаг изменения
+        size.setValue(16.0)
         qty = QSpinBox(); qty.setRange(1, 999); qty.setValue(1)
         wgt = QDoubleSpinBox(); wgt.setDecimals(3); wgt.setMaximum(9999)
+        comment = QLineEdit()
+        self.tbl.setCellWidget(r, 6, comment)
 
-        for c, w in enumerate([art, name, variant, size, qty, wgt]):
-            if isinstance(w, (QComboBox, QSpinBox, QDoubleSpinBox)):
+        widgets = [art, name, variant, size, qty, wgt, comment]
+        for c, w in enumerate(widgets):
+            if isinstance(w, (QComboBox, QSpinBox, QDoubleSpinBox, QLineEdit)):
                 self.tbl.setCellWidget(r, c, w)
             else:
                 self.tbl.setItem(r, c, w)
@@ -126,7 +135,24 @@ class OrdersPage(QWidget):
 
         art.currentTextChanged.connect(fill)
         qty.valueChanged.connect(fill)
-        fill()
+
+        if copy_from is not None:
+            for i, (src, dst) in enumerate(zip(range(self.tbl.columnCount()), widgets)):
+                if isinstance(dst, QComboBox):
+                    current = self.tbl.cellWidget(copy_from, i).currentText()
+                    dst.setCurrentText(current)
+                elif isinstance(dst, QDoubleSpinBox) or isinstance(dst, QSpinBox):
+                    dst.setValue(self.tbl.cellWidget(copy_from, i).value())
+                elif isinstance(dst, QTableWidgetItem):
+                    dst.setText(self.tbl.item(copy_from, i).text())
+        else:
+            fill()
+
+
+    def _copy_last_row(self):
+        r = self.tbl.rowCount()
+        if r > 0:
+            self._add_row(copy_from=r - 1)
 
     def _remove_row(self):
         r = self.tbl.rowCount()
@@ -150,7 +176,8 @@ class OrdersPage(QWidget):
             "Дата": pywintypes.Time(self.d_date.date().toPyDate()),
             "ВидСтатусПродукции": self.status_combo.currentText()
         }
-        items = []
+
+        items = []  # ← вот это и нужно было добавить
         for row in range(self.tbl.rowCount()):
             art = self.tbl.cellWidget(row, 0).currentText()
             card = self.articles.get(art, {})
@@ -161,8 +188,10 @@ class OrdersPage(QWidget):
                 "Размер": self.tbl.cellWidget(row, 3).value(),
                 "Количество": self.tbl.cellWidget(row, 4).value(),
                 "Вес": self.tbl.cellWidget(row, 5).value(),
+                "Примечание": self.tbl.cellWidget(row, 6).text() if self.tbl.cellWidget(row, 6) else "",
                 "ЕдиницаИзмерения": "шт"
             })
+
         number = bridge.create_order(fields, items)
         self.ed_num.setText(number)
         self._load_orders()
@@ -216,3 +245,10 @@ class OrdersPage(QWidget):
         o = self._orders[row]
         text = "\n".join([f"{r['nomenclature']} ({r['qty']}шт, {r['w']}г)" for r in o.get("rows", [])]) or "(нет строк)"
         QMessageBox.information(self, f"Заказ №{o['num']}", f"{o['contragent']}\n\n{text}")
+        
+    def _copy_row(self):
+        row = self.tbl.currentRow()
+        if row < 0:
+            QMessageBox.warning(self, "Нет строки", "Выберите строку для копирования.")
+            return
+        self._add_row(copy_from=row)
