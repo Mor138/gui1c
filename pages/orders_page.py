@@ -22,7 +22,7 @@ class OrdersPage(QWidget):
         self.counterparties = bridge.list_catalog_items("Контрагенты")
         self.contracts = bridge.list_catalog_items("ДоговорыКонтрагентов")
         self.warehouses = bridge.list_catalog_items("Склады")
-        self.production_statuses = []
+        self.production_statuses = bridge.PRODUCTION_STATUSES
         self._ui()
         self._load_orders()
 
@@ -174,7 +174,7 @@ class OrdersPage(QWidget):
             "Ответственный": "Администратор",
             "Комментарий": f"Создан через GUI {datetime.now():%d.%m.%Y %H:%M}",
             "Дата": pywintypes.Time(self.d_date.date().toPyDate()),
-            "ВидСтатусПродукции": self.status_combo.currentText()
+            "ВидСтатусПродукции": str(self.status_combo.currentText()).strip()
         }
 
         items = []  # ← вот это и нужно было добавить
