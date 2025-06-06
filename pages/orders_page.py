@@ -27,8 +27,51 @@ class OrdersPage(QWidget):
         self.production_statuses = bridge.PRODUCTION_STATUSES
         self._ui()
         self._load_orders()
+        self._edit_mode = False
+        self._current_number = ""
+        
+    def _update_order(self):
+        if not self._edit_mode or not self._current_number:
+            QMessageBox.warning(self, "Ошибка", "Нет редактируемого заказа.")
+            return
+
+        fields = {
+            "Организация": self.c_org.currentText(),
+            "Контрагент": self.c_contr.currentText(),
+            "ДоговорКонтрагента": self.c_ctr.currentText(),
+            "Склад": self.c_wh.currentText(),
+            "Ответственный": "Администратор",
+            "Комментарий": self.comment_input.text().strip(),
+            "Дата": pywintypes.Time(self.d_date.date().toPyDate()),
+            "ВидСтатусПродукции": str(self.status_combo.currentText()).strip()
+        }
+
+        items = []
+        for row in range(self.tbl.rowCount()):
+            art = self.tbl.cellWidget(row, 0).currentText()
+            card = self.articles.get(art, {})
+            items.append({
+                "Номенклатура": card.get("name", ""),
+                "АртикулГП": card.get("name", ""),
+                "ВариантИзготовления": self.tbl.cellWidget(row, 2).currentText(),
+                "Размер": self.tbl.cellWidget(row, 3).value(),
+                "Количество": self.tbl.cellWidget(row, 4).value(),
+                "Вес": self.tbl.cellWidget(row, 5).value(),
+                "Примечание": self.tbl.cellWidget(row, 6).text() if self.tbl.cellWidget(row, 6) else "",
+                "ЕдиницаИзмерения": "шт"
+            })
+
+        success = bridge.update_order(self._current_number, fields, items)
+        if success:
+            QMessageBox.information(self, "Готово", f"Заказ №{self._current_number} обновлён.")
+            self._load_orders()
+            self.tabs.setCurrentIndex(1)
+        else:
+            QMessageBox.critical(self, "Ошибка", f"Не удалось обновить заказ №{self._current_number}")    
 
     def _ui(self):
+        from PyQt5.QtWidgets import QShortcut
+        from PyQt5.QtGui import QKeySequence
         outer = QVBoxLayout(self)
         self.tabs = QTabWidget()
         outer.addWidget(self.tabs)
@@ -40,6 +83,8 @@ class OrdersPage(QWidget):
         v.addWidget(hdr)
 
         form = QFormLayout()
+        self.comment_input = QLineEdit()
+        form.addRow("Комментарий к заказу:", self.comment_input)
         self.ed_num = QLabel(bridge.get_next_order_number())
         self.d_date = QDateEdit(datetime.now()); self.d_date.setCalendarPopup(True)
         self.c_org = QComboBox(); self.c_org.addItems([x["Description"] for x in self.organizations])
@@ -59,13 +104,19 @@ class OrdersPage(QWidget):
 
         self.tbl = QTableWidget(0, len(self.COLS))
         self.tbl.setHorizontalHeaderLabels(self.COLS)
+        QShortcut(QKeySequence("F9"), self).activated.connect(self._copy_row)
         self.tbl.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.tbl.verticalHeader().setVisible(False)
         v.addWidget(self.tbl)
         self._add_row()
 
         btns = QHBoxLayout()
+        self.btn_update = QPushButton("🔁 Обновить заказ")
+        self.btn_update.clicked.connect(self._update_order)
+        self.btn_update.setVisible(False)
+        btns.addWidget(self.btn_update)
         for label, func in [
+            ("🖨 Печать", self._print_selected_order),
             ("+ строка", self._add_row),
             ("− строка", self._remove_row),
             ("Новый заказ", self._new_order),
@@ -101,6 +152,16 @@ class OrdersPage(QWidget):
         layout.addLayout(buttons)
         layout.addWidget(self.tbl_orders)
         self.tabs.addTab(tab_orders, "Заказы")
+        
+    def _print_selected_order(self):
+        selected = self.tbl_orders.currentRow()
+        if selected < 0:
+            QMessageBox.warning(self, "Ошибка", "Выберите заказ для печати")
+            return
+        number = self.tbl_orders.item(selected, 1).text().strip().replace("⚪", "")
+        success = bridge.print_order_preview_pdf(number)
+        if not success:
+            QMessageBox.critical(self, "Ошибка", f"Не удалось сформировать предпросмотр для заказа №{number}")   
 
     def _add_row(self, copy_from: int = None):
         r = self.tbl.rowCount()
@@ -130,10 +191,18 @@ class OrdersPage(QWidget):
             selected = art.currentText().strip()
             card = self.articles.get(selected, {})
             name.setText(card.get("name", ""))
-            if card.get("size"): size.setValue(float(card["size"]))
+            if card.get("size"):
+                size.setValue(float(card["size"]))
             wgt.setValue(round(card.get("w", 0) * qty.value(), 3))
+
+            # 🟡 добавляем недостающую строку
+            article = art.currentText()
+            prev = variant.currentText()
             variant.clear()
-            variant.addItems(bridge.get_variants_by_article(selected) or ["—"])
+            variants = bridge.get_variants_by_article(article)
+            variant.addItems(variants)
+            if prev in variants:
+                variant.setCurrentText(prev)
 
         art.currentTextChanged.connect(fill)
         qty.valueChanged.connect(fill)
@@ -166,6 +235,9 @@ class OrdersPage(QWidget):
         self.tbl.setRowCount(0)
         self._add_row()
         self.tabs.setCurrentIndex(0)
+        self._edit_mode = False
+        self._current_number = ""
+        self.btn_update.setVisible(False)  # ← скрыть кнопку "Обновить"
 
     def _post(self):
         fields = {
@@ -174,7 +246,7 @@ class OrdersPage(QWidget):
             "ДоговорКонтрагента": self.c_ctr.currentText(),
             "Склад": self.c_wh.currentText(),
             "Ответственный": "Администратор",
-            "Комментарий": f"Создан через GUI {datetime.now():%d.%m.%Y %H:%M}",
+            "Комментарий": self.comment_input.text().strip(),
             "Дата": pywintypes.Time(self.d_date.date().toPyDate()),
             "ВидСтатусПродукции": str(self.status_combo.currentText()).strip()
         }
@@ -245,6 +317,8 @@ class OrdersPage(QWidget):
 
     def _show_order(self, row, col):
         o = self._orders[row]
+        
+        self.comment_input.setText(o.get("comment", ""))
 
         # Переключаемся на вкладку редактирования
         self.tabs.setCurrentIndex(0)
@@ -296,6 +370,9 @@ class OrdersPage(QWidget):
             self.tbl.cellWidget(row_index, 4).setValue(int(r.get("qty", 1)))
             self.tbl.cellWidget(row_index, 5).setValue(float(r.get("w", 0)))
             self.tbl.cellWidget(row_index, 6).setText(r.get("note", ""))
+            self._edit_mode = True
+            self._current_number = o["num"]
+            self.btn_update.setVisible(True)  # ← покажем кнопку "Обновить"
         
     def _copy_row(self):
         row = self.tbl.currentRow()
