@@ -1,6 +1,8 @@
 # com_bridge.py • взаимодействие с 1С через COM
 import win32com.client
 import pywintypes
+import os
+import tempfile
 from typing import Any, Dict, List
 from win32com.client import VARIANT
 from pythoncom import VT_BOOL
@@ -36,6 +38,8 @@ def safe_str(val: Any) -> str:
 
 def log(msg: str) -> None:
     print("[LOG]", msg)
+    
+   
 
 class COM1CBridge:
     PRODUCTION_STATUSES = [
@@ -53,6 +57,28 @@ class COM1CBridge:
         self.catalogs = self.connection.Catalogs
         self.documents = self.connection.Documents
         self.enums = self.connection.Enums
+        
+    def print_order_preview_pdf(self, number: str) -> bool:
+        obj = self._find_document_by_number("ЗаказВПроизводство", number)
+        if not obj:
+            log(f"[Печать] Заказ №{number} не найден")
+            return False
+        try:
+            form = obj.GetForm("ФормаДокумента")
+            temp_dir = tempfile.gettempdir()
+            pdf_path = os.path.join(temp_dir, f"Заказ_{number}.pdf")
+            form.PrintFormToFile("Заказ в производство с фото", pdf_path)
+
+            if os.path.exists(pdf_path):
+                log(f"📄 PDF сформирован: {pdf_path}")
+                os.startfile(pdf_path)  # Открытие в системе по умолчанию
+                return True
+            else:
+                log(f"❌ Не удалось сохранить PDF")
+                return False
+        except Exception as e:
+            log(f"❌ Ошибка при формировании PDF: {e}")
+            return False     
 
     def _find_document_by_number(self, doc_name: str, number: str):
         doc = getattr(self.documents, doc_name, None)
@@ -273,7 +299,73 @@ class COM1CBridge:
             
 
     def get_production_status_variants(self) -> list[str]:
-        return list(PRODUCTION_STATUS_MAP.keys())   
+        return list(PRODUCTION_STATUS_MAP.keys()) 
+        
+    def print_order_with_photo(self, number: str):
+        obj = self._find_document_by_number("ЗаказВПроизводство", number)
+        if not obj:
+            log(f"[Печать] Заказ №{number} не найден")
+            return False
+        try:
+            form = obj.GetForm("ФормаДокумента")
+            form.Open()  # Можно убрать, если не нужен показ формы
+            form.PrintForm("Заказ в производство с фото")
+            log(f"🖨 Печать формы 'Заказ в производство с фото' запущена")
+            return True
+        except Exception as e:
+            log(f"❌ Ошибка печати: {e}")
+            return False    
+
+    def update_order(self, number: str, fields: dict, items: list) -> bool:
+        obj = self._find_document_by_number("ЗаказВПроизводство", number)
+        if not obj:
+            log(f"[Обновление] Заказ №{number} не найден")
+            return False
+
+        # Установка полей
+        for k, v in fields.items():
+            try:
+                if k == "ВидСтатусПродукции":
+                    ref = self.get_ref("ВидыСтатусыПродукции", v)
+                    if ref:
+                        setattr(obj, k, ref)
+                    continue
+                if k in ["Организация", "Контрагент", "ДоговорКонтрагента", "Ответственный", "Склад"]:
+                    ref = self.get_ref(k + "ы" if not k.endswith("т") else k + "а", v)
+                    if ref:
+                        setattr(obj, k, ref)
+                    continue
+                setattr(obj, k, v)
+            except Exception as e:
+                log(f"[Обновление] Ошибка установки поля {k}: {e}")
+
+        # Очищаем старые строки
+        while len(obj.Товары) > 0:
+            obj.Товары.Delete(0)
+
+        # Добавляем новые строки
+        for row in items:
+            try:
+                new_row = obj.Товары.Add()
+                new_row.Номенклатура = self.get_ref("Номенклатура", row.get("Номенклатура"))
+                variant = row.get("ВариантИзготовления")
+                if variant and variant != "—":
+                    new_row.ВариантИзготовления = self.get_ref("ВариантыИзготовленияНоменклатуры", variant)
+                size_val = row.get("Размер", 0)
+                new_row.Размер = self.get_size_ref(size_val)
+                new_row.Количество = int(row.get("Количество", 1))
+                new_row.Вес = float(row.get("Вес", 0))
+                new_row.Примечание = row.get("Примечание", "")
+            except Exception as e:
+                log(f"[Обновление] Ошибка в строке заказа: {e}")
+
+        try:
+            obj.Write()
+            log(f"✔ Обновлён заказ №{number}")
+            return True
+        except Exception as e:
+            log(f"[Обновление] Ошибка при записи: {e}")
+            return False        
    
 
     def create_order(self, fields, items):
