@@ -1,4 +1,6 @@
 import pywintypes
+from PyQt5.QtCore import QDate, QTimer
+from core.com_bridge import safe_str, PRODUCTION_STATUS_MAP
 from datetime import datetime
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QVBoxLayout, QFormLayout, QComboBox, QDateEdit,
@@ -7,7 +9,7 @@ from PyQt5.QtWidgets import (
     QLineEdit  # ← вот это добавьте
 )
 from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QDate
 from core.com_bridge import COM1CBridge
 
 bridge = COM1CBridge("C:\\Users\\Mor\\Desktop\\1C\\proiz")
@@ -243,8 +245,57 @@ class OrdersPage(QWidget):
 
     def _show_order(self, row, col):
         o = self._orders[row]
-        text = "\n".join([f"{r['nomenclature']} ({r['qty']}шт, {r['w']}г)" for r in o.get("rows", [])]) or "(нет строк)"
-        QMessageBox.information(self, f"Заказ №{o['num']}", f"{o['contragent']}\n\n{text}")
+
+        # Переключаемся на вкладку редактирования
+        self.tabs.setCurrentIndex(0)
+
+        # Устанавливаем номер и дату
+        self.ed_num.setText(o["num"])
+        date = QDate.fromString(o["date"].split()[0], "yyyy-MM-dd")
+        self.d_date.setDate(date)
+
+        # Устанавливаем поля верхней формы
+        self.c_org.setCurrentText(o["org"])
+        self.c_contr.setCurrentText(o["contragent"])
+        self.c_ctr.setCurrentText(o["contract"])
+
+        # Вид продукции (преобразование из внутреннего в отображаемое имя)
+        for internal in self.production_statuses:
+            label = {v: k for k, v in PRODUCTION_STATUS_MAP.items()}.get(internal, internal)
+            if label == o["prod_status"]:
+                self.status_combo.setCurrentText(internal)
+                break
+
+        # Табличная часть
+        self.tbl.setRowCount(0)
+        for r in o.get("rows", []):
+            self._add_row()
+            row_index = self.tbl.rowCount() - 1
+
+            # Найти артикул по наименованию
+            name = r["nomenclature"]
+            article = next((art for art, card in self.articles.items() if card["name"] == name), None)
+            if article:
+                self.tbl.cellWidget(row_index, 0).setCurrentText(article)
+
+                # Установить вариант изготовления чуть позже, когда заполнится список
+                def set_variant(row=row_index, val=r.get("variant", "—")):
+                    self.tbl.cellWidget(row, 2).setCurrentText(val)
+
+                QTimer.singleShot(0, set_variant)
+
+            # Размер
+            size_val = r.get("size", 0)
+            try:
+                size_float = float(str(safe_str(size_val)).replace(",", "."))
+            except Exception:
+                size_float = 0.0
+            self.tbl.cellWidget(row_index, 3).setValue(size_float)
+
+            # Кол-во, вес, примечание
+            self.tbl.cellWidget(row_index, 4).setValue(int(r.get("qty", 1)))
+            self.tbl.cellWidget(row_index, 5).setValue(float(r.get("w", 0)))
+            self.tbl.cellWidget(row_index, 6).setText(r.get("note", ""))
         
     def _copy_row(self):
         row = self.tbl.currentRow()
