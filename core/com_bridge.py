@@ -48,8 +48,12 @@ class COM1CBridge:
         "ДавМеталлСобствКамни",
         "ДавМеталлДавКамни"
     ]
-    
+
     def __init__(self, base_path, usr="Администратор", pwd=""):
+        self.base_path = base_path
+        self.usr = usr
+        self.pwd = pwd
+
         self.connector = win32com.client.Dispatch("V83.COMConnector")
         self.connection = self.connector.Connect(
             f'File="{base_path}";Usr="{usr}";Pwd="{pwd}"'
@@ -57,31 +61,77 @@ class COM1CBridge:
         self.catalogs = self.connection.Catalogs
         self.documents = self.connection.Documents
         self.enums = self.connection.Enums
+
+    def _open_application(self):
+        app = win32com.client.Dispatch("V83.Application")
+        app.Connect(f'File="{self.base_path}";Usr="{self.usr}";Pwd="{self.pwd}"')
+        app.Visible = False
+        return app
         
     def print_order_preview_pdf(self, number: str) -> bool:
-        obj = self._find_document_by_number("ЗаказВПроизводство", number)
-        if not obj:
-            log(f"[Печать] Заказ №{number} не найден")
-            return False
+        app = self._open_application()
         try:
+            obj = self._find_document_by_number(
+                "ЗаказВПроизводство", number, docs=app.Documents
+            )
+            if not obj:
+                log(f"[Печать] Заказ №{number} не найден")
+                return False
             form = obj.GetForm("ФормаДокумента")
             temp_dir = tempfile.gettempdir()
             pdf_path = os.path.join(temp_dir, f"Заказ_{number}.pdf")
-            form.PrintFormToFile("Заказ в производство с фото", pdf_path)
+            # стандартная печатная форма без фотографий
+            form.PrintFormToFile("Заказ в производство", pdf_path)
 
             if os.path.exists(pdf_path):
                 log(f"📄 PDF сформирован: {pdf_path}")
-                os.startfile(pdf_path)  # Открытие в системе по умолчанию
+                os.startfile(pdf_path)
                 return True
             else:
-                log(f"❌ Не удалось сохранить PDF")
+                log("❌ Не удалось сохранить PDF")
                 return False
         except Exception as e:
             log(f"❌ Ошибка при формировании PDF: {e}")
-            return False     
+            return False
+        finally:
+            try:
+                app.Quit()
+            except Exception:
+                pass
 
-    def _find_document_by_number(self, doc_name: str, number: str):
-        doc = getattr(self.documents, doc_name, None)
+    def print_order_preview_pdf_with_photo(self, number: str) -> bool:
+        app = self._open_application()
+        try:
+            obj = self._find_document_by_number(
+                "ЗаказВПроизводство", number, docs=app.Documents
+            )
+            if not obj:
+                log(f"[Печать] Заказ №{number} не найден")
+                return False
+            form = obj.GetForm("ФормаДокумента")
+            temp_dir = tempfile.gettempdir()
+            pdf_path = os.path.join(temp_dir, f"Заказ_{number}_photo.pdf")
+            # специальная форма заказа с фотографиями изделий
+            form.PrintFormToFile("Заказ в производство с фото", pdf_path)
+            if os.path.exists(pdf_path):
+                log(f"📄 PDF сформирован: {pdf_path}")
+                os.startfile(pdf_path)
+                return True
+            else:
+                log("❌ Не удалось сохранить PDF")
+                return False
+        except Exception as e:
+            log(f"❌ Ошибка при формировании PDF: {e}")
+            return False
+        finally:
+            try:
+                app.Quit()
+            except Exception:
+                pass
+
+    def _find_document_by_number(self, doc_name: str, number: str, *, docs=None):
+        doc_holder = docs if docs is not None else self.documents
+        doc = getattr(doc_holder, doc_name, None)
         if not doc:
             log(f"[ERROR] Документ '{doc_name}' не найден")
             return None
