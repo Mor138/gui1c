@@ -117,13 +117,16 @@ class OrdersPage(QWidget):
         btns.addWidget(self.btn_update)
         for label, func in [
             ("🖨 Печать", self._print_selected_order),
+            ("🖨 С фото", self._print_selected_order_with_photo),
             ("+ строка", self._add_row),
             ("− строка", self._remove_row),
             ("Новый заказ", self._new_order),
             ("📋 Копировать строку", self._copy_row),
             ("💾 Записать", self._post_close)
         ]:
-            btn = QPushButton(label); btn.clicked.connect(func); btns.addWidget(btn)
+            btn = QPushButton(label)
+            btn.clicked.connect(func)
+            btns.addWidget(btn)
         v.addLayout(btns)
         self.tabs.addTab(self.frm_new, "Новый заказ")
 
@@ -161,7 +164,17 @@ class OrdersPage(QWidget):
         number = self.tbl_orders.item(selected, 1).text().strip().replace("⚪", "")
         success = bridge.print_order_preview_pdf(number)
         if not success:
-            QMessageBox.critical(self, "Ошибка", f"Не удалось сформировать предпросмотр для заказа №{number}")   
+            QMessageBox.critical(self, "Ошибка", f"Не удалось сформировать предпросмотр для заказа №{number}")
+
+    def _print_selected_order_with_photo(self):
+        selected = self.tbl_orders.currentRow()
+        if selected < 0:
+            QMessageBox.warning(self, "Ошибка", "Выберите заказ для печати")
+            return
+        number = self.tbl_orders.item(selected, 1).text().strip().replace("⚪", "")
+        success = bridge.print_order_with_photo(number)
+        if not success:
+            QMessageBox.critical(self, "Ошибка", f"Не удалось напечатать заказ №{number}")
 
     def _add_row(self, copy_from: int = None):
         r = self.tbl.rowCount()
