@@ -69,7 +69,13 @@ class COM1CBridge:
 
     def _open_application(self):
         app = win32com.client.Dispatch("V83.Application")
-        app.Connect(f'File="{self.base_path}";Usr="{self.usr}";Pwd="{self.pwd}"')
+        app.Connect(
+            f'File="{self.base_path}";Usr="{self.usr}";Pwd="{self.pwd}"'
+        )
+        try:
+            app.Interactive = True
+        except Exception:
+            pass
         app.Visible = False
         return app
         
