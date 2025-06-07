@@ -67,7 +67,8 @@ class COM1CBridge:
             form = obj.GetForm("ФормаДокумента")
             temp_dir = tempfile.gettempdir()
             pdf_path = os.path.join(temp_dir, f"Заказ_{number}.pdf")
-            form.PrintFormToFile("Заказ в производство с фото", pdf_path)
+            # стандартная печатная форма без фотографий
+            form.PrintFormToFile("Заказ в производство", pdf_path)
 
             if os.path.exists(pdf_path):
                 log(f"📄 PDF сформирован: {pdf_path}")
@@ -89,6 +90,7 @@ class COM1CBridge:
             form = obj.GetForm("ФормаДокумента")
             temp_dir = tempfile.gettempdir()
             pdf_path = os.path.join(temp_dir, f"Заказ_{number}_photo.pdf")
+            # специальная форма заказа с фотографиями изделий
             form.PrintFormToFile("Заказ в производство с фото", pdf_path)
             if os.path.exists(pdf_path):
                 log(f"📄 PDF сформирован: {pdf_path}")
