@@ -69,7 +69,17 @@ class COM1CBridge:
 
     def _open_application(self):
         app = win32com.client.Dispatch("V83.Application")
+        1b2yc7-codex/реализовать-печать-с-фото-заказа
+        app.Connect(
+            f'File="{self.base_path}";Usr="{self.usr}";Pwd="{self.pwd}"'
+        )
+        try:
+            app.Interactive = True
+        except Exception:
+            pass
+
         app.Connect(f'File="{self.base_path}";Usr="{self.usr}";Pwd="{self.pwd}"')
+        main
         app.Visible = False
         return app
         
