@@ -67,7 +67,8 @@ class COM1CBridge:
             form = obj.GetForm("ФормаДокумента")
             temp_dir = tempfile.gettempdir()
             pdf_path = os.path.join(temp_dir, f"Заказ_{number}.pdf")
-            form.PrintFormToFile("Заказ в производство с фото", pdf_path)
+            # стандартная печатная форма без фотографий
+            form.PrintFormToFile("Заказ в производство", pdf_path)
 
             if os.path.exists(pdf_path):
                 log(f"📄 PDF сформирован: {pdf_path}")
@@ -78,7 +79,29 @@ class COM1CBridge:
                 return False
         except Exception as e:
             log(f"❌ Ошибка при формировании PDF: {e}")
-            return False     
+            return False
+
+    def print_order_preview_pdf_with_photo(self, number: str) -> bool:
+        obj = self._find_document_by_number("ЗаказВПроизводство", number)
+        if not obj:
+            log(f"[Печать] Заказ №{number} не найден")
+            return False
+        try:
+            form = obj.GetForm("ФормаДокумента")
+            temp_dir = tempfile.gettempdir()
+            pdf_path = os.path.join(temp_dir, f"Заказ_{number}_photo.pdf")
+            # специальная форма заказа с фотографиями изделий
+            form.PrintFormToFile("Заказ в производство с фото", pdf_path)
+            if os.path.exists(pdf_path):
+                log(f"📄 PDF сформирован: {pdf_path}")
+                os.startfile(pdf_path)
+                return True
+            else:
+                log("❌ Не удалось сохранить PDF")
+                return False
+        except Exception as e:
+            log(f"❌ Ошибка при формировании PDF: {e}")
+            return False
 
     def _find_document_by_number(self, doc_name: str, number: str):
         doc = getattr(self.documents, doc_name, None)
