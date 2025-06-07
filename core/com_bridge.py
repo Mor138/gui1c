@@ -58,6 +58,11 @@ class COM1CBridge:
         self.connection = self.connector.Connect(
             f'File="{base_path}";Usr="{usr}";Pwd="{pwd}"'
         )
+        try:
+            # enable interactive operations like printing forms
+            self.connection.Interactive = True
+        except Exception:
+            pass
         self.catalogs = self.connection.Catalogs
         self.documents = self.connection.Documents
         self.enums = self.connection.Enums
