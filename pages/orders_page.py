@@ -172,6 +172,13 @@ class OrdersPage(QWidget):
             QMessageBox.warning(self, "Ошибка", "Выберите заказ для печати")
             return
         number = self.tbl_orders.item(selected, 1).text().strip().replace("⚪", "")
+        1b2yc7-codex/реализовать-печать-с-фото-заказа
+
+        7zm8ye-codex/реализовать-печать-с-фото-заказа
+
+        cv1nx0-codex/реализовать-печать-с-фото-заказа
+        main
+        main
         success = bridge.print_order_preview_pdf_with_photo(number)
         if not success:
             QMessageBox.critical(
@@ -179,6 +186,17 @@ class OrdersPage(QWidget):
                 "Ошибка",
                 f"Не удалось сформировать предпросмотр с фото для заказа №{number}"
             )
+        1b2yc7-codex/реализовать-печать-с-фото-заказа
+
+        7zm8ye-codex/реализовать-печать-с-фото-заказа
+
+
+        success = bridge.print_order_with_photo(number)
+        if not success:
+            QMessageBox.critical(self, "Ошибка", f"Не удалось напечатать заказ №{number}")
+        main
+        main
+        main
 
     def _add_row(self, copy_from: int = None):
         r = self.tbl.rowCount()
