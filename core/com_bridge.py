@@ -723,7 +723,7 @@ class COM1CBridge:
         
     def find_production_task_ref_by_method(self, method: str) -> str | None:
         """Возвращает ссылку на первое задание по указанному методу."""
-        method_enum = self.get_enum_by_description("ВариантыИзготовления", method)
+        method_ref = self.get_ref_by_description("ВариантыИзготовленияНоменклатуры", method)
         if method_enum is None:
             log(f"[find_production_task_ref_by_method] Не найден вариант {method}")
             return None
