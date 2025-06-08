@@ -197,49 +197,6 @@ class COM1CBridge:
             log(f"[Проведение] Ошибка при установке Проведен: {e}")
             return False
             
-    def list_production_orders(self, limit=100):
-        """Список 'Заданий на производство' (Документ.ЗаданиеНаПроизводство)"""
-        result = []
-        try:
-            doc_manager = self.documents["ЗаданиеНаПроизводство"]
-            selection = doc_manager.Select()
-            count = 0
-            while selection.Next() and count < limit:
-                doc = selection.GetObject()
-                result.append({
-                    "Номер": str(doc.Number),
-                    "Дата": str(doc.Date),
-                    "РабочийЦентр": safe_str(getattr(doc, "РабочийЦентр", "")),
-                    "ТехОперация": safe_str(getattr(doc, "ТехОперация", "")),
-                    "ПроизводственныйУчасток": safe_str(getattr(doc, "ПроизводственныйУчасток", "")),
-                    "Комментарий": safe_str(getattr(doc, "Комментарий", "")),
-                })
-                count += 1
-        except Exception as e:
-            log(f"[❌] Ошибка list_production_orders: {e}")
-        return result
-
-    def list_wax_work_orders(self, limit=100):
-        """Список 'Нарядов (восковые изделия)' (Документ.НарядВосковыеИзделия)"""
-        result = []
-        try:
-            doc_manager = self.documents["НарядВосковыеИзделия"]
-            selection = doc_manager.Select()
-            count = 0
-            while selection.Next() and count < limit:
-                doc = selection.GetObject()
-                result.append({
-                    "Номер": str(doc.Number),
-                    "Дата": str(doc.Date),
-                    "Сотрудник": safe_str(getattr(doc, "Сотрудник", "")),
-                    "Комментарий": safe_str(getattr(doc, "Комментарий", "")),
-                    "ТехОперация": safe_str(getattr(doc, "ТехОперация", "")),
-                    "ПроизводственныйУчасток": safe_str(getattr(doc, "ПроизводственныйУчасток", "")),
-                })
-                count += 1
-        except Exception as e:
-            log(f"[❌] Ошибка list_wax_work_orders: {e}")
-        return result       
 
     def mark_order_for_deletion(self, number: str) -> bool:
         obj = self._find_document_by_number("ЗаказВПроизводство", number)
@@ -331,6 +288,14 @@ class COM1CBridge:
     def get_ref(self, catalog_name, description):
         obj = self.get_catalog_object_by_description(catalog_name, description)
         return obj.Ref if hasattr(obj, "Ref") else obj
+
+    def get_ref_by_description(self, catalog_name: str, description: str):
+        """Возвращает ссылку на элемент каталога по его описанию."""
+        obj = self.get_catalog_object_by_description(catalog_name, description)
+        if obj and hasattr(obj, "Ref"):
+            return obj.Ref
+        log(f"[get_ref_by_description] Не найден элемент '{description}' в каталоге '{catalog_name}'")
+        return None
 
     def get_enum_by_description(self, enum_name: str, description: str):
         """Возвращает элемент перечисления по его представлению"""
@@ -433,25 +398,6 @@ class COM1CBridge:
                 return obj
         log(f"[{catalog_name}] Не найден: {description}")
         return None        
-            
-
-    def get_production_status_variants(self) -> list[str]:
-        return list(PRODUCTION_STATUS_MAP.keys()) 
-        
-    def print_order_with_photo(self, number: str):
-        obj = self._find_document_by_number("ЗаказВПроизводство", number)
-        if not obj:
-            log(f"[Печать] Заказ №{number} не найден")
-            return False
-        try:
-            form = obj.GetForm("ФормаДокумента")
-            form.Open()  # Можно убрать, если не нужен показ формы
-            form.PrintForm("Заказ в производство с фото")
-            log(f"🖨 Печать формы 'Заказ в производство с фото' запущена")
-            return True
-        except Exception as e:
-            log(f"❌ Ошибка печати: {e}")
-            return False    
 
     def update_order(self, number: str, fields: dict, items: list) -> bool:
         obj = self._find_document_by_number("ЗаказВПроизводство", number)
@@ -616,35 +562,6 @@ class COM1CBridge:
         return None
 
     # ------------------------------------------------------------------
-    def create_wax_job(self, job: dict) -> str:
-        """Создаёт документ "НарядВосковыеИзделия" на основании наряда."""
-        try:
-            doc = self.documents.НарядВосковыеИзделия.CreateDocument()
-        except Exception as e:
-            log(f"[1C] Не удалось создать документ НарядВосковыеИзделия: {e}")
-            return ""
-
-        try:
-            from datetime import datetime
-            doc.Date = datetime.now()
-            if hasattr(doc, "Комментарий"):
-                doc.Комментарий = f"WX:{job.get('wax_job')} партия:{job.get('batch_code')}"
-            if job.get("assigned_to") and hasattr(doc, "Ответственный"):
-                ref = self.get_ref("Пользователи", job["assigned_to"])
-                if ref:
-                    doc.Ответственный = ref
-            if hasattr(doc, "Количество"):
-                doc.Количество = job.get("qty", 0)
-            weight = job.get("weight_wax") or job.get("weight")
-            if hasattr(doc, "Вес") and weight is not None:
-                doc.Вес = float(weight)
-            doc.Write()
-            log(f"✅ Создан документ НарядВосковыеИзделия №{doc.Number}")
-            return str(doc.Number)
-        except Exception as e:
-            log(f"❌ Ошибка создания НарядаВосковыеИзделия: {e}")
-            return ""
-
     def list_orders(self):
         result = []
         orders = self.connection.Documents.ЗаказВПроизводство.Select()
@@ -712,18 +629,6 @@ class COM1CBridge:
             })
         return result 
         
-    def list_production_tasks(self) -> list[dict]:
-        selection = self.connection.Documents["ЗаданиеНаПроизводство"].Select()
-        result = []
-        while selection.Next():
-            obj = selection.GetObject()
-            result.append({
-                "Ref": str(obj.Ref),
-                "Номер": str(obj.Номер),
-                "Дата": str(obj.Дата)
-            })
-        return result
-        
     def detect_method_from_items(self, items: list[dict]) -> str:
         """Автоматически определяет метод производства по названию номенклатуры"""
         for row in items:
@@ -748,31 +653,10 @@ class COM1CBridge:
         while tasks.Next():
             obj = tasks.GetObject()
             for row in obj.Товары:
-                if row.ВариантИзготовления == method_enum:
+                if row.ВариантИзготовления == method_ref:
                     return str(obj.Ref)
         return None
         
-    def create_wax_order_from_task(self, task_ref, rows) -> dict:
-        doc = self.connection.Documents["НарядВосковыеИзделия"].CreateDocument()
-        doc.Задание = self.connection.GetObject(task_ref)
-        doc.Дата = self.connection.CurrentDate()
-
-        for row in rows:
-            item = doc.ТоварыВыдано.Add()
-            item.Номенклатура = self.get_ref("Номенклатура", row["name"])
-            item.ПартияКомплектующее = self.get_ref("ПартииКомплектующих", row.get("batch", ""))
-            item.Размер = self.get_ref("РазмерыНоменклатуры", row.get("size", ""))
-            item.Проба = self.get_ref("Проба", row.get("assay", ""))
-            item.ЦветМеталла = self.get_ref("ЦветаМеталлов", row.get("color", ""))
-            item.ХарактеристикаВставок = self.get_ref("ХарактеристикиВставок", row.get("insert", ""))
-            item.Количество = row["qty"]
-
-        doc.Write()
-        return {
-            "Ref": str(doc.Ref),
-            "Номер": str(doc.Номер),
-            "Дата": str(doc.Дата)
-        }    
 
     def list_wax_jobs(self) -> list[dict]:
         result = []
@@ -827,17 +711,6 @@ class COM1CBridge:
             "Дата": str(doc.Дата)
         }   
         
-    def create_wax_order(self, production_task_ref, parts):
-        doc = self.connection.Documents["НарядВосковыеИзделия"].CreateDocument()
-        doc.Задание = production_task_ref
-        for part in parts:
-            row = doc.ТоварыВыдано.Add()
-            row.Номенклатура = part["Номенклатура"]
-            row.ПартияКомплектующее = part["Партия"]
-            row.Количество = part["Количество"]
-        doc.Write()
-        return doc    
-        
     def get_wax_job_rows(self, num: str) -> list[dict]:
         doc = self._find_doc("НарядВосковыеИзделия", num)
         rows = []
@@ -878,79 +751,7 @@ class COM1CBridge:
                         "weight": row.Вес if hasattr(row, "Вес") else ""
                     })
                 break
-        return result    
-
-    def list_documents(self, doc_type: str) -> list[dict]:
-        result = []
-        docs = getattr(self.connection.Documents, doc_type, None)
-        if docs is None:
-            return result
-        selection = docs.Select()
-        while selection.Next():
-            doc = selection.GetObject()
-            try:
-                result.append({
-                    "Ref": str(doc.Ref),
-                    "Номер": str(doc.Number),
-                    "Дата": str(doc.Date),
-                    "Участок": safe_str(getattr(doc, "ПроизводственныйУчасток", "")),
-                    "Операция": safe_str(getattr(doc, "ТехОперация", "")),
-                    "Ответственный": safe_str(getattr(doc, "Ответственный", "")),
-                    "Статус": safe_str(getattr(doc, "Статус", "")),
-                })
-            except Exception as e:
-                print(f"[ERROR] {e}")
-        return result    
-
-    # ------------------------------------------------------------------
-       
-        main
-    def create_task_from_order(self, order: dict) -> str:
-        """Создаёт документ 'ЗаданиеНаПроизводство' на основании заказа."""
-        try:
-            doc = self.documents.ЗаданиеНаПроизводство.CreateDocument()
-        except Exception as e:
-            log(f"[1C] Не удалось создать ЗаданиеНаПроизводство: {e}")
-            return ""
-
-        try:
-            from datetime import datetime
-            doc.Date = datetime.now()
-            base = self._find_document_by_number("ЗаказВПроизводство", order.get("num", ""))
-            if base:
-                doc.ДокументОснование = base
-
-            if order.get("assigned_to"):
-                ref = self.get_ref("Пользователи", order["assigned_to"])
-                if ref:
-                    doc.РабочийЦентр = ref
-
-            section = self.get_ref("ПроизводственныеУчастки", "восковка")
-            if section:
-                doc.ПроизводственныйУчасток = section
-            op = self.get_ref("ТехОперации", "работа с восковыми изделиями")
-            if op:
-                doc.ТехОперация = op
-
-            for row in order.get("rows", []):
-                r = doc.Продукция.Add()
-                r.Номенклатура = self.get_ref("Номенклатура", row.get("article"))
-                var = row.get("variant")
-                if var:
-                    r.ВариантИзготовления = self.get_ref("ВариантыИзготовленияНоменклатуры", var)
-                r.Размер = self.get_size_ref(row.get("size"))
-                r.Количество = row.get("qty", 0)
-                r.Вес = row.get("weight", 0)
-                r.Проба = str(row.get("hallmark", ""))
-                r.ЦветМеталла = self.get_ref("ЦветаМеталлов", row.get("color"))
-
-            doc.Write()
-            doc.Провести()
-            log(f"✅ Создано ЗаданиеНаПроизводство №{doc.Number}")
-            return str(doc.Number)
-        except Exception as e:
-            log(f"❌ Ошибка создания Задания: {e}")
-            return ""
+        return result
 
     # ------------------------------------------------------------------
     def create_wax_job_from_task(self, task_number: str) -> str:
