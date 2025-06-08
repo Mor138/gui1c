@@ -13,6 +13,7 @@ from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt, QDate
 from core.com_bridge import COM1CBridge
 from logic.production_docs import process_new_order
+from core.com_bridge import log
 
 bridge = COM1CBridge("C:\\Users\\Mor\\Desktop\\1C\\proiz")
 
