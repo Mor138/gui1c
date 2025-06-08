@@ -600,19 +600,18 @@ class COM1CBridge:
             return f"Ошибка: {e}"
             
     def get_doc_ref(self, doc_name: str, number: str):
-        """Находит ссылку на документ по номеру."""
         docs = getattr(self.connection.Documents, doc_name, None)
-        if not docs:
-            log(f"[LOG] Документ '{doc_name}' не найден")
+        if docs is None:
+            log(f"[get_doc_ref] Документ '{doc_name}' не найден")
             return None
-        norm_num = str(number).replace("-", "").strip()
+
         selection = docs.Select()
         while selection.Next():
             doc = selection.GetObject()
-            doc_num = str(doc.Number).replace("-", "")
-            if norm_num == doc_num:
+            if number in str(doc.Number):  # вместо ==
                 return doc.Ref
-        log(f"[LOG] Номер '{number}' не найден в '{doc_name}'")
+
+        log(f"[get_doc_ref] Заказ с номером '{number}' не найден")
         return None
 
     # ------------------------------------------------------------------
@@ -797,12 +796,26 @@ class COM1CBridge:
             })
         return result
         
+    def get_ref_by_description(self, catalog_name: str, description: str):
+        catalog = getattr(self.connection.Catalogs, catalog_name, None)
+        if catalog is None:
+            log(f"[get_ref_by_description] Каталог '{catalog_name}' не найден")
+            return None
+
+        selection = catalog.Select()
+        while selection.Next():
+            obj = selection.GetObject()
+            if str(obj.Description).strip().lower() == description.strip().lower():
+                return obj.Ref
+        log(f"[get_ref_by_description] Не найден элемент '{description}' в каталоге '{catalog_name}'")
+        return None    
+        
     def create_production_task(self, order_ref, method, rows) -> dict:
         doc_manager = getattr(self.connection.Documents, "ЗаданиеНаПроизводство", None)
         if doc_manager is None:
             raise Exception("Документ 'ЗаданиеНаПроизводство' не найден")
         if not order_ref:
-            raise ValueError("order_ref is None")
+            raise ValueError("order_ref is None, задание не может быть создано")
 
         doc = doc_manager.CreateDocument()
         doc.ДокументОснование = self.connection.GetObject(order_ref)
