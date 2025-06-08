@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTreeWidget, QTreeWidgetItem,
     QHeaderView, QPushButton, QMessageBox
 )
-from production_docs import WAX_JOBS_POOL, ORDERS_POOL, METHOD_LABEL
+from logic.production_docs import WAX_JOBS_POOL, ORDERS_POOL, METHOD_LABEL
 
 CSS_TREE = """
 QTreeWidget{
