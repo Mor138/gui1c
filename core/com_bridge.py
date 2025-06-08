@@ -586,6 +586,12 @@ class COM1CBridge:
         
     def list_tasks(self, limit: int = 100) -> list[dict]:
         """Список заданий на производство"""
+        from core.config_parser import has_document
+
+        if not has_document("ЗаданиеНаПроизводство"):
+            log("[CONFIG] Документ 'ЗаданиеНаПроизводство' не найден")
+            return []
+
         result = []
         catalog = self.connection.Documents.ЗаданиеНаПроизводство
         selection = catalog.Select()
@@ -603,6 +609,11 @@ class COM1CBridge:
         return result    
         
     def list_wax_jobs(self) -> list[dict]:
+        from core.config_parser import has_document
+
+        if not has_document("НарядВосковыеИзделия"):
+            log("[CONFIG] Документ 'НарядВосковыеИзделия' не найден")
+            return []
         try:
             doc = self.connection.Documents["НарядВосковыеИзделия"]
             selection = doc.Select()
@@ -610,16 +621,17 @@ class COM1CBridge:
             while selection.Next():
                 obj = selection.GetObject()
                 jobs.append({
-                    "Ref": str(obj.Ref),
-                    "Номер": str(obj.Number),
-                    "Дата": str(obj.Date),
-                    "Сотрудник": str(obj.Сотрудник) if hasattr(obj, "Сотрудник") else "",
-                    "Комментарий": str(obj.Комментарий) if hasattr(obj, "Комментарий") else "",
+                    "ref": str(obj.Ref),
+                    "num": str(obj.Number),
+                    "date": str(obj.Date),
+                    "employee": safe_str(getattr(obj, "Сотрудник", "")),
+                    "comment": safe_str(getattr(obj, "Комментарий", "")),
+                    "status": "Проведен" if getattr(obj, "Проведен", False) else ""
                 })
             return jobs
         except Exception as e:
             print("[LOG] ❌ Ошибка получения нарядов:", e)
-            return []   
+            return []
 
 
     # ------------------------------------------------------------------

@@ -6,6 +6,25 @@ from pathlib import Path
 CONFIG_XML = Path("data/Configuration.xml")
 DUMP_XML = Path("data/ConfigDumpInfo.xml")
 
+# ─────────────────────── Список документов из Configuration.xml ──────────────
+def extract_document_names() -> list[str]:
+    """Возвращает все имена документов из Configuration.xml."""
+    if not CONFIG_XML.exists():
+        return []
+
+    tree = ET.parse(CONFIG_XML)
+    root = tree.getroot()
+
+    names = []
+    for elem in root.iter():
+        if elem.tag.endswith("Document") and not list(elem) and elem.text:
+            names.append(elem.text)
+    return names
+
+def has_document(name: str) -> bool:
+    """Проверяет наличие документа с указанным именем."""
+    return name in extract_document_names()
+
 # ─────────────────────── Реальная загрузка значений справочников ───────────────────────
 def get_catalog_items(name: str) -> list[str]:
     """Чтение значений конкретного справочника из ConfigDumpInfo.xml"""
