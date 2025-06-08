@@ -350,6 +350,8 @@ class OrdersPage(QWidget):
             QMessageBox.warning(self, "Ошибка", "Выберите заказ")
             return
         order = self._orders[row]
+        number = order["num"]
+
         order_json_rows = []
         for r in order.get("rows", []):
             metal, hallmark, color = parse_variant(r.get("variant", ""))
@@ -367,6 +369,7 @@ class OrdersPage(QWidget):
             "number": number,
             "rows": order_json_rows
         }
+
         process_new_order(order_json)
         if callable(self.on_send_to_wax):
             self.on_send_to_wax()
