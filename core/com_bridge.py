@@ -1,4 +1,5 @@
 # com_bridge.py • взаимодействие с 1С через COM v0.8
+# -*- coding: utf-8 -*-
 import win32com.client
 import pywintypes
 import os
@@ -597,6 +598,19 @@ class COM1CBridge:
         except Exception as e:
             log(f"❌ Ошибка при записи документа: {e}")
             return f"Ошибка: {e}"
+            
+    def get_doc_ref(self, doc_name: str, number: str):
+        """Ищет ссылку на документ по номеру"""
+        docs = getattr(self.connection.Documents, doc_name, None)
+        if docs is None:
+            print(f"[LOG] Документ '{doc_name}' не найден")
+            return None
+        selection = docs.Select()
+        while selection.Next():
+            obj = selection.GetObject()
+            if str(obj.Номер) == number:
+                return obj.Ref
+        return None        
 
     # ------------------------------------------------------------------
     def create_wax_job(self, job: dict) -> str:
