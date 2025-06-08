@@ -721,16 +721,25 @@ class COM1CBridge:
             })
         return result
         
-    def find_production_task_ref_by_method(self, method: str) -> str:
-        """Возвращает Ref первого задания по методу (3d / rubber)"""
+    def find_production_task_ref_by_method(self, method: str) -> str | None:
+        """Возвращает ссылку на первое задание по указанному методу."""
         method_enum = self.get_enum_by_description("ВариантыИзготовления", method)
-        tasks = self.connection.Documents["ЗаданиеНаПроизводство"].Select()
+        if method_enum is None:
+            log(f"[find_production_task_ref_by_method] Не найден вариант {method}")
+            return None
+
+        doc_manager = getattr(self.connection.Documents, "ЗаданиеНаПроизводство", None)
+        if doc_manager is None:
+            log("[find_production_task_ref_by_method] Документ 'ЗаданиеНаПроизводство' не найден")
+            return None
+
+        tasks = doc_manager.Select()
         while tasks.Next():
             obj = tasks.GetObject()
             for row in obj.Товары:
                 if row.ВариантИзготовления == method_enum:
                     return str(obj.Ref)
-        return None    
+        return None
         
     def create_wax_order_from_task(self, task_ref, rows) -> dict:
         doc = self.connection.Documents["НарядВосковыеИзделия"].CreateDocument()
@@ -778,7 +787,10 @@ class COM1CBridge:
         return result
         
     def create_production_task(self, order_ref, method, rows) -> dict:
-        doc = self.connection.Documents["ЗаданиеНаПроизводство"].CreateDocument()
+        doc_manager = getattr(self.connection.Documents, "ЗаданиеНаПроизводство", None)
+        if doc_manager is None:
+            raise Exception("Документ 'ЗаданиеНаПроизводство' не найден")
+        doc = doc_manager.CreateDocument()
         doc.Основание = order_ref
         doc.Дата = self.connection.CurrentDate()
 
@@ -789,7 +801,9 @@ class COM1CBridge:
             item.ХарактеристикаВставок = self.get_ref("ХарактеристикиВставок", row.get("insert", ""))
             item.Проба = self.get_ref("Проба", row.get("assay", ""))
             item.ЦветМеталла = self.get_ref("ЦветаМеталлов", row.get("color", ""))
-            item.ВариантИзготовления = self.get_enum_by_description("ВариантыИзготовления", method)
+            item_variant = self.get_enum_by_description("ВариантыИзготовления", method)
+            if item_variant is not None:
+                item.ВариантИзготовления = item_variant
             item.Количество = row["qty"]
 
         doc.Write()
