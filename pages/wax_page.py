@@ -46,6 +46,12 @@ class WaxPage(QWidget):
         super().__init__()
         self._ui()
         self.refresh()
+        
+    def refresh(self):
+        self._fill_jobs_tree()
+        self._fill_parties_tree()
+        self._fill_tasks_tree()
+        self._fill_wax_jobs_tree()    
 
     # ------------------------------------------------------------------
     def _ui(self):
@@ -101,6 +107,54 @@ class WaxPage(QWidget):
 
         self.tabs.addTab(tab1, "Наряды")
         
+        # ----- Tab 2: Задания -----
+        tab2 = QWidget(); t2 = QVBoxLayout(tab2)
+        lbl2 = QLabel("Задания на производство")
+        lbl2.setFont(QFont("Arial", 16, QFont.Bold))
+        t2.addWidget(lbl2)
+
+        self.tree_tasks = QTreeWidget()
+        self.tree_tasks.setHeaderLabels(["Номер", "Дата", "Участок", "Операция", "Ответственный"])
+        self.tree_tasks.header().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.tree_tasks.setStyleSheet(CSS_TREE)
+        t2.addWidget(self.tree_tasks, 1)
+
+        self.tabs.addTab(tab2, "Задания")
+
+        # ----- Tab 3: Наряды -----
+        tab3 = QWidget(); t3 = QVBoxLayout(tab3)
+        lbl3 = QLabel("Наряды на восковку")
+        lbl3.setFont(QFont("Arial", 16, QFont.Bold))
+        t3.addWidget(lbl3)
+
+        self.tree_acts = QTreeWidget()
+        self.tree_acts.setHeaderLabels(["Номер", "Дата", "Статус"])
+        self.tree_acts.header().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.tree_acts.setStyleSheet(CSS_TREE)
+        t3.addWidget(self.tree_acts, 1)
+
+        self.tabs.addTab(tab3, "Наряды из 1С")
+        
+    def _fill_tasks_tree(self):
+        self.tree_tasks.clear()
+        for t in bridge.list_tasks():
+            QTreeWidgetItem(self.tree_tasks, [
+                t.get("num", ""),
+                t.get("date", ""),
+                t.get("employee", ""),
+                t.get("tech_op", ""),
+                ""
+            ])
+
+    def _fill_wax_jobs_tree(self):
+        self.tree_acts.clear()
+        for t in bridge.list_wax_jobs():
+            QTreeWidgetItem(self.tree_acts, [
+                t.get("num", ""),
+                t.get("date", ""),
+                t.get("status", "")
+            ])    
+        
 
     def _create_task(self):
         from PyQt5.QtWidgets import QInputDialog
@@ -124,12 +178,18 @@ class WaxPage(QWidget):
     def _create_wax_jobs(self):
         from PyQt5.QtWidgets import QInputDialog
 
-<<<<<<< HEAD
-        task_num, ok = QInputDialog.getText(self, "Создание наряда", "Номер задания:")
-        if ok and task_num:
+        tasks = bridge.list_tasks()
+        if not tasks:
+            QMessageBox.warning(self, "Нет данных", "В 1С нет заданий")
+            return
+
+        task_numbers = [t["num"] for t in tasks]
+        selected, ok = QInputDialog.getItem(self, "Создание нарядов", "Выберите задание:", task_numbers, editable=False)
+        if ok and selected:
             try:
-                num = bridge.create_wax_job_from_task(task_num)
+                num = bridge.create_wax_job_from_task(selected)
                 QMessageBox.information(self, "Готово", f"Наряд №{num} создан")
+                self.refresh()
             except Exception as e:
                 QMessageBox.critical(self, "Ошибка", str(e))
 
@@ -138,10 +198,10 @@ class WaxPage(QWidget):
         code = self._selected_job_code()
         if not code:
             QMessageBox.warning(self, "Наряд", "Не выбран наряд")
-=======
+
         task_num, ok = QInputDialog.getText(self, "Создание нарядов", "Номер задания:")
         if not ok or not task_num:
->>>>>>> 8ca80ef78414f434fa2e5aa39004b0822169bcee
+
             return
         try:
             count = bridge.create_multiple_wax_jobs_from_task(task_num)
@@ -159,50 +219,38 @@ class WaxPage(QWidget):
     # —──────────── дерево «Наряды» ─────────────
     def _fill_jobs_tree(self):
         self.tree_jobs.clear()
-        jobs_by_method_batch = defaultdict(list)
 
-        for job in WAX_JOBS_POOL:
-            key = (job["method"], job["batch_code"])
-            jobs_by_method_batch[key].append(job)
-
-        for (method, batch), group in jobs_by_method_batch.items():
-            arts = sorted(set(j["articles"] for j in group))
-            qty = sum(j.get("qty", 0) for j in group)
-            weight = sum(j.get("weight", 0.0) for j in group)
-
-<<<<<<< HEAD
-            item = QTreeWidgetItem(self.tree_jobs, [
-                ", ".join(arts),
-                METHOD_LABEL.get(method, method),
-                str(qty),
-                f"{weight:.3f}",
-                group[0].get("status", ''),
-                '✅' if group[0].get('sync_doc_num') else ''
-            ])
-            item.setData(0, Qt.UserRole, group[0]['wax_job'])
-=======
+        # Группируем по wax_job (один наряд = одна запись)
         grouped = defaultdict(list)
         for job in WAX_JOBS_POOL:
-            key = (job.get("method"), job.get("wax_job"))
-            grouped[key].append(job)
+            grouped[job["wax_job"]].append(job)
 
-        for (method, wax_code), jobs in grouped.items():
+        for wax_code, rows in grouped.items():
+            j0 = rows[0]  # первая строка — для заголовка
+            method_label = METHOD_LABEL.get(j0["method"], j0["method"])
+            total_qty = sum(r["qty"] for r in rows)
+            total_weight = sum(r["weight"] for r in rows)
+
+            # верхний уровень — сам наряд
             root = QTreeWidgetItem(self.tree_jobs, [
-                f"{METHOD_LABEL.get(method, method)} ({wax_code})",
-                "", "", "", "", ""
+                f"{method_label} ({wax_code})",
+                method_label,
+                str(total_qty),
+                f"{total_weight:.3f}",
+                j0.get("status", ""),
+                '✅' if j0.get('sync_doc_num') else ''
             ])
             root.setExpanded(True)
 
-            for j in jobs:
+            # дочерние элементы — артикула с количеством
+            for r in rows:
                 QTreeWidgetItem(root, [
-                    j.get("articles", ""),
+                    r["articles"],
                     "",
-                    str(j.get("qty", 0)),
-                    f"{j.get('weight', 0.0):.3f}",
-                    j.get('status', ''),
-                    '✅' if j.get('sync_doc_num') else ''
+                    str(r["qty"]),
+                    f"{r.get('weight', 0.0):.3f}",
+                    "", ""
                 ])
->>>>>>> 8ca80ef78414f434fa2e5aa39004b0822169bcee
 
     # —──────────── дерево «Партии» ─────────────
     def _fill_parties_tree(self):
