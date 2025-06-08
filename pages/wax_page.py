@@ -64,31 +64,13 @@ class WaxPage(QWidget):
 
         btn_row = QHBoxLayout()
 
-        btn_new = QPushButton("Создать наряд")
-        btn_new.clicked.connect(self._select_order_for_job)
+        btn_create_task = QPushButton("📋 Создать задание")
+        btn_create_task.clicked.connect(self._create_task)
 
-        btn_ref = QPushButton("Обновить")
-        btn_ref.clicked.connect(self.refresh)
+        btn_create_wax_jobs = QPushButton("📄 Создать наряды")
+        btn_create_wax_jobs.clicked.connect(self._create_wax_jobs)
 
-        btn_issue = QPushButton("🧾 Выдать")
-        btn_issue.clicked.connect(self._give_job)
-
-        btn_done = QPushButton("✅ Сдано")
-        btn_done.clicked.connect(self._job_done)
-
-        btn_accept = QPushButton("📥 Принято")
-        btn_accept.clicked.connect(self._job_accept)
-
-        btn_task = QPushButton("📋 Задание")
-        btn_task.clicked.connect(self._create_task)
-
-        btn_wax_job = QPushButton("📄 Наряд")
-        btn_wax_job.clicked.connect(self._create_wax_job)
-
-        btn_sync = QPushButton("🔄 В 1С")
-        btn_sync.clicked.connect(self._sync_job)
-
-        for b in [btn_new, btn_ref, btn_task, btn_wax_job, btn_issue, btn_done, btn_accept, btn_sync]:
+        for b in [btn_create_task, btn_create_wax_jobs]:
             btn_row.addWidget(b, alignment=Qt.AlignLeft)
 
         t1.addLayout(btn_row)
@@ -118,109 +100,8 @@ class WaxPage(QWidget):
         t1.addWidget(self.tree_part, 1)
 
         self.tabs.addTab(tab1, "Наряды")
-
-        # ----- Tab 2: Process -----
-        tab2 = QWidget(); t2 = QVBoxLayout(tab2)
-
-        self.tree_process = QTreeWidget()
-        self.tree_process.setHeaderLabels([
-            "Наименование", "Статус", "Исполнитель", "Сдал", "Принял", "Вес, г"
-        ])
-        self.tree_process.header().setSectionResizeMode(QHeaderView.ResizeToContents)
-        self.tree_process.setStyleSheet(CSS_TREE)
-        t2.addWidget(self.tree_process, 1)
-
-        self.tabs.addTab(tab2, "Процесс")
         
-    def _select_order_for_job(self):
-        from PyQt5.QtWidgets import QInputDialog
 
-        if not ORDERS_POOL:
-            QMessageBox.warning(self, "Нет заказов", "Нет заказов для обработки")
-            return
-
-        # Получаем список заказов по номеру
-        order_list = [o["docs"]["order_code"] for o in ORDERS_POOL]
-        selected, ok = QInputDialog.getItem(self, "Выберите заказ", "Заказ:", order_list, editable=False)
-
-        if ok and selected:
-            selected_order = next((o for o in ORDERS_POOL if o["docs"]["order_code"] == selected), None)
-            if selected_order:
-                from logic.production_docs import WAX_JOBS_POOL, build_wax_jobs
-                jobs = build_wax_jobs(selected_order["order"], selected_order["docs"]["batches"])
-                WAX_JOBS_POOL.extend(jobs)
-                QMessageBox.information(self, "Готово", f"Создано {len(jobs)} нарядов")
-                self.refresh()
-            else:
-                QMessageBox.critical(self, "Ошибка", "Не удалось найти заказ")    
-
-    # ------------------------------------------------------------------
-    def _stub_create_job(self):
-        QMessageBox.information(self,"Создать наряд",
-            "Диалог выбора заказов появится на следующем этапе 🙂")
-
-    # ------------------------------------------------------------------
-    def _selected_job_code(self):
-        item = self.tree_jobs.currentItem()
-        return item.data(0, Qt.UserRole) if item else None
-
-    # ------------------------------------------------------------------
-    def _give_job(self):
-        from PyQt5.QtWidgets import QInputDialog
-        code = self._selected_job_code()
-        if not code:
-            QMessageBox.warning(self, "Наряд", "Не выбран наряд")
-            return
-        name, ok = QInputDialog.getText(self, "Исполнитель", "Сотрудник:")
-        if ok and name:
-            from logic.production_docs import update_wax_job, log_event
-            update_wax_job(code, {"assigned_to": name, "status": "given"})
-            log_event(code, "given", name)
-            self.refresh()
-
-    # ------------------------------------------------------------------
-    def _job_done(self):
-        from PyQt5.QtWidgets import QInputDialog
-        code = self._selected_job_code()
-        if not code:
-            QMessageBox.warning(self, "Наряд", "Не выбран наряд")
-            return
-        person, ok = QInputDialog.getText(self, "Выполнил", "Сотрудник:")
-        if not (ok and person):
-            return
-        weight, ok_w = QInputDialog.getDouble(self, "Вес воска, г", "Вес:", 0, 0, 10000, 3)
-        if not ok_w:
-            weight = None
-        from logic.production_docs import update_wax_job, log_event
-        update_wax_job(code, {
-            "completed_by": person,
-            "weight_wax": weight,
-            "status": "done"
-        })
-        log_event(code, "done", person, {"weight_wax": weight})
-        self.refresh()
-
-    # ------------------------------------------------------------------
-    def _job_accept(self):
-        from PyQt5.QtWidgets import QInputDialog
-        code = self._selected_job_code()
-        if not code:
-            QMessageBox.warning(self, "Наряд", "Не выбран наряд")
-            return
-        name, ok = QInputDialog.getText(self, "Приёмка", "Сотрудник:")
-        if ok and name:
-
-            from logic.production_docs import update_wax_job, log_event, get_wax_job
-            job = update_wax_job(code, {"accepted_by": name, "status": "accepted"})
-            log_event(code, "accepted", name)
-            if job:
-                num = bridge.create_wax_job(job)
-                if num:
-                    update_wax_job(code, {"sync_doc_num": num})
-            log_event(code, "synced_1c", name, {"doc_num": num})
-        self.refresh()
-
-    # ------------------------------------------------------------------
     def _create_task(self):
         from PyQt5.QtWidgets import QInputDialog
 
@@ -240,9 +121,10 @@ class WaxPage(QWidget):
                     QMessageBox.critical(self, "Ошибка", str(e))
 
     # ------------------------------------------------------------------
-    def _create_wax_job(self):
+    def _create_wax_jobs(self):
         from PyQt5.QtWidgets import QInputDialog
 
+<<<<<<< HEAD
         task_num, ok = QInputDialog.getText(self, "Создание наряда", "Номер задания:")
         if ok and task_num:
             try:
@@ -256,25 +138,23 @@ class WaxPage(QWidget):
         code = self._selected_job_code()
         if not code:
             QMessageBox.warning(self, "Наряд", "Не выбран наряд")
+=======
+        task_num, ok = QInputDialog.getText(self, "Создание нарядов", "Номер задания:")
+        if not ok or not task_num:
+>>>>>>> 8ca80ef78414f434fa2e5aa39004b0822169bcee
             return
-        from logic.production_docs import get_wax_job, update_wax_job, log_event
-        job = get_wax_job(code)
-        if not job:
-            QMessageBox.warning(self, "Наряд", "Не найден наряд")
-            return
-        num = bridge.create_wax_job(job)
-        if num:
-            update_wax_job(code, {"sync_doc_num": num})
-            log_event(code, "synced_1c", None, {"doc_num": num})
-        self.refresh()
+        try:
+            count = bridge.create_multiple_wax_jobs_from_task(task_num)
+            QMessageBox.information(self, "Готово", f"Создано {count} нарядов")
+            self.refresh()
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", str(e))
 
-    # ------------------------------------------------------------------
 
 
     def refresh(self):
         self._fill_jobs_tree()
         self._fill_parties_tree()
-        self._fill_process_tree()
 
     # —──────────── дерево «Наряды» ─────────────
     def _fill_jobs_tree(self):
@@ -290,6 +170,7 @@ class WaxPage(QWidget):
             qty = sum(j.get("qty", 0) for j in group)
             weight = sum(j.get("weight", 0.0) for j in group)
 
+<<<<<<< HEAD
             item = QTreeWidgetItem(self.tree_jobs, [
                 ", ".join(arts),
                 METHOD_LABEL.get(method, method),
@@ -299,6 +180,29 @@ class WaxPage(QWidget):
                 '✅' if group[0].get('sync_doc_num') else ''
             ])
             item.setData(0, Qt.UserRole, group[0]['wax_job'])
+=======
+        grouped = defaultdict(list)
+        for job in WAX_JOBS_POOL:
+            key = (job.get("method"), job.get("wax_job"))
+            grouped[key].append(job)
+
+        for (method, wax_code), jobs in grouped.items():
+            root = QTreeWidgetItem(self.tree_jobs, [
+                f"{METHOD_LABEL.get(method, method)} ({wax_code})",
+                "", "", "", "", ""
+            ])
+            root.setExpanded(True)
+
+            for j in jobs:
+                QTreeWidgetItem(root, [
+                    j.get("articles", ""),
+                    "",
+                    str(j.get("qty", 0)),
+                    f"{j.get('weight', 0.0):.3f}",
+                    j.get('status', ''),
+                    '✅' if j.get('sync_doc_num') else ''
+                ])
+>>>>>>> 8ca80ef78414f434fa2e5aa39004b0822169bcee
 
     # —──────────── дерево «Партии» ─────────────
     def _fill_parties_tree(self):
@@ -327,43 +231,7 @@ class WaxPage(QWidget):
                         str(d["qty"]), f"{d['weight']:.3f}"
                     ])
 
-    # —──────────── дерево «Процесс» ─────────────
-    def _fill_process_tree(self):
-        self.tree_process.clear()
 
-        for j in WAX_JOBS_POOL:
-            QTreeWidgetItem(self.tree_process, [
-                f"{j['operation']} ({j['wax_job']})",
-                j.get('status', ''),
-                j.get('assigned_to') or '',
-                j.get('completed_by') or '',
-                j.get('accepted_by') or '',
-                f"{(j.get('weight_wax') or 0):.3f}"
-            ])
-
-    # —──────────── дерево «Процесс» ─────────────
-    def _fill_process_tree(self):
-        self.tree_process.clear()
-
-        by_batch = defaultdict(list)
-        for j in WAX_JOBS_POOL:
-            by_batch[j["batch_code"]].append(j)
-
-        for code, jobs in by_batch.items():
-            j0 = jobs[0]
-            root = QTreeWidgetItem(self.tree_process, [
-                f"Партия {code} ({j0['metal']} {j0['hallmark']} {j0['color']})"
-            ])
-            root.setExpanded(True)
-            for j in jobs:
-                QTreeWidgetItem(root, [
-                    f"{j['operation']} ({j['wax_job']})",
-                    j.get('status', ''),
-                    j.get('assigned_to') or '',
-                    j.get('completed_by') or '',
-                    j.get('accepted_by') or '',
-                    f"{(j.get('weight_wax') or 0):.3f}"
-                ])
 
 # ----------------------------------------------------------------------
 def _wax_method(article:str)->str:
