@@ -246,41 +246,85 @@ class WaxPage(QWidget):
         
 
     def _create_task(self):
-        from PyQt5.QtWidgets import QInputDialog
-
         if not ORDERS_POOL:
             QMessageBox.warning(self, "Нет данных", "Нет заказов для создания")
             return
 
-        order_list = [o["docs"]["order_code"] for o in ORDERS_POOL]
-        selected, ok = QInputDialog.getItem(self, "Выберите заказ", "Заказ:", order_list, editable=False)
-        if ok and selected:
+        for o in ORDERS_POOL:
+            order_ref = o["order"]["Ref"]
+            method_to_items = defaultdict(list)
+            
             order = next((o["order"] for o in ORDERS_POOL if o["docs"]["order_code"] == selected), None)
-            if order:
+            if order and "Ref" in order:
                 try:
-                    num = bridge.create_task_from_order(order)
+                    num = bridge.create_task_from_order(order["Ref"])  # передаём ссылку
                     QMessageBox.information(self, "Готово", f"Задание №{num} создано")
                 except Exception as e:
                     QMessageBox.critical(self, "Ошибка", str(e))
+            else:
+                QMessageBox.warning(self, "Ошибка", "У заказа нет ссылки Ref для создания задания")
+
+            for row in o["order"]["rows"]:
+                method = _wax_method(row["article"])
+                method_to_items[method].append({
+                    "name": row["article"],
+                    "qty": row["qty"],
+                    "size": row.get("size", ""),
+                    "assay": row.get("hallmark", ""),
+                    "color": row.get("color", ""),
+                    "insert": row.get("insert", "")
+                })
+
+            for method, items in method_to_items.items():
+                try:
+                    result = bridge.create_production_task(order_ref, method, items)
+                    QMessageBox.information(self, "Готово", f"Задание №{result['Номер']} создано")
+                except Exception as e:
+                    QMessageBox.critical(self, "Ошибка создания задания", str(e))
+        
+        self.refresh()
 
     # ------------------------------------------------------------------
     def _create_wax_jobs(self):
-        from PyQt5.QtWidgets import QInputDialog
-
-        tasks = bridge.list_tasks()
-        if not tasks:
-            QMessageBox.warning(self, "Нет данных", "В 1С нет заданий")
+        if not ORDERS_POOL:
+            QMessageBox.warning(self, "Нет данных", "Нет партий для создания нарядов")
             return
 
-        task_numbers = [t["num"] for t in tasks]
-        selected, ok = QInputDialog.getItem(self, "Создание нарядов", "Выберите задание:", task_numbers, editable=False)
-        if ok and selected:
-            try:
-                num = bridge.create_wax_job_from_task(selected)
-                QMessageBox.information(self, "Готово", f"Наряд №{num} создан")
-                self.refresh()
-            except Exception as e:
-                QMessageBox.critical(self, "Ошибка", str(e))
+        created = 0
+
+        for pack in ORDERS_POOL:
+            for batch in pack["docs"].get("batches", []):
+                items = []
+                for row in pack["order"]["rows"]:
+                    if (row["metal"], row["hallmark"], row["color"]) == (
+                        batch["metal"], batch["hallmark"], batch["color"]
+                    ):
+                        items.append({
+                            "name": row["article"],
+                            "qty": row["qty"],
+                            "size": row.get("size", ""),
+                            "assay": row.get("hallmark", ""),
+                            "color": row.get("color", ""),
+                            "insert": row.get("insert", ""),
+                            "batch": batch["batch_barcode"]
+                        })
+
+                method = _wax_method(items[0]["name"]) if items else "3d"
+
+                # получаем ссылку на задание по методу
+                task_ref = bridge.find_production_task_ref_by_method(method)
+                if not task_ref:
+                    QMessageBox.warning(self, "Не найдено задание", f"Нет задания для метода {method}")
+                    continue
+
+                try:
+                    result = bridge.create_wax_order_from_task(task_ref, items)
+                    created += 1
+                except Exception as e:
+                    QMessageBox.critical(self, "Ошибка создания наряда", str(e))
+
+        QMessageBox.information(self, "Готово", f"Создано {created} нарядов")
+        self.refresh()
 
     # ------------------------------------------------------------------
     def _sync_job(self):
