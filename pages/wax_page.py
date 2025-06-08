@@ -52,6 +52,8 @@ class WaxPage(QWidget):
         self._fill_parties_tree()
         self._fill_tasks_tree()
         self._fill_wax_jobs_tree()    
+        self.tree_acts.itemDoubleClicked.connect(self._on_wax_job_double_click)
+        self.tree_tasks.itemDoubleClicked.connect(self._on_task_double_click)
 
     # ------------------------------------------------------------------
     def _ui(self):
@@ -128,12 +130,93 @@ class WaxPage(QWidget):
         t3.addWidget(lbl3)
 
         self.tree_acts = QTreeWidget()
-        self.tree_acts.setHeaderLabels(["Номер", "Дата", "Статус"])
+        self.tree_acts.setHeaderLabels(["Номер", "Дата", "Орг.", "Склад", "Участок", "Сотрудник", "Операция", "Статус", "Основание"])
         self.tree_acts.header().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.tree_acts.setStyleSheet(CSS_TREE)
         t3.addWidget(self.tree_acts, 1)
 
         self.tabs.addTab(tab3, "Наряды из 1С")
+        
+    def _show_wax_job_detail(self, item):
+        from PyQt5.QtWidgets import QDialog, QTableWidget, QTableWidgetItem, QVBoxLayout
+        num = item.text(0)
+        rows = bridge.get_wax_job_rows(num)
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle(f"Строки наряда {num}")
+        dlg.setMinimumWidth(1000)
+        layout = QVBoxLayout(dlg)
+
+        tbl = QTableWidget()
+        tbl.setRowCount(len(rows))
+        tbl.setColumnCount(9)
+        tbl.setHorizontalHeaderLabels([
+            "Номенклатура", "Размер", "Проба", "Цвет", "Кол-во", "Вес", "Партия", "Ёлка", "Состав набора"
+        ])
+        for i, r in enumerate(rows):
+            for j, k in enumerate([
+                "Номенклатура", "Размер", "Проба", "Цвет", "Количество", "Вес", "Партия", "Номер ёлки", "Состав набора"
+            ]):
+                tbl.setItem(i, j, QTableWidgetItem(str(r.get(k, ""))))
+
+        tbl.resizeColumnsToContents()
+        layout.addWidget(tbl)
+        dlg.setLayout(layout)
+        dlg.exec_()    
+        
+    def _on_task_double_click(self, item, column):
+        num = item.text(0).strip()
+        if not num:
+            return
+
+        lines = bridge.get_task_lines(num)
+        if not lines:
+            QMessageBox.information(self, "Нет данных", f"В задании {num} нет строк")
+            return
+
+        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTreeWidget, QTreeWidgetItem
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle(f"Продукция по заданию {num}")
+        layout = QVBoxLayout(dlg)
+
+        tree = QTreeWidget()
+        tree.setHeaderLabels(["Номенклатура", "Размер", "Проба", "Цвет", "Кол-во", "Вес"])
+        for row in lines:
+            QTreeWidgetItem(tree, [
+                row["nomen"], str(row["size"]), str(row["sample"]),
+                str(row["color"]), str(row["qty"]), str(row["weight"])
+            ])
+        layout.addWidget(tree)
+        dlg.resize(700, 400)
+        dlg.exec_()    
+        
+    def _on_wax_job_double_click(self, item, column):
+        num = item.text(0).strip()
+        if not num:
+            return
+
+        lines = bridge.get_wax_job_lines(num)
+        if not lines:
+            QMessageBox.information(self, "Нет данных", f"В наряде {num} нет строк")
+            return
+
+        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTreeWidget, QTreeWidgetItem
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle(f"Строки наряда {num}")
+        layout = QVBoxLayout(dlg)
+
+        tree = QTreeWidget()
+        tree.setHeaderLabels(["Номенклатура", "Размер", "Проба", "Цвет", "Кол-во", "Вес"])
+        for row in lines:
+            QTreeWidgetItem(tree, [
+                row["nomen"], str(row["size"]), str(row["sample"]),
+                str(row["color"]), str(row["qty"]), str(row["weight"])
+            ])
+        layout.addWidget(tree)
+        dlg.resize(700, 400)
+        dlg.exec_()    
         
     def _fill_tasks_tree(self):
         self.tree_tasks.clear()
@@ -152,7 +235,13 @@ class WaxPage(QWidget):
             QTreeWidgetItem(self.tree_acts, [
                 t.get("num", ""),
                 t.get("date", ""),
-                t.get("status", "")
+                t.get("organization", ""),
+                t.get("warehouse", ""),
+                t.get("section", ""),
+                t.get("employee", ""),
+                t.get("tech_op", ""),
+                t.get("status", ""),
+                t.get("based_on", "")
             ])    
         
 
@@ -210,11 +299,6 @@ class WaxPage(QWidget):
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", str(e))
 
-
-
-    def refresh(self):
-        self._fill_jobs_tree()
-        self._fill_parties_tree()
 
     # —──────────── дерево «Наряды» ─────────────
     def _fill_jobs_tree(self):
