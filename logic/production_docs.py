@@ -47,35 +47,55 @@ def group_by_keys(items: list[dict], keys: tuple[str]):
     return batches, mapping
 
 # ─────────────  3. метод (3d / rubber) по артикулу  ─────────────────────
-def _wax_method(article:str)->str:
-    return str(NOMENCLATURE.get(article,{}).get("method","rubber")).lower()
+def _wax_method(article: str) -> str:
+    """Определяем метод по артикулу.
+
+    Если в артикула присутствует буква «д»/"d", считаем его 3D моделью.
+    В противном случае возвращается метод "rubber".
+    """
+    art = str(article).lower()
+    if "д" in art or "d" in art:
+        return "3d"
+    return "rubber"
 
 # ─────────────  4. формируем 2 операции: cast & tree  ───────────────────
 OPS = {"cast":"Отлив восковых заготовок",
        "tree":"Сборка восковых ёлок"}
 
-def build_wax_jobs(order:dict, batches:list[dict]) -> list[dict]:
-    jobs=[]
+def build_wax_jobs(order: dict, batches: list[dict]) -> list[dict]:
+    """Формирует наряды из партий.
+
+    Наряды разделяются по методам внутри каждой партии. Базовые партии
+    остаются сгруппированными только по металлу, пробе и цвету.
+    """
+    jobs = []
     for b in batches:
-        arts={r["article"] for r in order["rows"]
-              if (r["metal"],r["hallmark"],r["color"])==
-                 (b["metal"],b["hallmark"],b["color"])}
-        method=_wax_method(next(iter(arts)))
-        for op in ("cast","tree"):
-            jobs.append(dict(
-                wax_job      = new_batch_code().replace("BTH","WX"),
-                operation    = OPS[op],
-                method       = method,
-                method_title = METHOD_LABEL[method],
-                batch_code   = b["batch_barcode"],
-                articles     = ", ".join(sorted(arts)),
-                metal        = b["metal"],
-                hallmark     = b["hallmark"],
-                color        = b["color"],
-                qty          = b["qty"],
-                weight       = b["total_w"],
-                created      = datetime.datetime.now().isoformat(timespec="seconds")
-            ))
+        rows = [r for r in order["rows"]
+                if (r["metal"], r["hallmark"], r["color"]) ==
+                   (b["metal"], b["hallmark"], b["color"])]
+        rows_by_method: dict[str, list[dict]] = defaultdict(list)
+        for r in rows:
+            rows_by_method[_wax_method(r["article"])].append(r)
+
+        for method, m_rows in rows_by_method.items():
+            arts = {r["article"] for r in m_rows}
+            qty_sum = sum(r["qty"] for r in m_rows)
+            w_sum = round(sum(r["weight"] for r in m_rows), 3)
+            for op in ("cast", "tree"):
+                jobs.append(dict(
+                    wax_job      = new_batch_code().replace("BTH", "WX"),
+                    operation    = OPS[op],
+                    method       = method,
+                    method_title = METHOD_LABEL[method],
+                    batch_code   = b["batch_barcode"],
+                    articles     = ", ".join(sorted(arts)),
+                    metal        = b["metal"],
+                    hallmark     = b["hallmark"],
+                    color        = b["color"],
+                    qty          = qty_sum,
+                    weight       = w_sum,
+                    created      = datetime.datetime.now().isoformat(timespec="seconds")
+                ))
     return jobs
 
 # ─────────────  5. главный вход  ────────────────────────────────────────

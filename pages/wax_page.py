@@ -176,6 +176,8 @@ class WaxPage(QWidget):
 
 # ----------------------------------------------------------------------
 def _wax_method(article:str)->str:
-    """низкоуровневая обёртка, чтобы не тянуть всю production_docs"""
-    from catalogs import NOMENCLATURE
-    return NOMENCLATURE.get(article,{}).get("method","rubber").lower()
+    """Небольшая обёртка для определения метода по артикулу."""
+    art = str(article).lower()
+    if "д" in art or "d" in art:
+        return "3d"
+    return "rubber"
