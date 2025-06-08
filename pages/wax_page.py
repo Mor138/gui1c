@@ -259,7 +259,7 @@ class WaxPage(QWidget):
                 QMessageBox.warning(self, "Ошибка", "У заказа нет номера для поиска в 1С")
                 continue
 
-            order_ref = bridge.get_doc_ref("ЗаказВПроизводство", order_num)
+            order_ref = bridge.get_doc_ref("ЗаказВПроизводство", order.get("num", ""))
             if not order_ref:
                 QMessageBox.warning(self, "Ошибка", f"Не найден заказ {order_num} в базе 1С")
                 continue
