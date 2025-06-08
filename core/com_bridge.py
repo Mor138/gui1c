@@ -460,7 +460,36 @@ class COM1CBridge:
             return str(doc.Number)
         except Exception as e:
             log(f"❌ Ошибка при записи документа: {e}")
-            return f"Ошибка: {e}" 
+            return f"Ошибка: {e}"
+
+    # ------------------------------------------------------------------
+    def create_wax_job(self, job: dict) -> str:
+        """Создаёт документ "НарядВосковыеИзделия" на основании наряда."""
+        try:
+            doc = self.documents.НарядВосковыеИзделия.CreateDocument()
+        except Exception as e:
+            log(f"[1C] Не удалось создать документ НарядВосковыеИзделия: {e}")
+            return ""
+
+        try:
+            doc.Дата = self.connection.ТекущаяДата()
+            if hasattr(doc, "Комментарий"):
+                doc.Комментарий = f"WX:{job.get('wax_job')} партия:{job.get('batch_code')}"
+            if job.get("assigned_to") and hasattr(doc, "Ответственный"):
+                ref = self.get_ref("Пользователи", job["assigned_to"])
+                if ref:
+                    doc.Ответственный = ref
+            if hasattr(doc, "Количество"):
+                doc.Количество = job.get("qty", 0)
+            weight = job.get("weight_wax") or job.get("weight")
+            if hasattr(doc, "Вес") and weight is not None:
+                doc.Вес = float(weight)
+            doc.Write()
+            log(f"✅ Создан документ НарядВосковыеИзделия №{doc.Number}")
+            return str(doc.Number)
+        except Exception as e:
+            log(f"❌ Ошибка создания НарядаВосковыеИзделия: {e}")
+            return ""
 
     def list_orders(self):
         result = []
