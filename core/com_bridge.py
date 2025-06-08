@@ -600,16 +600,16 @@ class COM1CBridge:
             return f"Ошибка: {e}"
             
     def get_doc_ref(self, doc_name: str, number: str):
-        """Ищет ссылку на документ по номеру"""
+        """Находит ссылку на документ по номеру."""
         docs = getattr(self.connection.Documents, doc_name, None)
-        if docs is None:
-            print(f"[LOG] Документ '{doc_name}' не найден")
+        if not docs:
+            log(f"[LOG] Документ '{doc_name}' не найден")
             return None
         selection = docs.Select()
         while selection.Next():
-            obj = selection.GetObject()
-            if str(obj.Номер) == number:
-                return obj.Ref
+            doc = selection.GetObject()
+            if str(doc.Number) == number:
+                return doc.Ref
         return None        
 
     # ------------------------------------------------------------------
