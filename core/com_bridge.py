@@ -791,7 +791,7 @@ class COM1CBridge:
         if doc_manager is None:
             raise Exception("Документ 'ЗаданиеНаПроизводство' не найден")
         doc = doc_manager.CreateDocument()
-        doc.Основание = order_ref
+        doc.ДокументОснование = self.connection.GetObject(order_ref)
         doc.Дата = self.connection.CurrentDate()
 
         for row in rows:
@@ -929,7 +929,6 @@ class COM1CBridge:
                 r.Вес = row.get("weight", 0)
                 r.Проба = str(row.get("hallmark", ""))
                 r.ЦветМеталла = self.get_ref("ЦветаМеталлов", row.get("color"))
-                r.АртикулГП = row.get("article")
 
             doc.Write()
             doc.Провести()
@@ -970,7 +969,6 @@ class COM1CBridge:
                 r.Проба = row.Проба
                 r.ЦветМеталла = row.ЦветМеталла
                 r.Вес = row.Вес
-                r.АртикулГП = row.АртикулГП
 
             doc.Write()
             doc.Провести()
@@ -1014,7 +1012,6 @@ class COM1CBridge:
                     r.Проба = row.Проба
                     r.ЦветМеталла = row.ЦветМеталла
                     r.Вес = row.Вес
-                    r.АртикулГП = row.АртикулГП
 
                 doc.Write()
                 doc.Провести()
