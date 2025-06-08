@@ -252,7 +252,7 @@ class WaxPage(QWidget):
 
         for o in ORDERS_POOL:
             order = o.get("order", {})
-        7f9ne8-codex/исправить-ошибку-keyerror-в-wax_page.py
+        
             order_ref = order.get("Ref")
             if not order_ref:
                 QMessageBox.warning(self, "Ошибка", "У заказа нет ссылки Ref для создания задания")
@@ -260,8 +260,7 @@ class WaxPage(QWidget):
             order_ref = bridge.get_doc_ref("ЗаказВПроизводство", order.get("num", ""))
             if not order_ref:
                 QMessageBox.warning(self, "Ошибка", f"Не найден заказ {order.get('num')} в базе 1С")
-        main
-                continue
+
 
             method_to_items = defaultdict(list)
 
