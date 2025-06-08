@@ -11,6 +11,15 @@ METHOD_LABEL = {"3d": "3D печать", "rubber": "Резина"}
 WAX_JOBS_POOL: list[dict] = []     # все открытые наряды
 ORDERS_POOL:  list[dict] = []     # все проведённые заказы (шапка+docs)
 
+# статусы нарядов
+JOB_STATES = [
+    "created",   # создан
+    "given",     # выдан исполнителю
+    "done",      # выполнен и сдан
+    "accepted",  # принят контролем
+    "tree_ready" # ёлка собрана
+]
+
 # ─────────────  helpers  ────────────────────────────────────────────────
 def _barcode(p):     return f"{p}-{uuid.uuid4().hex[:8].upper()}"
 def new_order_code(): return _barcode("ORD")
@@ -94,7 +103,15 @@ def build_wax_jobs(order: dict, batches: list[dict]) -> list[dict]:
                     color        = b["color"],
                     qty          = qty_sum,
                     weight       = w_sum,
-                    created      = datetime.datetime.now().isoformat(timespec="seconds")
+                    created      = datetime.datetime.now().isoformat(timespec="seconds"),
+                    status       = "created",
+                    assigned_to  = None,
+                    received_by  = None,
+                    completed_by = None,
+                    accepted_by  = None,
+                    weight_wax   = None,
+                    sync_doc_num = None,
+                    signed_log   = []
                 ))
     return jobs
 
@@ -113,3 +130,36 @@ def process_new_order(order_json: Dict[str,Any]) -> Dict[str,Any]:
     return dict(order_code=order_code,
                 items=items, batches=batches,
                 mapping=mapping, wax_jobs=wax_jobs)
+
+# ─────────────  service helpers  ────────────────────────────────────────
+def _find_job(code: str) -> dict | None:
+    """Возвращает словарь наряда по его коду."""
+    return next((j for j in WAX_JOBS_POOL if j.get("wax_job") == code), None)
+
+
+def get_wax_job(job_code: str) -> dict | None:
+    """Публичная обёртка для поиска наряда."""
+    return _find_job(job_code)
+
+
+def update_wax_job(job_code: str, updates: Dict[str, Any]) -> dict | None:
+    """Обновляет поля наряда и возвращает его."""
+    job = _find_job(job_code)
+    if not job:
+        return None
+    job.update(updates)
+    return job
+
+
+def log_event(job_code: str, stage: str, user: str | None = None, extra: Dict[str, Any] | None = None) -> None:
+    """Добавляет событие в журнал наряда."""
+    job = _find_job(job_code)
+    if not job:
+        return
+    if "signed_log" not in job or not isinstance(job["signed_log"], list):
+        job["signed_log"] = []
+    rec = dict(stage=stage, user=user,
+               time=datetime.datetime.now().isoformat(timespec="seconds"))
+    if extra:
+        rec.update(extra)
+    job["signed_log"].append(rec)
