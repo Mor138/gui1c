@@ -6,6 +6,7 @@ import tempfile
 from typing import Any, Dict, List
 from win32com.client import VARIANT
 from pythoncom import VT_BOOL
+from collections import defaultdict
 
 # ---------------------------
 # Маппинг описаний в системные имена перечисления
@@ -139,7 +140,50 @@ class COM1CBridge:
         except Exception as e:
             log(f"[Проведение] Ошибка при установке Проведен: {e}")
             return False
+            
+    def list_production_orders(self, limit=100):
+        """Список 'Заданий на производство' (Документ.ЗаданиеНаПроизводство)"""
+        result = []
+        try:
+            doc_manager = self.documents["ЗаданиеНаПроизводство"]
+            selection = doc_manager.Select()
+            count = 0
+            while selection.Next() and count < limit:
+                doc = selection.GetObject()
+                result.append({
+                    "Номер": str(doc.Number),
+                    "Дата": str(doc.Date),
+                    "РабочийЦентр": safe_str(getattr(doc, "РабочийЦентр", "")),
+                    "ТехОперация": safe_str(getattr(doc, "ТехОперация", "")),
+                    "ПроизводственныйУчасток": safe_str(getattr(doc, "ПроизводственныйУчасток", "")),
+                    "Комментарий": safe_str(getattr(doc, "Комментарий", "")),
+                })
+                count += 1
+        except Exception as e:
+            log(f"[❌] Ошибка list_production_orders: {e}")
+        return result
 
+    def list_wax_work_orders(self, limit=100):
+        """Список 'Нарядов (восковые изделия)' (Документ.НарядВосковыеИзделия)"""
+        result = []
+        try:
+            doc_manager = self.documents["НарядВосковыеИзделия"]
+            selection = doc_manager.Select()
+            count = 0
+            while selection.Next() and count < limit:
+                doc = selection.GetObject()
+                result.append({
+                    "Номер": str(doc.Number),
+                    "Дата": str(doc.Date),
+                    "Сотрудник": safe_str(getattr(doc, "Сотрудник", "")),
+                    "Комментарий": safe_str(getattr(doc, "Комментарий", "")),
+                    "ТехОперация": safe_str(getattr(doc, "ТехОперация", "")),
+                    "ПроизводственныйУчасток": safe_str(getattr(doc, "ПроизводственныйУчасток", "")),
+                })
+                count += 1
+        except Exception as e:
+            log(f"[❌] Ошибка list_wax_work_orders: {e}")
+        return result       
 
     def mark_order_for_deletion(self, number: str) -> bool:
         obj = self._find_document_by_number("ЗаказВПроизводство", number)
@@ -472,7 +516,8 @@ class COM1CBridge:
             return ""
 
         try:
-            doc.Дата = self.connection.ТекущаяДата()
+            from datetime import datetime
+            doc.Date = datetime.now()
             if hasattr(doc, "Комментарий"):
                 doc.Комментарий = f"WX:{job.get('wax_job')} партия:{job.get('batch_code')}"
             if job.get("assigned_to") and hasattr(doc, "Ответственный"):
@@ -538,26 +583,44 @@ class COM1CBridge:
             })
             count += 1
         return result
-
-    # ------------------------------------------------------------------
-        co16wb-codex/добавить-страницы-для-отображения-партий-и-процесса
-    def list_tasks(self):
-        """Возвращает список документов 'ЗаданиеНаПроизводство'."""
+        
+    def list_tasks(self, limit: int = 100) -> list[dict]:
+        """Список заданий на производство"""
         result = []
-        try:
-            tasks = self.connection.Documents.ЗаданиеНаПроизводство.Select()
-        except Exception as e:
-            log(f"[1C] list_tasks error: {e}")
-            return result
-
-        while tasks.Next():
-            doc = tasks.GetObject()
+        catalog = self.connection.Documents.ЗаданиеНаПроизводство
+        selection = catalog.Select()
+        count = 0
+        while selection.Next() and count < limit:
+            doc = selection.GetObject()
             result.append({
+                "ref": doc.Ref,
                 "num": str(doc.Number),
-                "date": str(doc.Date) if hasattr(doc, "Date") else "",
-                "posted": getattr(doc, "Posted", False)
+                "date": str(doc.Date),
+                "employee": str(doc.РабочийЦентр) if hasattr(doc, "РабочийЦентр") else "",
+                "tech_op": str(doc.ТехОперация) if hasattr(doc, "ТехОперация") else "",
             })
-        return result
+            count += 1
+        return result    
+        
+    def list_wax_jobs(self) -> list[dict]:
+        try:
+            doc = self.connection.Documents["НарядВосковыеИзделия"]
+            selection = doc.Select()
+            jobs = []
+            while selection.Next():
+                obj = selection.GetObject()
+                jobs.append({
+                    "Ref": str(obj.Ref),
+                    "Номер": str(obj.Number),
+                    "Дата": str(obj.Date),
+                    "Сотрудник": str(obj.Сотрудник) if hasattr(obj, "Сотрудник") else "",
+                    "Комментарий": str(obj.Комментарий) if hasattr(obj, "Комментарий") else "",
+                })
+            return jobs
+        except Exception as e:
+            print("[LOG] ❌ Ошибка получения нарядов:", e)
+            return []   
+
 
     # ------------------------------------------------------------------
        
@@ -571,7 +634,8 @@ class COM1CBridge:
             return ""
 
         try:
-            doc.Дата = self.connection.ТекущаяДата()
+            from datetime import datetime
+            doc.Date = datetime.now()
             base = self._find_document_by_number("ЗаказВПроизводство", order.get("num", ""))
             if base:
                 doc.ДокументОснование = base
@@ -581,7 +645,6 @@ class COM1CBridge:
                 if ref:
                     doc.РабочийЦентр = ref
 
-            # Используем "восковка" в качестве участка и операции по умолчанию
             section = self.get_ref("ПроизводственныеУчастки", "восковка")
             if section:
                 doc.ПроизводственныйУчасток = section
@@ -590,7 +653,7 @@ class COM1CBridge:
                 doc.ТехОперация = op
 
             for row in order.get("rows", []):
-                r = doc.Товары.Add()
+                r = doc.Продукция.Add()
                 r.Номенклатура = self.get_ref("Номенклатура", row.get("article"))
                 var = row.get("variant")
                 if var:
@@ -609,6 +672,25 @@ class COM1CBridge:
         except Exception as e:
             log(f"❌ Ошибка создания Задания: {e}")
             return ""
+            
+    def list_production_tasks(self) -> list[dict]:
+        try:
+            doc = self.connection.Documents["ЗаданиеНаПроизводство"]
+            selection = doc.Select()
+            tasks = []
+            while selection.Next():
+                obj = selection.GetObject()
+                tasks.append({
+                    "Ref": str(obj.Ref),
+                    "Номер": str(obj.Number),
+                    "Дата": str(obj.Date),
+                    "Организация": str(obj.Организация) if hasattr(obj, "Организация") else "",
+                    "Комментарий": str(obj.Комментарий) if hasattr(obj, "Комментарий") else "",
+                })
+            return tasks
+        except Exception as e:
+            print("[LOG] ❌ Ошибка получения заданий:", e)
+            return []        
 
     # ------------------------------------------------------------------
     def create_wax_job_from_task(self, task_number: str) -> str:
@@ -625,16 +707,14 @@ class COM1CBridge:
             return ""
 
         try:
-            doc.Дата = self.connection.ТекущаяДата()
+            from datetime import datetime
+            doc.Date = datetime.now()
             doc.ДокументОснование = task
-            if hasattr(task, "ТехОперация"):
-                doc.ТехОперация = task.ТехОперация
-            if hasattr(task, "ПроизводственныйУчасток"):
-                doc.ПроизводственныйУчасток = task.ПроизводственныйУчасток
-            if hasattr(task, "РабочийЦентр"):
-                doc.Ответственный = task.РабочийЦентр
+            doc.ТехОперация = getattr(task, "ТехОперация", None)
+            doc.ПроизводственныйУчасток = getattr(task, "ПроизводственныйУчасток", None)
+            doc.Ответственный = getattr(task, "РабочийЦентр", None)
 
-            for row in task.Товары:
+            for row in task.Продукция:
                 r = doc.ТоварыВыдано.Add()
                 r.Номенклатура = row.Номенклатура
                 r.Размер = row.Размер
@@ -655,10 +735,7 @@ class COM1CBridge:
 
     # ------------------------------------------------------------------
     def create_multiple_wax_jobs_from_task(self, task_number: str) -> int:
-        """Создаёт несколько нарядов на основании задания.
-
-        Для каждого метода (3D или резина) формируется отдельный документ
-        "НарядВосковыеИзделия". Возвращает количество созданных документов."""
+        """Создаёт несколько нарядов на основании задания по методу (3d или резина)."""
         task = self._find_document_by_number("ЗаданиеНаПроизводство", task_number)
         if not task:
             log(f"❌ Задание №{task_number} не найдено")
@@ -666,22 +743,20 @@ class COM1CBridge:
 
         try:
             rows_by_method = defaultdict(list)
-            for row in task.Товары:
+            for row in task.Продукция:
                 art = safe_str(row.Номенклатура)
                 method = "3d" if ("д" in art.lower() or "d" in art.lower()) else "rubber"
                 rows_by_method[method].append(row)
 
             count = 0
+            from datetime import datetime
             for rows in rows_by_method.values():
                 doc = self.documents.НарядВосковыеИзделия.CreateDocument()
-                doc.Дата = self.connection.ТекущаяДата()
+                doc.Date = datetime.now()
                 doc.ДокументОснование = task
-                if hasattr(task, "ТехОперация"):
-                    doc.ТехОперация = task.ТехОперация
-                if hasattr(task, "ПроизводственныйУчасток"):
-                    doc.ПроизводственныйУчасток = task.ПроизводственныйУчасток
-                if hasattr(task, "РабочийЦентр"):
-                    doc.Ответственный = task.РабочийЦентр
+                doc.ТехОперация = getattr(task, "ТехОперация", None)
+                doc.ПроизводственныйУчасток = getattr(task, "ПроизводственныйУчасток", None)
+                doc.Ответственный = getattr(task, "РабочийЦентр", None)
 
                 for row in rows:
                     r = doc.ТоварыВыдано.Add()
