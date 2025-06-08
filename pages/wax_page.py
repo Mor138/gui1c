@@ -223,25 +223,15 @@ class WaxPage(QWidget):
     # ------------------------------------------------------------------
     def _create_task(self):
         from PyQt5.QtWidgets import QInputDialog
-        co16wb-codex/добавить-страницы-для-отображения-партий-и-процесса
-        orders = bridge.list_orders()
-        nums = [o["num"] for o in orders]
-        if not nums:
-            QMessageBox.warning(self, "Нет данных", "В 1С нет заказов")
-            return
 
-        selected, ok = QInputDialog.getItem(self, "Выберите заказ", "Заказ:", nums, editable=False)
-        if ok and selected:
-            order = next((o for o in orders if o["num"] == selected), None)
-       
         if not ORDERS_POOL:
             QMessageBox.warning(self, "Нет данных", "Нет заказов для создания")
             return
+
         order_list = [o["docs"]["order_code"] for o in ORDERS_POOL]
         selected, ok = QInputDialog.getItem(self, "Выберите заказ", "Заказ:", order_list, editable=False)
         if ok and selected:
             order = next((o["order"] for o in ORDERS_POOL if o["docs"]["order_code"] == selected), None)
-        main
             if order:
                 try:
                     num = bridge.create_task_from_order(order)
@@ -252,23 +242,11 @@ class WaxPage(QWidget):
     # ------------------------------------------------------------------
     def _create_wax_job(self):
         from PyQt5.QtWidgets import QInputDialog
-        co16wb-codex/добавить-страницы-для-отображения-партий-и-процесса
-        tasks = bridge.list_tasks() if hasattr(bridge, "list_tasks") else []
-        nums = [t["num"] for t in tasks]
-        if not nums:
-            QMessageBox.warning(self, "Нет данных", "В 1С нет заданий")
-            return
 
-        selected, ok = QInputDialog.getItem(self, "Создание наряда", "Номер задания:", nums, editable=False)
-        if ok and selected:
-            try:
-                num = bridge.create_wax_job_from_task(selected)
-       
         task_num, ok = QInputDialog.getText(self, "Создание наряда", "Номер задания:")
         if ok and task_num:
             try:
                 num = bridge.create_wax_job_from_task(task_num)
-        main
                 QMessageBox.information(self, "Готово", f"Наряд №{num} создан")
             except Exception as e:
                 QMessageBox.critical(self, "Ошибка", str(e))
@@ -301,17 +279,26 @@ class WaxPage(QWidget):
     # —──────────── дерево «Наряды» ─────────────
     def _fill_jobs_tree(self):
         self.tree_jobs.clear()
+        jobs_by_method_batch = defaultdict(list)
 
-        for j in WAX_JOBS_POOL:
+        for job in WAX_JOBS_POOL:
+            key = (job["method"], job["batch_code"])
+            jobs_by_method_batch[key].append(job)
+
+        for (method, batch), group in jobs_by_method_batch.items():
+            arts = sorted(set(j["articles"] for j in group))
+            qty = sum(j.get("qty", 0) for j in group)
+            weight = sum(j.get("weight", 0.0) for j in group)
+
             item = QTreeWidgetItem(self.tree_jobs, [
-                j.get('articles', ''),
-                METHOD_LABEL.get(j.get('method'), j.get('method')),
-                str(j.get('qty', 0)),
-                f"{j.get('weight', 0.0):.3f}",
-                j.get('status', ''),
-                '✅' if j.get('sync_doc_num') else ''
+                ", ".join(arts),
+                METHOD_LABEL.get(method, method),
+                str(qty),
+                f"{weight:.3f}",
+                group[0].get("status", ''),
+                '✅' if group[0].get('sync_doc_num') else ''
             ])
-            item.setData(0, Qt.UserRole, j['wax_job'])
+            item.setData(0, Qt.UserRole, group[0]['wax_job'])
 
     # —──────────── дерево «Партии» ─────────────
     def _fill_parties_tree(self):
