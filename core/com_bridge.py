@@ -608,7 +608,7 @@ class COM1CBridge:
         selection = docs.Select()
         while selection.Next():
             doc = selection.GetObject()
-            if str(doc.Number) == number:
+            if number in str(doc.Number):
                 return doc.Ref
         return None        
 
