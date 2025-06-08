@@ -274,7 +274,7 @@ class OrdersPage(QWidget):
             "ВидСтатусПродукции": str(self.status_combo.currentText()).strip()
         }
 
-        items = []  # ← вот это и нужно было добавить
+        items = []
         for row in range(self.tbl.rowCount()):
             art = self.tbl.cellWidget(row, 0).currentText()
             card = self.articles.get(art, {})
@@ -289,7 +289,10 @@ class OrdersPage(QWidget):
                 "ЕдиницаИзмерения": "шт"
             })
 
-        # Дополнительно формируем JSON для wax-страницы
+        # ⏩ Сначала создаём документ в 1С
+        number = bridge.create_order(fields, items)
+
+        # Потом подготавливаем JSON
         order_json_rows = []
         for row in range(self.tbl.rowCount()):
             metal, hallmark, color = parse_variant(
@@ -305,14 +308,13 @@ class OrdersPage(QWidget):
                 "color": color,
             })
 
+        # 🔄 Отправляем в ORDERS_POOL
         order_json = {
             "number": number,
             "rows": order_json_rows
         }
-
         process_new_order(order_json)
 
-        number = bridge.create_order(fields, items)
         self.ed_num.setText(number)
         self._load_orders()
         QMessageBox.information(self, "Готово", f"Сохранено: заказ №{number}")
