@@ -652,3 +652,54 @@ class COM1CBridge:
         except Exception as e:
             log(f"❌ Ошибка создания Наряда: {e}")
             return ""
+
+    # ------------------------------------------------------------------
+    def create_multiple_wax_jobs_from_task(self, task_number: str) -> int:
+        """Создаёт несколько нарядов на основании задания.
+
+        Для каждого метода (3D или резина) формируется отдельный документ
+        "НарядВосковыеИзделия". Возвращает количество созданных документов."""
+        task = self._find_document_by_number("ЗаданиеНаПроизводство", task_number)
+        if not task:
+            log(f"❌ Задание №{task_number} не найдено")
+            return 0
+
+        try:
+            rows_by_method = defaultdict(list)
+            for row in task.Товары:
+                art = safe_str(row.Номенклатура)
+                method = "3d" if ("д" in art.lower() or "d" in art.lower()) else "rubber"
+                rows_by_method[method].append(row)
+
+            count = 0
+            for rows in rows_by_method.values():
+                doc = self.documents.НарядВосковыеИзделия.CreateDocument()
+                doc.Дата = self.connection.ТекущаяДата()
+                doc.ДокументОснование = task
+                if hasattr(task, "ТехОперация"):
+                    doc.ТехОперация = task.ТехОперация
+                if hasattr(task, "ПроизводственныйУчасток"):
+                    doc.ПроизводственныйУчасток = task.ПроизводственныйУчасток
+                if hasattr(task, "РабочийЦентр"):
+                    doc.Ответственный = task.РабочийЦентр
+
+                for row in rows:
+                    r = doc.ТоварыВыдано.Add()
+                    r.Номенклатура = row.Номенклатура
+                    r.Размер = row.Размер
+                    r.Количество = row.Количество
+                    r.ВариантИзготовления = row.ВариантИзготовления
+                    r.Проба = row.Проба
+                    r.ЦветМеталла = row.ЦветМеталла
+                    r.Вес = row.Вес
+                    r.АртикулГП = row.АртикулГП
+
+                doc.Write()
+                doc.Провести()
+                count += 1
+
+            log(f"✅ Создано {count} нарядов по заданию №{task_number}")
+            return count
+        except Exception as e:
+            log(f"❌ Ошибка create_multiple_wax_jobs_from_task: {e}")
+            return 0
