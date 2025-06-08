@@ -111,19 +111,18 @@ def build_wax_jobs(order: dict, batches: list[dict]) -> list[dict]:
 
 # ─────────────  5. главный вход  ────────────────────────────────────────
 def process_new_order(order_json: Dict[str,Any]) -> Dict[str,Any]:
-    order_code = new_order_code()
+    order_code = order_json.get("number", new_order_code())  # fallback на случай отладки без 1С
+
     items      = expand_items(order_json)
     batches,mapping = group_by_keys(items, GROUP_KEYS_WAX_CAST)
     wax_jobs   = build_wax_jobs(order_json, batches)
 
     ORDERS_POOL.append(dict(order=order_json, docs=dict(
-        order_code=order_code, items=items, batches=batches,
-        mapping=mapping, wax_jobs=wax_jobs)))
-    WAX_JOBS_POOL.extend(wax_jobs)
-
-    return dict(order_code=order_code,
-                items=items, batches=batches,
-                mapping=mapping, wax_jobs=wax_jobs)
+        order_code=order_code,
+        items=items,
+        batches=batches,
+        mapping=mapping,
+        wax_jobs=wax_jobs)))
 
 # ─────────────  service helpers  ────────────────────────────────────────
 def _find_job(code: str) -> dict | None:
