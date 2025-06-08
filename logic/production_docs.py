@@ -23,7 +23,7 @@ def expand_items(order_json: Dict[str, Any]) -> List[Dict[str, Any]]:
     for row in order_json["rows"]:
         unit_w = row["weight"]/row["qty"] if row["qty"] else 0
         for _ in range(row["qty"]):
-            it = deepcopy(row)
+            it = row.copy()  # avoid deepcopy of possible COM objects
             it["item_barcode"] = new_item_code()
             it["weight"] = unit_w
             lst.append(it)

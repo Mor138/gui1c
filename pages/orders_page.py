@@ -11,14 +11,16 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt, QDate
 from core.com_bridge import COM1CBridge
+from logic.production_docs import process_new_order
 
 bridge = COM1CBridge("C:\\Users\\Mor\\Desktop\\1C\\proiz")
 
 class OrdersPage(QWidget):
     COLS = ["Артикул", "Наим.", "Вариант", "Размер", "Кол-во", "Вес, г", "Примечание"]
 
-    def __init__(self):
+    def __init__(self, on_send_to_wax=None):
         super().__init__()
+        self.on_send_to_wax = on_send_to_wax
         self.articles = bridge.get_articles()
         self.organizations = bridge.list_catalog_items("Организации")
         self.counterparties = bridge.list_catalog_items("Контрагенты")
@@ -143,6 +145,7 @@ class OrdersPage(QWidget):
         buttons = QHBoxLayout()
         for label, func in [
             ("🔄 Обновить", self._load_orders),
+            ("📤 В работу", self._send_to_wax),
             ("✅ Провести отмеченные", self._mass_post),
             ("🧷 Пометить", lambda: self._mark_deleted(True)),
             ("📍 Снять пометку", lambda: self._mark_deleted(False)),
@@ -266,6 +269,24 @@ class OrdersPage(QWidget):
                 "ЕдиницаИзмерения": "шт"
             })
 
+        # Дополнительно формируем JSON для wax-страницы
+        order_json = {
+            "rows": [
+                {
+                    "article": self.tbl.cellWidget(row, 0).currentText(),
+                    "size": self.tbl.cellWidget(row, 3).value(),
+                    "qty": self.tbl.cellWidget(row, 4).value(),
+                    "weight": self.tbl.cellWidget(row, 5).value(),
+                    "metal": "Золото",
+                    "hallmark": "585",
+                    "color": "красный",
+                }
+                for row in range(self.tbl.rowCount())
+            ]
+        }
+
+        process_new_order(order_json)
+
         number = bridge.create_order(fields, items)
         self.ed_num.setText(number)
         self._load_orders()
@@ -297,6 +318,30 @@ class OrdersPage(QWidget):
             if self.tbl_orders.item(i, 0).checkState() == Qt.Checked:
                 bridge.post_order(o["num"])
         self._load_orders()
+
+    def _send_to_wax(self):
+        row = self.tbl_orders.currentRow()
+        if row < 0:
+            QMessageBox.warning(self, "Ошибка", "Выберите заказ")
+            return
+        order = self._orders[row]
+        order_json = {
+            "rows": [
+                {
+                    "article": r.get("nomenclature", ""),
+                    "size": r.get("size", 0),
+                    "qty": r.get("qty", 0),
+                    "weight": r.get("w", 0),
+                    "metal": "Золото",
+                    "hallmark": "585",
+                    "color": "красный",
+                }
+                for r in order.get("rows", [])
+            ]
+        }
+        process_new_order(order_json)
+        if callable(self.on_send_to_wax):
+            self.on_send_to_wax()
 
     def _delete_selected_order(self):
         selected = [i for i in range(self.tbl_orders.rowCount())
