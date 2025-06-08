@@ -1,4 +1,4 @@
-# wax_page.py • v0.7
+# wax_page.py • v0.8
 # ─────────────────────────────────────────────────────────────────────────
 from collections import defaultdict
 from PyQt5.QtCore    import Qt
@@ -223,6 +223,17 @@ class WaxPage(QWidget):
     # ------------------------------------------------------------------
     def _create_task(self):
         from PyQt5.QtWidgets import QInputDialog
+        co16wb-codex/добавить-страницы-для-отображения-партий-и-процесса
+        orders = bridge.list_orders()
+        nums = [o["num"] for o in orders]
+        if not nums:
+            QMessageBox.warning(self, "Нет данных", "В 1С нет заказов")
+            return
+
+        selected, ok = QInputDialog.getItem(self, "Выберите заказ", "Заказ:", nums, editable=False)
+        if ok and selected:
+            order = next((o for o in orders if o["num"] == selected), None)
+       
         if not ORDERS_POOL:
             QMessageBox.warning(self, "Нет данных", "Нет заказов для создания")
             return
@@ -230,6 +241,7 @@ class WaxPage(QWidget):
         selected, ok = QInputDialog.getItem(self, "Выберите заказ", "Заказ:", order_list, editable=False)
         if ok and selected:
             order = next((o["order"] for o in ORDERS_POOL if o["docs"]["order_code"] == selected), None)
+        main
             if order:
                 try:
                     num = bridge.create_task_from_order(order)
@@ -240,10 +252,23 @@ class WaxPage(QWidget):
     # ------------------------------------------------------------------
     def _create_wax_job(self):
         from PyQt5.QtWidgets import QInputDialog
+        co16wb-codex/добавить-страницы-для-отображения-партий-и-процесса
+        tasks = bridge.list_tasks() if hasattr(bridge, "list_tasks") else []
+        nums = [t["num"] for t in tasks]
+        if not nums:
+            QMessageBox.warning(self, "Нет данных", "В 1С нет заданий")
+            return
+
+        selected, ok = QInputDialog.getItem(self, "Создание наряда", "Номер задания:", nums, editable=False)
+        if ok and selected:
+            try:
+                num = bridge.create_wax_job_from_task(selected)
+       
         task_num, ok = QInputDialog.getText(self, "Создание наряда", "Номер задания:")
         if ok and task_num:
             try:
                 num = bridge.create_wax_job_from_task(task_num)
+        main
                 QMessageBox.information(self, "Готово", f"Наряд №{num} создан")
             except Exception as e:
                 QMessageBox.critical(self, "Ошибка", str(e))
@@ -292,35 +317,42 @@ class WaxPage(QWidget):
     def _fill_parties_tree(self):
         self.tree_part.clear()
 
-        # grouping by партия
-        jobs_by_party = defaultdict(list)
-        for j in WAX_JOBS_POOL:
-            jobs_by_party[j["batch_code"]].append(j)
+        # Информацию о партиях берём из ORDERS_POOL
+        for pack in ORDERS_POOL:
+            for b in pack["docs"].get("batches", []):
+                root = QTreeWidgetItem(self.tree_part, [
+                    f"Партия {b['batch_barcode']}  ({b['metal']} {b['hallmark']} {b['color']})",
+                    str(b["qty"]), f"{b['total_w']:.3f}"
+                ])
+                root.setExpanded(True)
 
-        for code, jobs in jobs_by_party.items():
-            j0 = jobs[0]
-            wax_w = sum(j.get('weight_wax') or 0 for j in jobs)
-            root = QTreeWidgetItem(self.tree_part, [
-                f"Партия {code}  ({j0['metal']} {j0['hallmark']} {j0['color']})",
-                str(j0["qty"]), f"{wax_w:.3f}"
-            ])
-            root.setExpanded(True)
-
-            # article+size aggregated
-            agg = defaultdict(lambda: dict(qty=0, weight=0))
-            for pack in ORDERS_POOL:
+                agg = defaultdict(lambda: dict(qty=0, weight=0))
                 for row in pack["order"]["rows"]:
-                    if (row["metal"],row["hallmark"],row["color"])==(
-                        j0["metal"],j0["hallmark"],j0["color"]):
+                    if (row["metal"], row["hallmark"], row["color"]) == (
+                        b["metal"], b["hallmark"], b["color"]):
                         k = (row["article"], row["size"])
                         agg[k]["qty"] += row["qty"]
                         agg[k]["weight"] += row["weight"]
 
-            for (art,size), d in agg.items():
-                QTreeWidgetItem(root, [
-                    f"{art}  (р-р {size})",
-                    str(d["qty"]), f"{d['weight']:.3f}"
-                ])
+                for (art, size), d in agg.items():
+                    QTreeWidgetItem(root, [
+                        f"{art}  (р-р {size})",
+                        str(d["qty"]), f"{d['weight']:.3f}"
+                    ])
+
+    # —──────────── дерево «Процесс» ─────────────
+    def _fill_process_tree(self):
+        self.tree_process.clear()
+
+        for j in WAX_JOBS_POOL:
+            QTreeWidgetItem(self.tree_process, [
+                f"{j['operation']} ({j['wax_job']})",
+                j.get('status', ''),
+                j.get('assigned_to') or '',
+                j.get('completed_by') or '',
+                j.get('accepted_by') or '',
+                f"{(j.get('weight_wax') or 0):.3f}"
+            ])
 
     # —──────────── дерево «Процесс» ─────────────
     def _fill_process_tree(self):

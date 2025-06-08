@@ -1,4 +1,4 @@
-# com_bridge.py • взаимодействие с 1С через COM
+# com_bridge.py • взаимодействие с 1С через COM v0.8
 import win32com.client
 import pywintypes
 import os
@@ -540,6 +540,28 @@ class COM1CBridge:
         return result
 
     # ------------------------------------------------------------------
+        co16wb-codex/добавить-страницы-для-отображения-партий-и-процесса
+    def list_tasks(self):
+        """Возвращает список документов 'ЗаданиеНаПроизводство'."""
+        result = []
+        try:
+            tasks = self.connection.Documents.ЗаданиеНаПроизводство.Select()
+        except Exception as e:
+            log(f"[1C] list_tasks error: {e}")
+            return result
+
+        while tasks.Next():
+            doc = tasks.GetObject()
+            result.append({
+                "num": str(doc.Number),
+                "date": str(doc.Date) if hasattr(doc, "Date") else "",
+                "posted": getattr(doc, "Posted", False)
+            })
+        return result
+
+    # ------------------------------------------------------------------
+       
+        main
     def create_task_from_order(self, order: dict) -> str:
         """Создаёт документ 'ЗаданиеНаПроизводство' на основании заказа."""
         try:
