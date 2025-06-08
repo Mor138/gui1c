@@ -8,9 +8,9 @@ from uuid import uuid4
 
 from catalogs import NOMENCLATURE                      # метод 3d / rubber
 
+from .state import ORDERS_POOL, WAX_JOBS_POOL  # централизованное хранилище
+
 METHOD_LABEL = {"3d": "3D печать", "rubber": "Резина"}
-WAX_JOBS_POOL: list[dict] = []     # все открытые наряды
-ORDERS_POOL:  list[dict] = []     # все проведённые заказы (шапка+docs)
 
 # статусы нарядов
 JOB_STATES = [
@@ -116,7 +116,6 @@ def process_new_order(order_json: Dict[str,Any]) -> Dict[str,Any]:
     items      = expand_items(order_json)
     batches,mapping = group_by_keys(items, GROUP_KEYS_WAX_CAST)
     wax_jobs   = build_wax_jobs(order_json, batches)
-    from .state import ORDERS_POOL, WAX_JOBS_POOL
     WAX_JOBS_POOL.extend(wax_jobs)
 
     ORDERS_POOL.append(dict(order=order_json, docs=dict(
