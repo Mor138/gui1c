@@ -462,44 +462,35 @@ class COM1CBridge:
             log(f"❌ Ошибка при записи документа: {e}")
             return f"Ошибка: {e}" 
 
-    def list_orders(self, limit=1000) -> List[Dict[str, Any]]:
+    def list_orders(self):
         result = []
-        doc = getattr(self.documents, "ЗаказВПроизводство", None)
-        if doc is None:
-            return result
-
-        selection = doc.Select()
-        while selection.Next() and len(result) < limit:
-            obj = selection.GetObject()
+        orders = self.connection.Documents.ЗаказВПроизводство.Select()
+        while orders.Next():
+            doc = orders.GetObject()
             rows = []
-            for line in obj.Товары:
+            for row in doc.Товары:
                 rows.append({
-                    "nomenclature": safe_str(getattr(line, "Номенклатура", "")),
-                    "variant": safe_str(getattr(line, "ВариантИзготовления", "")),
-                    "status": safe_str(getattr(line, "ВидСтатусПродукции", "")),  # опционально
-                    "size": getattr(line, "Размер", 0),
-                    "qty": getattr(line, "Количество", 0),
-                    "w": getattr(line, "Вес", 0),
-                    "note": safe_str(getattr(line, "Примечание", ""))  # ← вот это
+                    "nomenclature": safe_str(row.Номенклатура),
+                    "size": row.Размер,
+                    "qty": row.Количество,
+                    "w": row.Вес,
+                    "variant": safe_str(row.ВариантИзготовления),
+                    "note": row.Примечание,
                 })
-
-            prod_status = self.to_string(getattr(obj, "ВидСтатусПродукции", None))
-
             result.append({
-                "num": str(obj.Number),
-                "date": str(obj.Date),
-                "contragent": safe_str(getattr(obj, "Контрагент", "")),
-                "org": safe_str(getattr(obj, "Организация", "")),
-                "contract": safe_str(getattr(obj, "ДоговорКонтрагента", "")),
-                "prod_status": prod_status,
-                "qty": sum([getattr(x, "Количество", 0) for x in obj.Товары]),
-                "weight": round(sum([getattr(x, "Вес", 0) for x in obj.Товары]), 3),
-                "comment": safe_str(getattr(obj, "Комментарий", "")),
-                "deleted": getattr(obj, "DeletionMark", False),
-                "posted": getattr(obj, "Проведен", False),
+                "num": doc.Номер,
+                "date": str(doc.Дата),
+                "org": safe_str(doc.Организация),
+                "contragent": safe_str(doc.Контрагент),
+                "contract": safe_str(doc.ДоговорКонтрагента),
+                "comment": safe_str(doc.Комментарий),
+                "prod_status": safe_str(doc.ВидСтатусПродукции),
+                "posted": doc.Проведен,
+                "deleted": doc.ПометкаУдаления,
+                "qty": sum([r["qty"] for r in rows]),
+                "weight": sum([r["w"] for r in rows]),
                 "rows": rows
             })
-
         return result
 
     def list_catalog_items(self, catalog_name, limit=1000):
