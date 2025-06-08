@@ -11,6 +11,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt, QDate
 from core.com_bridge import COM1CBridge
+from logic.production_docs import process_new_order
 
 bridge = COM1CBridge("C:\\Users\\Mor\\Desktop\\1C\\proiz")
 
@@ -265,6 +266,24 @@ class OrdersPage(QWidget):
                 "Примечание": self.tbl.cellWidget(row, 6).text() if self.tbl.cellWidget(row, 6) else "",
                 "ЕдиницаИзмерения": "шт"
             })
+
+        # Дополнительно формируем JSON для wax-страницы
+        order_json = {
+            "rows": [
+                {
+                    "article": self.tbl.cellWidget(row, 0).currentText(),
+                    "size": self.tbl.cellWidget(row, 3).value(),
+                    "qty": self.tbl.cellWidget(row, 4).value(),
+                    "weight": self.tbl.cellWidget(row, 5).value(),
+                    "metal": "Золото",
+                    "hallmark": "585",
+                    "color": "красный",
+                }
+                for row in range(self.tbl.rowCount())
+            ]
+        }
+
+        process_new_order(order_json)
 
         number = bridge.create_order(fields, items)
         self.ed_num.setText(number)
