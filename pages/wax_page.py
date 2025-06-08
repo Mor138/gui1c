@@ -252,9 +252,9 @@ class WaxPage(QWidget):
 
         for o in ORDERS_POOL:
             order = o.get("order", {})
-            order_ref = order.get("Ref")
+            order_ref = bridge.get_doc_ref("ЗаказВПроизводство", order.get("num", ""))
             if not order_ref:
-                QMessageBox.warning(self, "Ошибка", "У заказа нет ссылки Ref для создания задания")
+                QMessageBox.warning(self, "Ошибка", f"Не найден заказ {order.get('num')} в базе 1С")
                 continue
 
             method_to_items = defaultdict(list)
@@ -411,9 +411,8 @@ class WaxPage(QWidget):
 
 
 # ----------------------------------------------------------------------
-def _wax_method(article:str)->str:
-    """Небольшая обёртка для определения метода по артикулу."""
+def _wax_method(article: str) -> str:
     art = str(article).lower()
     if "д" in art or "d" in art:
-        return "3d"
-    return "rubber"
+        return "3D печать"
+    return "Резина"
