@@ -159,5 +159,3 @@ if __name__ == "__main__":
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
     app = QApplication(sys.argv); app.setStyle("Fusion")
     win = Main(); win.show(); sys.exit(app.exec_())
-    
-    from core.com_bridge import COM1CBridge
