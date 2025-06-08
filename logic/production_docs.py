@@ -116,7 +116,7 @@ def process_new_order(order_json: Dict[str,Any]) -> Dict[str,Any]:
     items      = expand_items(order_json)
     batches,mapping = group_by_keys(items, GROUP_KEYS_WAX_CAST)
     wax_jobs   = build_wax_jobs(order_json, batches)
-    from .state import WAX_JOBS_POOL
+    from .state import ORDERS_POOL, WAX_JOBS_POOL
     WAX_JOBS_POOL.extend(wax_jobs)
 
     ORDERS_POOL.append(dict(order=order_json, docs=dict(
