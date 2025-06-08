@@ -53,7 +53,7 @@ class WaxPage(QWidget):
 
         btn_row = QVBoxLayout()
         btn_new = QPushButton("Создать наряд")
-        btn_new.clicked.connect(self._stub_create_job)
+        btn_new.clicked.connect(self._select_order_for_job)
         btn_ref = QPushButton("Обновить")
         btn_ref.clicked.connect(self.refresh)
         btn_row.addWidget(btn_new, alignment=Qt.AlignLeft)
@@ -79,6 +79,28 @@ class WaxPage(QWidget):
         self.tree_part.header().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.tree_part.setStyleSheet(CSS_TREE)
         v.addWidget(self.tree_part,1)
+        
+    def _select_order_for_job(self):
+        from PyQt5.QtWidgets import QInputDialog
+
+        if not ORDERS_POOL:
+            QMessageBox.warning(self, "Нет заказов", "Нет заказов для обработки")
+            return
+
+        # Получаем список заказов по номеру
+        order_list = [o["docs"]["order_code"] for o in ORDERS_POOL]
+        selected, ok = QInputDialog.getItem(self, "Выберите заказ", "Заказ:", order_list, editable=False)
+
+        if ok and selected:
+            selected_order = next((o for o in ORDERS_POOL if o["docs"]["order_code"] == selected), None)
+            if selected_order:
+                from logic.production_docs import WAX_JOBS_POOL, build_wax_jobs
+                jobs = build_wax_jobs(selected_order["order"], selected_order["docs"]["batches"])
+                WAX_JOBS_POOL.extend(jobs)
+                QMessageBox.information(self, "Готово", f"Создано {len(jobs)} нарядов")
+                self.refresh()
+            else:
+                QMessageBox.critical(self, "Ошибка", "Не удалось найти заказ")    
 
     # ------------------------------------------------------------------
     def _stub_create_job(self):
