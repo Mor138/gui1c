@@ -605,12 +605,15 @@ class COM1CBridge:
         if not docs:
             log(f"[LOG] Документ '{doc_name}' не найден")
             return None
+        norm_num = str(number).replace("-", "").strip()
         selection = docs.Select()
         while selection.Next():
             doc = selection.GetObject()
-            if number in str(doc.Number):
+            doc_num = str(doc.Number).replace("-", "")
+            if norm_num == doc_num:
                 return doc.Ref
-        return None        
+        log(f"[LOG] Номер '{number}' не найден в '{doc_name}'")
+        return None
 
     # ------------------------------------------------------------------
     def create_wax_job(self, job: dict) -> str:
@@ -798,6 +801,9 @@ class COM1CBridge:
         doc_manager = getattr(self.connection.Documents, "ЗаданиеНаПроизводство", None)
         if doc_manager is None:
             raise Exception("Документ 'ЗаданиеНаПроизводство' не найден")
+        if not order_ref:
+            raise ValueError("order_ref is None")
+
         doc = doc_manager.CreateDocument()
         doc.ДокументОснование = self.connection.GetObject(order_ref)
         doc.Дата = self.connection.CurrentDate()
