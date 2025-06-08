@@ -471,7 +471,7 @@ class COM1CBridge:
             for row in doc.Товары:
                 rows.append({
                     "nomenclature": safe_str(row.Номенклатура),
-                    "size": row.Размер,
+                    "size": safe_str(row.Размер),
                     "qty": row.Количество,
                     "w": row.Вес,
                     "variant": safe_str(row.ВариантИзготовления),
