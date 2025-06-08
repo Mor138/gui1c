@@ -538,3 +538,95 @@ class COM1CBridge:
             })
             count += 1
         return result
+
+    # ------------------------------------------------------------------
+    def create_task_from_order(self, order: dict) -> str:
+        """Создаёт документ 'ЗаданиеНаПроизводство' на основании заказа."""
+        try:
+            doc = self.documents.ЗаданиеНаПроизводство.CreateDocument()
+        except Exception as e:
+            log(f"[1C] Не удалось создать ЗаданиеНаПроизводство: {e}")
+            return ""
+
+        try:
+            doc.Дата = self.connection.ТекущаяДата()
+            base = self._find_document_by_number("ЗаказВПроизводство", order.get("num", ""))
+            if base:
+                doc.ДокументОснование = base
+
+            if order.get("assigned_to"):
+                ref = self.get_ref("Пользователи", order["assigned_to"])
+                if ref:
+                    doc.РабочийЦентр = ref
+
+            # Используем "восковка" в качестве участка и операции по умолчанию
+            section = self.get_ref("ПроизводственныеУчастки", "восковка")
+            if section:
+                doc.ПроизводственныйУчасток = section
+            op = self.get_ref("ТехОперации", "работа с восковыми изделиями")
+            if op:
+                doc.ТехОперация = op
+
+            for row in order.get("rows", []):
+                r = doc.Товары.Add()
+                r.Номенклатура = self.get_ref("Номенклатура", row.get("article"))
+                var = row.get("variant")
+                if var:
+                    r.ВариантИзготовления = self.get_ref("ВариантыИзготовленияНоменклатуры", var)
+                r.Размер = self.get_size_ref(row.get("size"))
+                r.Количество = row.get("qty", 0)
+                r.Вес = row.get("weight", 0)
+                r.Проба = str(row.get("hallmark", ""))
+                r.ЦветМеталла = self.get_ref("ЦветаМеталлов", row.get("color"))
+                r.АртикулГП = row.get("article")
+
+            doc.Write()
+            doc.Провести()
+            log(f"✅ Создано ЗаданиеНаПроизводство №{doc.Number}")
+            return str(doc.Number)
+        except Exception as e:
+            log(f"❌ Ошибка создания Задания: {e}")
+            return ""
+
+    # ------------------------------------------------------------------
+    def create_wax_job_from_task(self, task_number: str) -> str:
+        """Создаёт 'НарядВосковыеИзделия' на основании задания."""
+        task = self._find_document_by_number("ЗаданиеНаПроизводство", task_number)
+        if not task:
+            log(f"❌ Задание №{task_number} не найдено")
+            return ""
+
+        try:
+            doc = self.documents.НарядВосковыеИзделия.CreateDocument()
+        except Exception as e:
+            log(f"[1C] Не удалось создать НарядВосковыеИзделия: {e}")
+            return ""
+
+        try:
+            doc.Дата = self.connection.ТекущаяДата()
+            doc.ДокументОснование = task
+            if hasattr(task, "ТехОперация"):
+                doc.ТехОперация = task.ТехОперация
+            if hasattr(task, "ПроизводственныйУчасток"):
+                doc.ПроизводственныйУчасток = task.ПроизводственныйУчасток
+            if hasattr(task, "РабочийЦентр"):
+                doc.Ответственный = task.РабочийЦентр
+
+            for row in task.Товары:
+                r = doc.ТоварыВыдано.Add()
+                r.Номенклатура = row.Номенклатура
+                r.Размер = row.Размер
+                r.Количество = row.Количество
+                r.ВариантИзготовления = row.ВариантИзготовления
+                r.Проба = row.Проба
+                r.ЦветМеталла = row.ЦветМеталла
+                r.Вес = row.Вес
+                r.АртикулГП = row.АртикулГП
+
+            doc.Write()
+            doc.Провести()
+            log(f"✅ Создан НарядВосковыеИзделия №{doc.Number}")
+            return str(doc.Number)
+        except Exception as e:
+            log(f"❌ Ошибка создания Наряда: {e}")
+            return ""
