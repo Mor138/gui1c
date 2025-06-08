@@ -254,43 +254,18 @@ class WaxPage(QWidget):
 
         for o in ORDERS_POOL:
             order = o.get("order", {})
+            order_num = o.get("docs", {}).get("order_code", "")
+            if not order_num:
+                QMessageBox.warning(self, "Ошибка", "У заказа нет номера для поиска в 1С")
+                continue
 
-
-            order_ref = order.get("Ref")
+            order_ref = bridge.get_doc_ref("ЗаказВПроизводство", order_num)
             if not order_ref:
-
-
-            order_ref = order.get("Ref")
-            if not order_ref:
-
-        
-            order_ref = order.get("Ref")
-            if not order_ref:
-                QMessageBox.warning(self, "Ошибка", "У заказа нет ссылки Ref для создания задания")
-       
-            order_ref = bridge.get_doc_ref("ЗаказВПроизводство", order.get("num", ""))
-            if not order_ref:
-                QMessageBox.warning(self, "Ошибка", f"Не найден заказ {order.get('num')} в базе 1С")
-
-
-            order_ref = order.get("Ref")
-            if not order_ref:
-
-                order_ref = bridge.get_doc_ref("ЗаказВПроизводство", order.get("num", ""))
-                if not order_ref:
-                    QMessageBox.warning(self, "Ошибка", f"Не найден заказ {order.get('num')} в базе 1С")
-                    continue
-
+                QMessageBox.warning(self, "Ошибка", f"Не найден заказ {order_num} в базе 1С")
+                continue
 
             method_to_items = defaultdict(list)
-
-            try:
-                num = bridge.create_task_from_order(order)
-                QMessageBox.information(self, "Готово", f"Задание №{num} создано")
-            except Exception as e:
-                QMessageBox.critical(self, "Ошибка", str(e))
-
-            for row in o["order"]["rows"]:
+            for row in order.get("rows", []):
                 method = _wax_method(row["article"])
                 method_to_items[method].append({
                     "name": row["article"],
