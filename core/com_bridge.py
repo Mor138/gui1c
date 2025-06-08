@@ -331,6 +331,43 @@ class COM1CBridge:
         obj = self.get_catalog_object_by_description(catalog_name, description)
         return obj.Ref if hasattr(obj, "Ref") else obj
 
+    def get_enum_by_description(self, enum_name: str, description: str):
+        """Возвращает элемент перечисления по его представлению"""
+        enum = getattr(self.enums, enum_name, None)
+        if not enum:
+            log(f"Перечисление '{enum_name}' не найдено")
+            return None
+        if description is None:
+            return None
+
+        desc = str(description).strip().lower()
+        try:
+            for attr in dir(enum):
+                if attr.startswith("_"):
+                    continue
+                try:
+                    val = getattr(enum, attr)
+                except Exception:
+                    continue
+                pres = ""
+                try:
+                    if hasattr(val, "GetPresentation"):
+                        pres = str(val.GetPresentation())
+                    elif hasattr(val, "Presentation"):
+                        pres = str(val.Presentation)
+                    else:
+                        pres = str(val)
+                except Exception:
+                    pres = str(val)
+
+                if pres.strip().lower() == desc or attr.lower() == desc:
+                    return val
+        except Exception as e:
+            log(f"[Enum] Ошибка поиска {description} в {enum_name}: {e}")
+
+        log(f"[{enum_name}] Не найдено значение: {description}")
+        return None
+
     def get_last_order_number(self):
         doc = getattr(self.documents, "ЗаказВПроизводство", None)
         if not doc:
