@@ -110,9 +110,13 @@ def build_wax_jobs(order: dict, batches: list[dict]) -> list[dict]:
                     completed_by = None,
                     accepted_by  = None,
                     weight_wax   = None,
+        yt8arc-codex/реализация-логики-для-управления-нарядами-и-партиями
+                    sync_doc_num = None,
+=======
         ep5fca-codex/реализация-логики-для-управления-нарядами-и-партиями
                     sync_doc_num = None,
  
+        main
         main
                     signed_log   = []
                 ))
@@ -140,13 +144,19 @@ def _find_job(code: str) -> dict | None:
     return next((j for j in WAX_JOBS_POOL if j.get("wax_job") == code), None)
 
 
+        yt8arc-codex/реализация-логики-для-управления-нарядами-и-партиями
+=======
         ep5fca-codex/реализация-логики-для-управления-нарядами-и-партиями
+        main
 def get_wax_job(job_code: str) -> dict | None:
     """Публичная обёртка для поиска наряда."""
     return _find_job(job_code)
 
 
+        yt8arc-codex/реализация-логики-для-управления-нарядами-и-партиями
 =======
+=======
+        main
         main
 def update_wax_job(job_code: str, updates: Dict[str, Any]) -> dict | None:
     """Обновляет поля наряда и возвращает его."""
