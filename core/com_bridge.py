@@ -36,6 +36,8 @@ def safe_str(val: Any) -> str:
         return str(val)
     except Exception as e:
         return f"<error: {e}>"
+        
+       
 
 def log(msg: str) -> None:
     print("[LOG]", msg)
@@ -58,6 +60,45 @@ class COM1CBridge:
         self.catalogs = self.connection.Catalogs
         self.documents = self.connection.Documents
         self.enums = self.connection.Enums
+        
+    def get_wax_job_lines(self, doc_num: str) -> list[dict]:
+        """Возвращает табличную часть 'ТоварыВыдано' по номеру наряда"""
+        result = []
+        doc_manager = getattr(self.connection.Documents, "НарядВосковыеИзделия", None)
+        if not doc_manager:
+            return result
+
+        selection = doc_manager.Select()
+        while selection.Next():
+            doc = selection.GetObject()
+            if str(doc.Number) == doc_num:
+                for row in doc.ТоварыВыдано:
+                    result.append({
+                        "norm": self.safe(row, "ВидНорматива"),
+                        "nomen": self.safe(row, "Номенклатура"),
+                        "size": self.safe(row, "Размер"),
+                        "sample": self.safe(row, "Проба"),
+                        "color": self.safe(row, "ЦветМеталла"),
+                        "qty": row.Количество,
+                        "weight": row.Вес if hasattr(row, "Вес") else "",
+                    })
+                break
+        return result    
+        
+    def safe(self, obj, attr):
+        try:
+            val = getattr(obj, attr, None)
+            if val is None:
+                return ""
+            if hasattr(val, "GetPresentation"):
+                return str(val.GetPresentation())
+            if hasattr(val, "Presentation"):
+                return str(val.Presentation)
+            if hasattr(val, "Description"):
+                return str(val.Description)
+            return str(val)
+        except Exception as e:
+            return "<err>"    
         
     def print_order_preview_pdf(self, number: str) -> bool:
         obj = self._find_document_by_number("ЗаказВПроизводство", number)
@@ -92,6 +133,20 @@ class COM1CBridge:
             if str(obj.Number).strip() == number.strip():
                 return obj
         return None
+        
+    def _find_doc(self, doc_name: str, num: str):
+        """Находит документ по имени и номеру"""
+        try:
+            docs = getattr(self.connection.Documents, doc_name)
+        except AttributeError:
+            raise Exception(f"Документ '{doc_name}' не найден")
+
+        selection = docs.Select()
+        while selection.Next():
+            doc = selection.GetObject()
+            if str(doc.Number).strip() == str(num).strip():
+                return doc
+        raise Exception(f"Документ '{doc_name}' с номером {num} не найден")    
 
     def undo_posting(self, number: str) -> bool:
         obj = self._find_document_by_number("ЗаказВПроизводство", number)
@@ -584,55 +639,113 @@ class COM1CBridge:
             count += 1
         return result
         
-    def list_tasks(self, limit: int = 100) -> list[dict]:
-        """Список заданий на производство"""
-        from core.config_parser import has_document
-
-        if not has_document("ЗаданиеНаПроизводство"):
-            log("[CONFIG] Документ 'ЗаданиеНаПроизводство' не найден")
-            return []
-
+    def list_tasks(self) -> list[dict]:
         result = []
-        catalog = self.connection.Documents.ЗаданиеНаПроизводство
-        selection = catalog.Select()
-        count = 0
-        while selection.Next() and count < limit:
+        doc_manager = getattr(self.connection.Documents, "ЗаданиеНаПроизводство", None)
+        if doc_manager is None:
+            return result
+        selection = doc_manager.Select()
+        while selection.Next():
             doc = selection.GetObject()
             result.append({
-                "ref": doc.Ref,
+                "ref": str(doc.Ref),
                 "num": str(doc.Number),
-                "date": str(doc.Date),
-                "employee": str(doc.РабочийЦентр) if hasattr(doc, "РабочийЦентр") else "",
-                "tech_op": str(doc.ТехОперация) if hasattr(doc, "ТехОперация") else "",
+                "date": str(doc.Date.strftime("%d.%m.%Y")),
+                "employee": self.safe(doc, "Ответственный"),
+                "tech_op": self.safe(doc, "ТехОперация"),
+                "section": self.safe(doc, "ПроизводственныйУчасток"),
             })
-            count += 1
-        return result    
+        return result 
         
+    def list_production_tasks(self) -> list[dict]:
+        return self.list_documents("ЗаданиеНаПроизводство")
+
     def list_wax_jobs(self) -> list[dict]:
-        from core.config_parser import has_document
+        result = []
+        doc_manager = getattr(self.connection.Documents, "НарядВосковыеИзделия", None)
+        if doc_manager is None:
+            return result
 
-        if not has_document("НарядВосковыеИзделия"):
-            log("[CONFIG] Документ 'НарядВосковыеИзделия' не найден")
-            return []
-        try:
-            doc = self.connection.Documents["НарядВосковыеИзделия"]
-            selection = doc.Select()
-            jobs = []
-            while selection.Next():
-                obj = selection.GetObject()
-                jobs.append({
-                    "ref": str(obj.Ref),
-                    "num": str(obj.Number),
-                    "date": str(obj.Date),
-                    "employee": safe_str(getattr(obj, "Сотрудник", "")),
-                    "comment": safe_str(getattr(obj, "Комментарий", "")),
-                    "status": "Проведен" if getattr(obj, "Проведен", False) else ""
+        selection = doc_manager.Select()
+        while selection.Next():
+            doc = selection.GetObject()
+            result.append({
+                "ref": str(doc.Ref),
+                "num": str(doc.Number),
+                "date": str(doc.Date.strftime("%d.%m.%Y")),
+                "status": self.safe(doc, "Статус"),
+                "employee": self.safe(doc, "Сотрудник"),
+                "organization": self.safe(doc, "Организация"),
+                "warehouse": self.safe(doc, "Склад"),
+                "section": self.safe(doc, "ПроизводственныйУчасток"),
+                "tech_op": self.safe(doc, "ТехОперация"),
+                "based_on": self.safe(getattr(doc, "ДокументОснование", None), "Number")
+            })
+        return result
+        
+    def get_wax_job_rows(self, num: str) -> list[dict]:
+        doc = self._find_doc("НарядВосковкаИзделия", num)
+        rows = []
+
+        for r in doc.Выдано:  # <-- важно: корректное имя табличной части
+            rows.append({
+                "Номенклатура": self.safe(r, "Номенклатура"),
+                "Размер": self.safe(r, "Размер"),
+                "Проба": self.safe(r, "Проба"),
+                "Цвет": self.safe(r, "ЦветМеталла"),
+                "Количество": r.Количество,
+                "Вес": r.Вес,
+                "Партия": self.safe(r, "Партия"),
+                "Номер ёлки": r.НомерЕлки if hasattr(r, "НомерЕлки") else "",
+                "Состав набора": r.СоставНабора if hasattr(r, "СоставНабора") else ""
+            })
+
+        return rows   
+        
+    def get_task_lines(self, doc_num: str) -> list[dict]:
+        """Возвращает табличную часть 'Продукция' по номеру задания"""
+        result = []
+        doc_manager = getattr(self.connection.Documents, "ЗаданиеНаПроизводство", None)
+        if not doc_manager:
+            return result
+
+        selection = doc_manager.Select()
+        while selection.Next():
+            doc = selection.GetObject()
+            if str(doc.Number) == doc_num:
+                for row in doc.Продукция:
+                    result.append({
+                        "nomen": self.safe(row, "Номенклатура"),
+                        "size": self.safe(row, "Размер"),
+                        "sample": self.safe(row, "Проба"),
+                        "color": self.safe(row, "ЦветМеталла"),
+                        "qty": row.Количество,
+                        "weight": row.Вес if hasattr(row, "Вес") else ""
+                    })
+                break
+        return result    
+
+    def list_documents(self, doc_type: str) -> list[dict]:
+        result = []
+        docs = getattr(self.connection.Documents, doc_type, None)
+        if docs is None:
+            return result
+        selection = docs.Select()
+        while selection.Next():
+            doc = selection.GetObject()
+            try:
+                result.append({
+                    "Ref": str(doc.Ref),
+                    "Номер": str(doc.Number),
+                    "Дата": str(doc.Date),
+                    "Участок": safe_str(getattr(doc, "ПроизводственныйУчасток", "")),
+                    "Операция": safe_str(getattr(doc, "ТехОперация", "")),
+                    "Ответственный": safe_str(getattr(doc, "Ответственный", "")),
+                    "Статус": safe_str(getattr(doc, "Статус", "")),
                 })
-            return jobs
-        except Exception as e:
-            print("[LOG] ❌ Ошибка получения нарядов:", e)
-            return []
-
+            except Exception as e:
+                print(f"[ERROR] {e}")
+        return result    
 
     # ------------------------------------------------------------------
        
@@ -684,25 +797,6 @@ class COM1CBridge:
         except Exception as e:
             log(f"❌ Ошибка создания Задания: {e}")
             return ""
-            
-    def list_production_tasks(self) -> list[dict]:
-        try:
-            doc = self.connection.Documents["ЗаданиеНаПроизводство"]
-            selection = doc.Select()
-            tasks = []
-            while selection.Next():
-                obj = selection.GetObject()
-                tasks.append({
-                    "Ref": str(obj.Ref),
-                    "Номер": str(obj.Number),
-                    "Дата": str(obj.Date),
-                    "Организация": str(obj.Организация) if hasattr(obj, "Организация") else "",
-                    "Комментарий": str(obj.Комментарий) if hasattr(obj, "Комментарий") else "",
-                })
-            return tasks
-        except Exception as e:
-            print("[LOG] ❌ Ошибка получения заданий:", e)
-            return []        
 
     # ------------------------------------------------------------------
     def create_wax_job_from_task(self, task_number: str) -> str:
