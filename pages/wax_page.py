@@ -9,6 +9,7 @@ from PyQt5.QtWidgets import (
 )
 from logic.production_docs import WAX_JOBS_POOL, ORDERS_POOL, METHOD_LABEL
 from core.com_bridge import COM1CBridge
+from core.com_bridge import log
 
 bridge = COM1CBridge("C:\\Users\\Mor\\Desktop\\1C\\proiz")
 
