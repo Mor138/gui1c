@@ -471,7 +471,7 @@ class COM1CBridge:
             for row in doc.Товары:
                 rows.append({
                     "nomenclature": safe_str(row.Номенклатура),
-                    "size": row.Размер,
+                    "size": safe_str(row.Размер),
                     "qty": row.Количество,
                     "w": row.Вес,
                     "variant": safe_str(row.ВариантИзготовления),
@@ -484,7 +484,7 @@ class COM1CBridge:
                 "contragent": safe_str(doc.Контрагент),
                 "contract": safe_str(doc.ДоговорКонтрагента),
                 "comment": safe_str(doc.Комментарий),
-                "prod_status": safe_str(doc.ВидСтатусПродукции),
+                "prod_status": self.to_string(doc.ВидСтатусПродукции),
                 "posted": doc.Проведен,
                 "deleted": doc.ПометкаУдаления,
                 "qty": sum([r["qty"] for r in rows]),
