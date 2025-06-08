@@ -305,7 +305,10 @@ class OrdersPage(QWidget):
                 "color": color,
             })
 
-        order_json = {"rows": order_json_rows}
+        order_json = {
+            "number": number,
+            "rows": order_json_rows
+        }
 
         process_new_order(order_json)
 
@@ -360,7 +363,10 @@ class OrdersPage(QWidget):
                 "color": color,
             })
 
-        order_json = {"rows": order_json_rows}
+        order_json = {
+            "number": number,
+            "rows": order_json_rows
+        }
         process_new_order(order_json)
         if callable(self.on_send_to_wax):
             self.on_send_to_wax()
