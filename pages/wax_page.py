@@ -223,6 +223,7 @@ class WaxPage(QWidget):
     # ------------------------------------------------------------------
     def _create_task(self):
         from PyQt5.QtWidgets import QInputDialog
+        co16wb-codex/добавить-страницы-для-отображения-партий-и-процесса
         orders = bridge.list_orders()
         nums = [o["num"] for o in orders]
         if not nums:
@@ -232,6 +233,15 @@ class WaxPage(QWidget):
         selected, ok = QInputDialog.getItem(self, "Выберите заказ", "Заказ:", nums, editable=False)
         if ok and selected:
             order = next((o for o in orders if o["num"] == selected), None)
+       
+        if not ORDERS_POOL:
+            QMessageBox.warning(self, "Нет данных", "Нет заказов для создания")
+            return
+        order_list = [o["docs"]["order_code"] for o in ORDERS_POOL]
+        selected, ok = QInputDialog.getItem(self, "Выберите заказ", "Заказ:", order_list, editable=False)
+        if ok and selected:
+            order = next((o["order"] for o in ORDERS_POOL if o["docs"]["order_code"] == selected), None)
+        main
             if order:
                 try:
                     num = bridge.create_task_from_order(order)
@@ -242,6 +252,7 @@ class WaxPage(QWidget):
     # ------------------------------------------------------------------
     def _create_wax_job(self):
         from PyQt5.QtWidgets import QInputDialog
+        co16wb-codex/добавить-страницы-для-отображения-партий-и-процесса
         tasks = bridge.list_tasks() if hasattr(bridge, "list_tasks") else []
         nums = [t["num"] for t in tasks]
         if not nums:
@@ -252,6 +263,12 @@ class WaxPage(QWidget):
         if ok and selected:
             try:
                 num = bridge.create_wax_job_from_task(selected)
+       
+        task_num, ok = QInputDialog.getText(self, "Создание наряда", "Номер задания:")
+        if ok and task_num:
+            try:
+                num = bridge.create_wax_job_from_task(task_num)
+        main
                 QMessageBox.information(self, "Готово", f"Наряд №{num} создан")
             except Exception as e:
                 QMessageBox.critical(self, "Ошибка", str(e))
@@ -336,6 +353,30 @@ class WaxPage(QWidget):
                 j.get('accepted_by') or '',
                 f"{(j.get('weight_wax') or 0):.3f}"
             ])
+
+    # —──────────── дерево «Процесс» ─────────────
+    def _fill_process_tree(self):
+        self.tree_process.clear()
+
+        by_batch = defaultdict(list)
+        for j in WAX_JOBS_POOL:
+            by_batch[j["batch_code"]].append(j)
+
+        for code, jobs in by_batch.items():
+            j0 = jobs[0]
+            root = QTreeWidgetItem(self.tree_process, [
+                f"Партия {code} ({j0['metal']} {j0['hallmark']} {j0['color']})"
+            ])
+            root.setExpanded(True)
+            for j in jobs:
+                QTreeWidgetItem(root, [
+                    f"{j['operation']} ({j['wax_job']})",
+                    j.get('status', ''),
+                    j.get('assigned_to') or '',
+                    j.get('completed_by') or '',
+                    j.get('accepted_by') or '',
+                    f"{(j.get('weight_wax') or 0):.3f}"
+                ])
 
 # ----------------------------------------------------------------------
 def _wax_method(article:str)->str:
