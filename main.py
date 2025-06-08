@@ -159,3 +159,13 @@ if __name__ == "__main__":
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
     app = QApplication(sys.argv); app.setStyle("Fusion")
     win = Main(); win.show(); sys.exit(app.exec_())
+    
+    from core.com_bridge import COM1CBridge
+
+if __name__ == "__main__":
+    bridge = COM1CBridge("C:\\path\\to\\your\\base")  # замените на путь к вашей базе
+    tasks = bridge.list_production_orders()
+    print("Задания:", tasks)
+
+    wax_jobs = bridge.list_wax_work_orders()
+    print("Наряды:", wax_jobs)
