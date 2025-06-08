@@ -5,7 +5,7 @@ from PyQt5.QtCore    import Qt
 from PyQt5.QtGui     import QFont
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTreeWidget, QTreeWidgetItem,
-    QHeaderView, QPushButton, QMessageBox
+    QHeaderView, QPushButton, QMessageBox, QTabWidget
 )
 from logic.production_docs import WAX_JOBS_POOL, ORDERS_POOL, METHOD_LABEL
 from core.com_bridge import COM1CBridge
@@ -56,6 +56,12 @@ class WaxPage(QWidget):
         hdr.setFont(QFont("Arial", 22, QFont.Bold))
         v.addWidget(hdr)
 
+        self.tabs = QTabWidget()
+        v.addWidget(self.tabs, 1)
+
+        # ----- Tab 1: Jobs and Batches -----
+        tab1 = QWidget(); t1 = QVBoxLayout(tab1)
+
         btn_row = QHBoxLayout()
 
         btn_new = QPushButton("Создать наряд")
@@ -73,35 +79,58 @@ class WaxPage(QWidget):
         btn_accept = QPushButton("📥 Принято")
         btn_accept.clicked.connect(self._job_accept)
 
+        btn_task = QPushButton("📋 Задание")
+        btn_task.clicked.connect(self._create_task)
+
+        btn_wax_job = QPushButton("📄 Наряд")
+        btn_wax_job.clicked.connect(self._create_wax_job)
+
         btn_sync = QPushButton("🔄 В 1С")
         btn_sync.clicked.connect(self._sync_job)
 
-        for b in [btn_new, btn_ref, btn_issue, btn_done, btn_accept, btn_sync]:
+        for b in [btn_new, btn_ref, btn_task, btn_wax_job, btn_issue, btn_done, btn_accept, btn_sync]:
             btn_row.addWidget(b, alignment=Qt.AlignLeft)
 
-        v.addLayout(btn_row)
+        t1.addLayout(btn_row)
 
         # — дерево нарядов —
         lab1 = QLabel("Наряды (по методам)")
         lab1.setFont(QFont("Arial", 16, QFont.Bold))
-        v.addWidget(lab1)
+        t1.addWidget(lab1)
 
         self.tree_jobs = QTreeWidget()
-        self.tree_jobs.setHeaderLabels(["Наименование", "Qty", "Вес", "Статус", "1С"])
+        self.tree_jobs.setHeaderLabels([
+            "Артикулы", "Метод", "Qty", "Вес", "Статус", "1С"
+        ])
         self.tree_jobs.header().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.tree_jobs.setStyleSheet(CSS_TREE)
-        v.addWidget(self.tree_jobs, 1)
+        t1.addWidget(self.tree_jobs, 1)
 
         # — дерево партий —
         lab2 = QLabel("Партии (металл / проба / цвет)")
         lab2.setFont(QFont("Arial", 16, QFont.Bold))
-        v.addWidget(lab2)
+        t1.addWidget(lab2)
 
         self.tree_part = QTreeWidget()
         self.tree_part.setHeaderLabels(["Наименование", "Qty", "Вес"])
         self.tree_part.header().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.tree_part.setStyleSheet(CSS_TREE)
-        v.addWidget(self.tree_part, 1)
+        t1.addWidget(self.tree_part, 1)
+
+        self.tabs.addTab(tab1, "Наряды")
+
+        # ----- Tab 2: Process -----
+        tab2 = QWidget(); t2 = QVBoxLayout(tab2)
+
+        self.tree_process = QTreeWidget()
+        self.tree_process.setHeaderLabels([
+            "Наименование", "Статус", "Исполнитель", "Сдал", "Принял", "Вес, г"
+        ])
+        self.tree_process.header().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.tree_process.setStyleSheet(CSS_TREE)
+        t2.addWidget(self.tree_process, 1)
+
+        self.tabs.addTab(tab2, "Процесс")
         
     def _select_order_for_job(self):
         from PyQt5.QtWidgets import QInputDialog
@@ -133,8 +162,6 @@ class WaxPage(QWidget):
     # ------------------------------------------------------------------
     def _selected_job_code(self):
         item = self.tree_jobs.currentItem()
-        while item and not item.data(0, Qt.UserRole):
-            item = item.parent()
         return item.data(0, Qt.UserRole) if item else None
 
     # ------------------------------------------------------------------
@@ -190,8 +217,44 @@ class WaxPage(QWidget):
                 num = bridge.create_wax_job(job)
                 if num:
                     update_wax_job(code, {"sync_doc_num": num})
-                    log_event(code, "synced_1c", name, {"doc_num": num})
-            self.refresh()
+            log_event(code, "synced_1c", name, {"doc_num": num})
+        self.refresh()
+
+    # ------------------------------------------------------------------
+    def _create_task(self):
+        from PyQt5.QtWidgets import QInputDialog
+        orders = bridge.list_orders()
+        nums = [o["num"] for o in orders]
+        if not nums:
+            QMessageBox.warning(self, "Нет данных", "В 1С нет заказов")
+            return
+
+        selected, ok = QInputDialog.getItem(self, "Выберите заказ", "Заказ:", nums, editable=False)
+        if ok and selected:
+            order = next((o for o in orders if o["num"] == selected), None)
+            if order:
+                try:
+                    num = bridge.create_task_from_order(order)
+                    QMessageBox.information(self, "Готово", f"Задание №{num} создано")
+                except Exception as e:
+                    QMessageBox.critical(self, "Ошибка", str(e))
+
+    # ------------------------------------------------------------------
+    def _create_wax_job(self):
+        from PyQt5.QtWidgets import QInputDialog
+        tasks = bridge.list_tasks() if hasattr(bridge, "list_tasks") else []
+        nums = [t["num"] for t in tasks]
+        if not nums:
+            QMessageBox.warning(self, "Нет данных", "В 1С нет заданий")
+            return
+
+        selected, ok = QInputDialog.getItem(self, "Создание наряда", "Номер задания:", nums, editable=False)
+        if ok and selected:
+            try:
+                num = bridge.create_wax_job_from_task(selected)
+                QMessageBox.information(self, "Готово", f"Наряд №{num} создан")
+            except Exception as e:
+                QMessageBox.critical(self, "Ошибка", str(e))
 
     # ------------------------------------------------------------------
     def _sync_job(self):
@@ -213,67 +276,66 @@ class WaxPage(QWidget):
     # ------------------------------------------------------------------
 
 
-    # ------------------------------------------------------------------
-
     def refresh(self):
         self._fill_jobs_tree()
         self._fill_parties_tree()
+        self._fill_process_tree()
 
     # —──────────── дерево «Наряды» ─────────────
     def _fill_jobs_tree(self):
         self.tree_jobs.clear()
 
-        jobs_by_method = defaultdict(list)
         for j in WAX_JOBS_POOL:
-            jobs_by_method[j["method"]].append(j)
-
-        for m_key, jobs in jobs_by_method.items():
-            root = QTreeWidgetItem(self.tree_jobs, [METHOD_LABEL.get(m_key, m_key), "", "", "", ""])
-            root.setExpanded(True)
-
-            for j in jobs:
-                item = QTreeWidgetItem(root, [
-                    f"{j['operation']} ({j['wax_job']})",
-                    str(j.get('qty', 0)),
-                    f"{j.get('weight', 0.0):.3f}",
-                    j.get('status', ''),
-                    '✅' if j.get('sync_doc_num') else ''
-                ])
-                item.setData(0, Qt.UserRole, j['wax_job'])
+            item = QTreeWidgetItem(self.tree_jobs, [
+                j.get('articles', ''),
+                METHOD_LABEL.get(j.get('method'), j.get('method')),
+                str(j.get('qty', 0)),
+                f"{j.get('weight', 0.0):.3f}",
+                j.get('status', ''),
+                '✅' if j.get('sync_doc_num') else ''
+            ])
+            item.setData(0, Qt.UserRole, j['wax_job'])
 
     # —──────────── дерево «Партии» ─────────────
     def _fill_parties_tree(self):
         self.tree_part.clear()
 
-        # grouping by партия
-        jobs_by_party = defaultdict(list)
-        for j in WAX_JOBS_POOL:
-            jobs_by_party[j["batch_code"]].append(j)
+        # Информацию о партиях берём из ORDERS_POOL
+        for pack in ORDERS_POOL:
+            for b in pack["docs"].get("batches", []):
+                root = QTreeWidgetItem(self.tree_part, [
+                    f"Партия {b['batch_barcode']}  ({b['metal']} {b['hallmark']} {b['color']})",
+                    str(b["qty"]), f"{b['total_w']:.3f}"
+                ])
+                root.setExpanded(True)
 
-        for code, jobs in jobs_by_party.items():
-            j0 = jobs[0]
-            wax_w = sum(j.get('weight_wax') or 0 for j in jobs)
-            root = QTreeWidgetItem(self.tree_part, [
-                f"Партия {code}  ({j0['metal']} {j0['hallmark']} {j0['color']})",
-                str(j0["qty"]), f"{wax_w:.3f}"
-            ])
-            root.setExpanded(True)
-
-            # article+size aggregated
-            agg = defaultdict(lambda: dict(qty=0, weight=0))
-            for pack in ORDERS_POOL:
+                agg = defaultdict(lambda: dict(qty=0, weight=0))
                 for row in pack["order"]["rows"]:
-                    if (row["metal"],row["hallmark"],row["color"])==(
-                        j0["metal"],j0["hallmark"],j0["color"]):
+                    if (row["metal"], row["hallmark"], row["color"]) == (
+                        b["metal"], b["hallmark"], b["color"]):
                         k = (row["article"], row["size"])
                         agg[k]["qty"] += row["qty"]
                         agg[k]["weight"] += row["weight"]
 
-            for (art,size), d in agg.items():
-                QTreeWidgetItem(root, [
-                    f"{art}  (р-р {size})",
-                    str(d["qty"]), f"{d['weight']:.3f}"
-                ])
+                for (art, size), d in agg.items():
+                    QTreeWidgetItem(root, [
+                        f"{art}  (р-р {size})",
+                        str(d["qty"]), f"{d['weight']:.3f}"
+                    ])
+
+    # —──────────── дерево «Процесс» ─────────────
+    def _fill_process_tree(self):
+        self.tree_process.clear()
+
+        for j in WAX_JOBS_POOL:
+            QTreeWidgetItem(self.tree_process, [
+                f"{j['operation']} ({j['wax_job']})",
+                j.get('status', ''),
+                j.get('assigned_to') or '',
+                j.get('completed_by') or '',
+                j.get('accepted_by') or '',
+                f"{(j.get('weight_wax') or 0):.3f}"
+            ])
 
 # ----------------------------------------------------------------------
 def _wax_method(article:str)->str:
