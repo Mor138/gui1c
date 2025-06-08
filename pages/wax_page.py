@@ -59,6 +59,7 @@ class WaxPage(QWidget):
         btn_new.clicked.connect(self._select_order_for_job)
         btn_ref = QPushButton("Обновить")
         btn_ref.clicked.connect(self.refresh)
+        yt8arc-codex/реализация-логики-для-управления-нарядами-и-партиями
         btn_issue = QPushButton("Выдать")
         btn_issue.clicked.connect(self._give_job)
         btn_done = QPushButton("Сдано")
@@ -68,6 +69,21 @@ class WaxPage(QWidget):
         btn_sync = QPushButton("В 1С")
         btn_sync.clicked.connect(self._sync_job)
         for b in [btn_new, btn_ref, btn_issue, btn_done, btn_accept, btn_sync]:
+=======
+        btn_issue = QPushButton("🧾 Выдать")
+        btn_issue.clicked.connect(self._give_job)
+        btn_done = QPushButton("✅ Сдано")
+        btn_done.clicked.connect(self._job_done)
+        btn_accept = QPushButton("📥 Принято")
+        btn_accept.clicked.connect(self._job_accept)
+        ep5fca-codex/реализация-логики-для-управления-нарядами-и-партиями
+        btn_sync = QPushButton("🔄 В 1С")
+        btn_sync.clicked.connect(self._sync_job)
+        for b in [btn_new, btn_ref, btn_issue, btn_done, btn_accept, btn_sync]:
+=======
+        for b in [btn_new, btn_ref, btn_issue, btn_done, btn_accept]:
+        main
+        main
             btn_row.addWidget(b, alignment=Qt.AlignLeft)
         v.addLayout(btn_row)
 
@@ -76,7 +92,15 @@ class WaxPage(QWidget):
         lab1.setFont(QFont("Arial",16,QFont.Bold)); v.addWidget(lab1)
 
         self.tree_jobs = QTreeWidget()
+        yt8arc-codex/реализация-логики-для-управления-нарядами-и-партиями
         self.tree_jobs.setHeaderLabels(["Наименование","Qty","Вес","Статус","1С"])
+=======
+        ep5fca-codex/реализация-логики-для-управления-нарядами-и-партиями
+        self.tree_jobs.setHeaderLabels(["Наименование","Qty","Вес","Статус","1С"])
+=======
+        self.tree_jobs.setHeaderLabels(["Наименование","Qty","Вес","Статус"])
+        main
+        main
         self.tree_jobs.header().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.tree_jobs.setStyleSheet(CSS_TREE)
         v.addWidget(self.tree_jobs,1)
@@ -170,6 +194,10 @@ class WaxPage(QWidget):
             return
         name, ok = QInputDialog.getText(self, "Приёмка", "Сотрудник:")
         if ok and name:
+        yt8arc-codex/реализация-логики-для-управления-нарядами-и-партиями
+=======
+        ep5fca-codex/реализация-логики-для-управления-нарядами-и-партиями
+        main
             from logic.production_docs import update_wax_job, log_event, get_wax_job
             job = update_wax_job(code, {"accepted_by": name, "status": "accepted"})
             log_event(code, "accepted", name)
@@ -198,6 +226,17 @@ class WaxPage(QWidget):
         self.refresh()
 
     # ------------------------------------------------------------------
+        yt8arc-codex/реализация-логики-для-управления-нарядами-и-партиями
+=======
+=======
+            from logic.production_docs import update_wax_job, log_event
+            update_wax_job(code, {"accepted_by": name, "status": "accepted"})
+            log_event(code, "accepted", name)
+            self.refresh()
+
+    # ------------------------------------------------------------------
+        main
+        main
     def refresh(self):
         self._fill_jobs_tree()
         self._fill_parties_tree()
@@ -212,7 +251,15 @@ class WaxPage(QWidget):
 
         for m_key, jobs in jobs_by_method.items():
             root = QTreeWidgetItem(self.tree_jobs,
+        yt8arc-codex/реализация-логики-для-управления-нарядами-и-партиями
                                   [METHOD_LABEL.get(m_key, m_key), "", "", "", ""])
+=======
+        ep5fca-codex/реализация-логики-для-управления-нарядами-и-партиями
+                                  [METHOD_LABEL.get(m_key, m_key), "", "", "", ""])
+=======
+                                  [METHOD_LABEL.get(m_key, m_key), "", "", ""])
+        main
+        main
             root.setExpanded(True)
 
             for j in jobs:
@@ -220,8 +267,17 @@ class WaxPage(QWidget):
                     f"{j['operation']} ({j['wax_job']})",
                     str(j['qty']),
                     f"{j['weight']:.3f}",
+        yt8arc-codex/реализация-логики-для-управления-нарядами-и-партиями
                     j.get('status', ''),
                     ('OK' if j.get('sync_doc_num') else '')
+=======
+        ep5fca-codex/реализация-логики-для-управления-нарядами-и-партиями
+                    j.get('status', ''),
+                    '✅' if j.get('sync_doc_num') else ''
+=======
+                    j.get('status', '')
+        main
+        main
                 ])
                 item.setData(0, Qt.UserRole, j['wax_job'])
 
