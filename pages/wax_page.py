@@ -4,7 +4,7 @@ from collections import defaultdict, Counter
 from PyQt5.QtCore    import Qt
 from PyQt5.QtGui     import QFont
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QTreeWidget, QTreeWidgetItem,
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTreeWidget, QTreeWidgetItem,
     QHeaderView, QPushButton, QMessageBox
 )
 from logic.production_docs import WAX_JOBS_POOL, ORDERS_POOL, METHOD_LABEL
