@@ -607,6 +607,7 @@ class COM1CBridge:
                     "note": row.Примечание,
                 })
             result.append({
+                "Ref": doc.Ref,  # ← вот правильное место для Ref
                 "num": doc.Номер,
                 "date": str(doc.Дата),
                 "org": safe_str(doc.Организация),
@@ -658,7 +659,49 @@ class COM1CBridge:
         return result 
         
     def list_production_tasks(self) -> list[dict]:
-        return self.list_documents("ЗаданиеНаПроизводство")
+        selection = self.connection.Documents["ЗаданиеНаПроизводство"].Select()
+        result = []
+        while selection.Next():
+            obj = selection.GetObject()
+            result.append({
+                "Ref": str(obj.Ref),
+                "Номер": str(obj.Номер),
+                "Дата": str(obj.Дата)
+            })
+        return result
+        
+    def find_production_task_ref_by_method(self, method: str) -> str:
+        """Возвращает Ref первого задания по методу (3d / rubber)"""
+        method_enum = self.get_enum_by_description("ВариантыИзготовления", method)
+        tasks = self.connection.Documents["ЗаданиеНаПроизводство"].Select()
+        while tasks.Next():
+            obj = tasks.GetObject()
+            for row in obj.Товары:
+                if row.ВариантИзготовления == method_enum:
+                    return str(obj.Ref)
+        return None    
+        
+    def create_wax_order_from_task(self, task_ref, rows) -> dict:
+        doc = self.connection.Documents["НарядВосковыеИзделия"].CreateDocument()
+        doc.Задание = self.connection.GetObject(task_ref)
+        doc.Дата = self.connection.CurrentDate()
+
+        for row in rows:
+            item = doc.ТоварыВыдано.Add()
+            item.Номенклатура = self.get_ref("Номенклатура", row["name"])
+            item.ПартияКомплектующее = self.get_ref("ПартииКомплектующих", row.get("batch", ""))
+            item.Размер = self.get_ref("РазмерыНоменклатуры", row.get("size", ""))
+            item.Проба = self.get_ref("Проба", row.get("assay", ""))
+            item.ЦветМеталла = self.get_ref("ЦветаМеталлов", row.get("color", ""))
+            item.ХарактеристикаВставок = self.get_ref("ХарактеристикиВставок", row.get("insert", ""))
+            item.Количество = row["qty"]
+
+        doc.Write()
+        return {
+            "Ref": str(doc.Ref),
+            "Номер": str(doc.Номер),
+            "Дата": str(doc.Дата)
+        }    
 
     def list_wax_jobs(self) -> list[dict]:
         result = []
@@ -683,8 +726,41 @@ class COM1CBridge:
             })
         return result
         
+    def create_production_task(self, order_ref, method, rows) -> dict:
+        doc = self.connection.Documents["ЗаданиеНаПроизводство"].CreateDocument()
+        doc.Основание = order_ref
+        doc.Дата = self.connection.CurrentDate()
+
+        for row in rows:
+            item = doc.Товары.Add()
+            item.Номенклатура = self.get_ref("Номенклатура", row["name"])
+            item.Размер = self.get_ref("РазмерыНоменклатуры", row.get("size", ""))
+            item.ХарактеристикаВставок = self.get_ref("ХарактеристикиВставок", row.get("insert", ""))
+            item.Проба = self.get_ref("Проба", row.get("assay", ""))
+            item.ЦветМеталла = self.get_ref("ЦветаМеталлов", row.get("color", ""))
+            item.ВариантИзготовления = self.get_enum_by_description("ВариантыИзготовления", method)
+            item.Количество = row["qty"]
+
+        doc.Write()
+        return {
+            "Ref": str(doc.Ref),
+            "Номер": str(doc.Номер),
+            "Дата": str(doc.Дата)
+        }   
+        
+    def create_wax_order(self, production_task_ref, parts):
+        doc = self.connection.Documents["НарядВосковыеИзделия"].CreateDocument()
+        doc.Задание = production_task_ref
+        for part in parts:
+            row = doc.ТоварыВыдано.Add()
+            row.Номенклатура = part["Номенклатура"]
+            row.ПартияКомплектующее = part["Партия"]
+            row.Количество = part["Количество"]
+        doc.Write()
+        return doc    
+        
     def get_wax_job_rows(self, num: str) -> list[dict]:
-        doc = self._find_doc("НарядВосковкаИзделия", num)
+        doc = self._find_doc("НарядВосковыеИзделия", num)
         rows = []
 
         for r in doc.Выдано:  # <-- важно: корректное имя табличной части
