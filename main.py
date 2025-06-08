@@ -152,10 +152,5 @@ class Main(QMainWindow):
 # Точка входа
 if __name__ == "__main__":
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-    app = QApplication(sys.argv)
-    app.setStyle("Fusion")
-    style_path = base_dir / "resources" / "style.qss"
-    if style_path.exists():
-        with open(style_path, "r", encoding="utf-8") as f:
-            app.setStyleSheet(f.read())
+    app = QApplication(sys.argv); app.setStyle("Fusion")
     win = Main(); win.show(); sys.exit(app.exec_())
