@@ -1,6 +1,7 @@
 import pywintypes
 from PyQt5.QtCore import QDate, QTimer
 from core.com_bridge import safe_str, PRODUCTION_STATUS_MAP
+from core.catalogs import metals, hallmarks, colors
 from datetime import datetime
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QVBoxLayout, QFormLayout, QComboBox, QDateEdit,
@@ -14,6 +15,25 @@ from core.com_bridge import COM1CBridge
 from logic.production_docs import process_new_order
 
 bridge = COM1CBridge("C:\\Users\\Mor\\Desktop\\1C\\proiz")
+
+def parse_variant(variant: str) -> tuple[str, str, str]:
+    """Разбирает строку варианта на металл, пробу и цвет.
+
+    Если необходимые части не распознаны, используются значения по умолчанию
+    ("Золото", первая проба и первый цвет из справочника)."""
+    text = str(variant or "").lower()
+
+    metal = next((m for m in metals() if m.lower() in text), "Золото")
+
+    hallmark = next((h for h in hallmarks(metal) if h in text), None)
+    if not hallmark:
+        hallmark = hallmarks(metal)[0] if hallmarks(metal) else ""
+
+    color = next((c for c in colors(metal) if c.lower() in text), None)
+    if not color:
+        color = colors(metal)[0] if colors(metal) else ""
+
+    return metal, hallmark, color
 
 class OrdersPage(QWidget):
     COLS = ["Артикул", "Наим.", "Вариант", "Размер", "Кол-во", "Вес, г", "Примечание"]
@@ -270,20 +290,22 @@ class OrdersPage(QWidget):
             })
 
         # Дополнительно формируем JSON для wax-страницы
-        order_json = {
-            "rows": [
-                {
-                    "article": self.tbl.cellWidget(row, 0).currentText(),
-                    "size": self.tbl.cellWidget(row, 3).value(),
-                    "qty": self.tbl.cellWidget(row, 4).value(),
-                    "weight": self.tbl.cellWidget(row, 5).value(),
-                    "metal": "Золото",
-                    "hallmark": "585",
-                    "color": "красный",
-                }
-                for row in range(self.tbl.rowCount())
-            ]
-        }
+        order_json_rows = []
+        for row in range(self.tbl.rowCount()):
+            metal, hallmark, color = parse_variant(
+                self.tbl.cellWidget(row, 2).currentText()
+            )
+            order_json_rows.append({
+                "article": self.tbl.cellWidget(row, 0).currentText(),
+                "size": self.tbl.cellWidget(row, 3).value(),
+                "qty": self.tbl.cellWidget(row, 4).value(),
+                "weight": self.tbl.cellWidget(row, 5).value(),
+                "metal": metal,
+                "hallmark": hallmark,
+                "color": color,
+            })
+
+        order_json = {"rows": order_json_rows}
 
         process_new_order(order_json)
 
@@ -325,20 +347,20 @@ class OrdersPage(QWidget):
             QMessageBox.warning(self, "Ошибка", "Выберите заказ")
             return
         order = self._orders[row]
-        order_json = {
-            "rows": [
-                {
-                    "article": r.get("nomenclature", ""),
-                    "size": r.get("size", 0),
-                    "qty": r.get("qty", 0),
-                    "weight": r.get("w", 0),
-                    "metal": "Золото",
-                    "hallmark": "585",
-                    "color": "красный",
-                }
-                for r in order.get("rows", [])
-            ]
-        }
+        order_json_rows = []
+        for r in order.get("rows", []):
+            metal, hallmark, color = parse_variant(r.get("variant", ""))
+            order_json_rows.append({
+                "article": r.get("nomenclature", ""),
+                "size": r.get("size", 0),
+                "qty": r.get("qty", 0),
+                "weight": r.get("w", 0),
+                "metal": metal,
+                "hallmark": hallmark,
+                "color": color,
+            })
+
+        order_json = {"rows": order_json_rows}
         process_new_order(order_json)
         if callable(self.on_send_to_wax):
             self.on_send_to_wax()
