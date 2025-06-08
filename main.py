@@ -126,10 +126,13 @@ class Main(QMainWindow):
         body_lay.addWidget(self.pages, 1)
         outer.addWidget(body, 1)
 
-        for title, key in MENU_ITEMS:
+        self.page_idx = {}
+        self.page_refs = {}
+        wax_index = next(i for i, (_, k) in enumerate(MENU_ITEMS) if k == "wax")
+        for idx, (title, key) in enumerate(MENU_ITEMS):
             self.menu.addItem(title)
             if key == "orders":
-                page = OrdersPage()
+                page = OrdersPage(on_send_to_wax=lambda: (self.page_refs["wax"].refresh(), self.menu.setCurrentRow(self.page_idx.get("wax", wax_index))))
             elif key == "wax":
                 page = WaxPage()
             elif key == "catalogs":
@@ -137,6 +140,8 @@ class Main(QMainWindow):
             else:
                 page = StubPage(title.strip())
             self.pages.addWidget(page)
+            self.page_idx[key] = idx
+            self.page_refs[key] = page
 
         self.menu.currentRowChanged.connect(self.pages.setCurrentIndex)
         self.menu.setCurrentRow(0)
