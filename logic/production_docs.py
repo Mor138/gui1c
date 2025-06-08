@@ -4,6 +4,7 @@ import itertools, uuid, datetime
 from collections import defaultdict
 from copy import deepcopy
 from typing import Dict, Any, List, Tuple
+from uuid import uuid4
 
 from catalogs import NOMENCLATURE                      # метод 3d / rubber
 
@@ -72,46 +73,41 @@ OPS = {"cast":"Отлив восковых заготовок",
        "tree":"Сборка восковых ёлок"}
 
 def build_wax_jobs(order: dict, batches: list[dict]) -> list[dict]:
-    """Формирует два наряда по методам (3D и резина).
+    result = []
+    from uuid import uuid4
+    grouped = defaultdict(list)
 
-    Ранее наряды формировались по каждой партии. Теперь по условию
-    требуется всего два наряда: один для всех позиций метода 3D печать и
-    один для резины. Внутри наряда просто перечисляются артикула и
-    суммарное количество.
-    """
+    # Привязка строк к batch_code по цвету/пробе/металлу
+    batch_map = {}
+    for b in batches:
+        key = (b["metal"], b["hallmark"], b["color"])
+        batch_map[key] = b["batch_barcode"]
 
-    rows_by_method: dict[str, list[dict]] = defaultdict(list)
-    for r in order["rows"]:
-        rows_by_method[_wax_method(r["article"])].append(r)
+    for row in order["rows"]:
+        method = _wax_method(row["article"])
+        key = (row["metal"], row["hallmark"], row["color"])
+        batch_code = batch_map.get(key)
+        row["batch_code"] = batch_code  # ← добавляем вручную
+        grouped[method].append(row)
 
-    jobs = []
-    for method, m_rows in rows_by_method.items():
-        arts = {r["article"] for r in m_rows}
-        qty_sum = sum(r["qty"] for r in m_rows)
-        w_sum = round(sum(r["weight"] for r in m_rows), 3)
-        for op in ("cast", "tree"):
-            jobs.append(dict(
-                wax_job      = new_batch_code().replace("BTH", "WX"),
-                operation    = OPS[op],
-                method       = method,
-                method_title = METHOD_LABEL[method],
-                batch_code   = None,
-                articles     = ", ".join(sorted(arts)),
-                metal        = None,
-                hallmark     = None,
-                color        = None,
-                qty          = qty_sum,
-                weight       = w_sum,
-                created      = datetime.datetime.now().isoformat(timespec="seconds"),
-                status       = "created",
-                assigned_to  = None,
-                received_by  = None,
-                completed_by = None,
-                accepted_by  = None,
-                weight_wax   = None,
-                signed_log   = []
-            ))
-    return jobs
+    for method, rows in grouped.items():
+        wax_code = f"WX-{uuid4().hex[:8].upper()}"
+        for row in rows:
+            result.append({
+                "wax_job": wax_code,
+                "method": method,
+                "articles": row["article"],
+                "qty": row["qty"],
+                "weight": row["weight"],
+                "batch_code": row["batch_code"],
+                "metal": row["metal"],
+                "hallmark": row["hallmark"],
+                "color": row["color"],
+                "operation": "Отлив восковых заготовок" if method == "3d" else "Восковка из пресс-формы",
+                "status": "created"
+            })
+
+    return result
 
 # ─────────────  5. главный вход  ────────────────────────────────────────
 def process_new_order(order_json: Dict[str,Any]) -> Dict[str,Any]:
