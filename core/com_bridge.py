@@ -610,16 +610,17 @@ class COM1CBridge:
             while selection.Next():
                 obj = selection.GetObject()
                 jobs.append({
-                    "Ref": str(obj.Ref),
-                    "Номер": str(obj.Number),
-                    "Дата": str(obj.Date),
-                    "Сотрудник": str(obj.Сотрудник) if hasattr(obj, "Сотрудник") else "",
-                    "Комментарий": str(obj.Комментарий) if hasattr(obj, "Комментарий") else "",
+                    "ref": str(obj.Ref),
+                    "num": str(obj.Number),
+                    "date": str(obj.Date),
+                    "employee": safe_str(getattr(obj, "Сотрудник", "")),
+                    "comment": safe_str(getattr(obj, "Комментарий", "")),
+                    "status": "Проведен" if getattr(obj, "Проведен", False) else ""
                 })
             return jobs
         except Exception as e:
             print("[LOG] ❌ Ошибка получения нарядов:", e)
-            return []   
+            return []
 
 
     # ------------------------------------------------------------------
