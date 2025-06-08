@@ -46,14 +46,12 @@ class WaxPage(QWidget):
         super().__init__()
         self._ui()
         self.refresh()
-        
+
     def refresh(self):
         self._fill_jobs_tree()
         self._fill_parties_tree()
         self._fill_tasks_tree()
-        self._fill_wax_jobs_tree()    
-        self.tree_acts.itemDoubleClicked.connect(self._on_wax_job_double_click)
-        self.tree_tasks.itemDoubleClicked.connect(self._on_task_double_click)
+        self._fill_wax_jobs_tree()
 
     # ------------------------------------------------------------------
     def _ui(self):
@@ -134,6 +132,10 @@ class WaxPage(QWidget):
         self.tree_acts.header().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.tree_acts.setStyleSheet(CSS_TREE)
         t3.addWidget(self.tree_acts, 1)
+
+        # подключения сигналов
+        self.tree_tasks.itemDoubleClicked.connect(self._on_task_double_click)
+        self.tree_acts.itemDoubleClicked.connect(self._on_wax_job_double_click)
 
         self.tabs.addTab(tab3, "Наряды из 1С")
         
@@ -252,16 +254,13 @@ class WaxPage(QWidget):
 
         for o in ORDERS_POOL:
             order = o.get("order", {})
-        7f9ne8-codex/исправить-ошибку-keyerror-в-wax_page.py
+
             order_ref = order.get("Ref")
             if not order_ref:
-                QMessageBox.warning(self, "Ошибка", "У заказа нет ссылки Ref для создания задания")
-       
-            order_ref = bridge.get_doc_ref("ЗаказВПроизводство", order.get("num", ""))
-            if not order_ref:
-                QMessageBox.warning(self, "Ошибка", f"Не найден заказ {order.get('num')} в базе 1С")
-        main
-                continue
+                order_ref = bridge.get_doc_ref("ЗаказВПроизводство", order.get("num", ""))
+                if not order_ref:
+                    QMessageBox.warning(self, "Ошибка", f"Не найден заказ {order.get('num')} в базе 1С")
+                    continue
 
             method_to_items = defaultdict(list)
 
