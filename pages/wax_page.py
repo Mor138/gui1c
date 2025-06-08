@@ -251,18 +251,19 @@ class WaxPage(QWidget):
             return
 
         for o in ORDERS_POOL:
-            order_ref = o["order"]["Ref"]
-            method_to_items = defaultdict(list)
-            
-            order = next((o["order"] for o in ORDERS_POOL if o["docs"]["order_code"] == selected), None)
-            if order and "Ref" in order:
-                try:
-                    num = bridge.create_task_from_order(order["Ref"])  # передаём ссылку
-                    QMessageBox.information(self, "Готово", f"Задание №{num} создано")
-                except Exception as e:
-                    QMessageBox.critical(self, "Ошибка", str(e))
-            else:
+            order = o.get("order", {})
+            order_ref = order.get("Ref")
+            if not order_ref:
                 QMessageBox.warning(self, "Ошибка", "У заказа нет ссылки Ref для создания задания")
+                continue
+
+            method_to_items = defaultdict(list)
+
+            try:
+                num = bridge.create_task_from_order(order)
+                QMessageBox.information(self, "Готово", f"Задание №{num} создано")
+            except Exception as e:
+                QMessageBox.critical(self, "Ошибка", str(e))
 
             for row in o["order"]["rows"]:
                 method = _wax_method(row["article"])
