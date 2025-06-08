@@ -51,13 +51,19 @@ class WaxPage(QWidget):
         hdr = QLabel("Воскование / 3-D печать")
         hdr.setFont(QFont("Arial",22,QFont.Bold)); v.addWidget(hdr)
 
-        btn_row = QVBoxLayout()
+        btn_row = QHBoxLayout()
         btn_new = QPushButton("Создать наряд")
         btn_new.clicked.connect(self._select_order_for_job)
         btn_ref = QPushButton("Обновить")
         btn_ref.clicked.connect(self.refresh)
-        btn_row.addWidget(btn_new, alignment=Qt.AlignLeft)
-        btn_row.addWidget(btn_ref, alignment=Qt.AlignLeft)
+        btn_issue = QPushButton("🧾 Выдать")
+        btn_issue.clicked.connect(self._give_job)
+        btn_done = QPushButton("✅ Сдано")
+        btn_done.clicked.connect(self._job_done)
+        btn_accept = QPushButton("📥 Принято")
+        btn_accept.clicked.connect(self._job_accept)
+        for b in [btn_new, btn_ref, btn_issue, btn_done, btn_accept]:
+            btn_row.addWidget(b, alignment=Qt.AlignLeft)
         v.addLayout(btn_row)
 
         # — дерево нарядов —
@@ -65,7 +71,7 @@ class WaxPage(QWidget):
         lab1.setFont(QFont("Arial",16,QFont.Bold)); v.addWidget(lab1)
 
         self.tree_jobs = QTreeWidget()
-        self.tree_jobs.setHeaderLabels(["Наименование","Qty","Вес"])
+        self.tree_jobs.setHeaderLabels(["Наименование","Qty","Вес","Статус"])
         self.tree_jobs.header().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.tree_jobs.setStyleSheet(CSS_TREE)
         v.addWidget(self.tree_jobs,1)
@@ -108,6 +114,63 @@ class WaxPage(QWidget):
             "Диалог выбора заказов появится на следующем этапе 🙂")
 
     # ------------------------------------------------------------------
+    def _selected_job_code(self):
+        item = self.tree_jobs.currentItem()
+        while item and not item.data(0, Qt.UserRole):
+            item = item.parent()
+        return item.data(0, Qt.UserRole) if item else None
+
+    # ------------------------------------------------------------------
+    def _give_job(self):
+        from PyQt5.QtWidgets import QInputDialog
+        code = self._selected_job_code()
+        if not code:
+            QMessageBox.warning(self, "Наряд", "Не выбран наряд")
+            return
+        name, ok = QInputDialog.getText(self, "Исполнитель", "Сотрудник:")
+        if ok and name:
+            from logic.production_docs import update_wax_job, log_event
+            update_wax_job(code, {"assigned_to": name, "status": "given"})
+            log_event(code, "given", name)
+            self.refresh()
+
+    # ------------------------------------------------------------------
+    def _job_done(self):
+        from PyQt5.QtWidgets import QInputDialog
+        code = self._selected_job_code()
+        if not code:
+            QMessageBox.warning(self, "Наряд", "Не выбран наряд")
+            return
+        person, ok = QInputDialog.getText(self, "Выполнил", "Сотрудник:")
+        if not (ok and person):
+            return
+        weight, ok_w = QInputDialog.getDouble(self, "Вес воска, г", "Вес:", 0, 0, 10000, 3)
+        if not ok_w:
+            weight = None
+        from logic.production_docs import update_wax_job, log_event
+        update_wax_job(code, {
+            "completed_by": person,
+            "weight_wax": weight,
+            "status": "done"
+        })
+        log_event(code, "done", person, {"weight_wax": weight})
+        self.refresh()
+
+    # ------------------------------------------------------------------
+    def _job_accept(self):
+        from PyQt5.QtWidgets import QInputDialog
+        code = self._selected_job_code()
+        if not code:
+            QMessageBox.warning(self, "Наряд", "Не выбран наряд")
+            return
+        name, ok = QInputDialog.getText(self, "Приёмка", "Сотрудник:")
+        if ok and name:
+            from logic.production_docs import update_wax_job, log_event
+            update_wax_job(code, {"accepted_by": name, "status": "accepted"})
+            log_event(code, "accepted", name)
+            self.refresh()
+
+    # ------------------------------------------------------------------
     def refresh(self):
         self._fill_jobs_tree()
         self._fill_parties_tree()
@@ -116,30 +179,23 @@ class WaxPage(QWidget):
     def _fill_jobs_tree(self):
         self.tree_jobs.clear()
 
-        # метод → {article: Counter(size→qty, weight)}
-        data = defaultdict(lambda: defaultdict(list))
-        for pack in ORDERS_POOL:
-            for row in pack["order"]["rows"]:
-                method = _wax_method(row["article"])
-                data[method][row["article"]].append(row)
+        jobs_by_method = defaultdict(list)
+        for j in WAX_JOBS_POOL:
+            jobs_by_method[j["method"]].append(j)
 
-        for m_key, arts in data.items():
+        for m_key, jobs in jobs_by_method.items():
             root = QTreeWidgetItem(self.tree_jobs,
-                [f"Наряд {METHOD_LABEL[m_key]}", "", ""])
+                                  [METHOD_LABEL.get(m_key, m_key), "", "", ""])
             root.setExpanded(True)
 
-            for art, rows in arts.items():
-                # агрегируем по размеру
-                by_size = Counter()
-                weight_sum = 0
-                for r in rows:
-                    by_size[r["size"]] += r["qty"]
-                    weight_sum += r["weight"]
-                qty_sum = sum(by_size.values())
-                art_node = QTreeWidgetItem(root, [art, str(qty_sum), f"{weight_sum:.3f}"])
-                for size, q in sorted(by_size.items()):
-                    QTreeWidgetItem(art_node,
-                        [f"р-р {size}", str(q), ""])
+            for j in jobs:
+                item = QTreeWidgetItem(root, [
+                    f"{j['operation']} ({j['wax_job']})",
+                    str(j['qty']),
+                    f"{j['weight']:.3f}",
+                    j.get('status', '')
+                ])
+                item.setData(0, Qt.UserRole, j['wax_job'])
 
     # —──────────── дерево «Партии» ─────────────
     def _fill_parties_tree(self):
@@ -152,9 +208,10 @@ class WaxPage(QWidget):
 
         for code, jobs in jobs_by_party.items():
             j0 = jobs[0]
+            wax_w = sum(j.get('weight_wax') or 0 for j in jobs)
             root = QTreeWidgetItem(self.tree_part, [
                 f"Партия {code}  ({j0['metal']} {j0['hallmark']} {j0['color']})",
-                str(j0["qty"]), f"{j0['weight']:.3f}"
+                str(j0["qty"]), f"{wax_w:.3f}"
             ])
             root.setExpanded(True)
 
