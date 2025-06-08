@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (
     QWidget, QLabel, QVBoxLayout, QFormLayout, QComboBox, QDateEdit,
     QSpinBox, QDoubleSpinBox, QTableWidget, QTableWidgetItem, QPushButton,
     QMessageBox, QHeaderView, QTabWidget, QHBoxLayout, QAbstractItemView,
-    QLineEdit  # ← вот это добавьте
+    QLineEdit
 )
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt, QDate
