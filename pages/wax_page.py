@@ -253,79 +253,58 @@ class WaxPage(QWidget):
             return
 
         for o in ORDERS_POOL:
-            order = o.get("order", {})
-            order_num = o.get("docs", {}).get("order_code", "")
+            docs = o.get("docs", {})
+            if docs.get("sync_task_num"):
+                continue  # ⛔️ уже создано
+
+            order_num = o.get("number") or docs.get("order_code")
             if not order_num:
-                QMessageBox.warning(self, "Ошибка", "У заказа нет номера для поиска в 1С")
+                log("❌ У заказа нет номера")
                 continue
 
-            order_ref = bridge.get_doc_ref("ЗаказВПроизводство", order.get("num", ""))
+            order_ref = bridge.get_doc_ref("ЗаказВПроизводство", order_num)
             if not order_ref:
-                QMessageBox.warning(self, "Ошибка", f"Не найден заказ {order_num} в базе 1С")
+                log(f"❌ Не найден заказ {order_num} в базе 1С")
                 continue
 
-            method_to_items = defaultdict(list)
-            for row in order.get("rows", []):
-                method = _wax_method(row["article"])
-                method_to_items[method].append({
-                    "name": row["article"],
-                    "qty": row["qty"],
-                    "size": row.get("size", ""),
-                    "assay": row.get("hallmark", ""),
-                    "color": row.get("color", ""),
-                    "insert": row.get("insert", "")
-                })
+            order = o.get("order", {})
+            items = docs.get("items", [])
+            method = bridge.detect_method_from_items(items)
 
-            for method, items in method_to_items.items():
-                try:
-                    result = bridge.create_production_task(order_ref, method, items)
-                    QMessageBox.information(self, "Готово", f"Задание №{result['Номер']} создано")
-                except Exception as e:
-                    QMessageBox.critical(self, "Ошибка создания задания", str(e))
-
-        self.refresh()
+            try:
+                task_num = bridge.create_production_task(order_ref, method, items)
+                docs["sync_task_num"] = task_num  # ✅ запоминаем
+                log(f"✅ Создано задание №{task_num} на метод {method}")
+            except Exception as e:
+                log(f"❌ Ошибка создания задания: {e}")
 
     # ------------------------------------------------------------------
     def _create_wax_jobs(self):
         if not ORDERS_POOL:
-            QMessageBox.warning(self, "Нет данных", "Нет партий для создания нарядов")
+            QMessageBox.warning(self, "Нет данных", "Нет заказов для создания нарядов")
             return
 
-        created = 0
+        for o in ORDERS_POOL:
+            docs = o.get("docs", {})
+            if docs.get("sync_job_num"):
+                continue  # ⛔️ уже создано
 
-        for pack in ORDERS_POOL:
-            for batch in pack["docs"].get("batches", []):
-                items = []
-                for row in pack["order"]["rows"]:
-                    if (row["metal"], row["hallmark"], row["color"]) == (
-                        batch["metal"], batch["hallmark"], batch["color"]
-                    ):
-                        items.append({
-                            "name": row["article"],
-                            "qty": row["qty"],
-                            "size": row.get("size", ""),
-                            "assay": row.get("hallmark", ""),
-                            "color": row.get("color", ""),
-                            "insert": row.get("insert", ""),
-                            "batch": batch["batch_barcode"]
-                        })
+            order_num = o.get("number") or docs.get("order_code")
+            if not order_num:
+                log("❌ У заказа нет номера")
+                continue
 
-                method = _wax_method(items[0]["name"]) if items else "3d"
+            task_ref = bridge.find_production_task_ref_by_method("3D печать")
+            if not task_ref:
+                log(f"❌ Нет задания для метода 3D печать")
+                continue
 
-                # получаем ссылку на задание по методу
-                task_ref = bridge.find_production_task_ref_by_method(method)
-                if not task_ref:
-                    QMessageBox.warning(self, "Не найдено задание", f"Нет задания для метода {method}")
-                    continue
-
-                try:
-                    result = bridge.create_wax_order_from_task(task_ref, items)
-                    created += 1
-                except Exception as e:
-                    QMessageBox.critical(self, "Ошибка создания наряда", str(e))
-
-        QMessageBox.information(self, "Готово", f"Создано {created} нарядов")
-        self.refresh()
+            try:
+                job_num = bridge.create_wax_job_from_task(task_ref)
+                docs["sync_job_num"] = job_num  # ✅ запоминаем
+                log(f"✅ Создан наряд №{job_num}")
+            except Exception as e:
+                log(f"❌ Ошибка создания наряда: {e}")
 
     # ------------------------------------------------------------------
     def _sync_job(self):
