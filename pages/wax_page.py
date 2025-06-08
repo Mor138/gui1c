@@ -254,7 +254,11 @@ class WaxPage(QWidget):
 
         for o in ORDERS_POOL:
             order = o.get("order", {})
-<<<<<<< HEAD
+
+
+            order_ref = order.get("Ref")
+            if not order_ref:
+
         
             order_ref = order.get("Ref")
             if not order_ref:
@@ -264,15 +268,15 @@ class WaxPage(QWidget):
             if not order_ref:
                 QMessageBox.warning(self, "Ошибка", f"Не найден заказ {order.get('num')} в базе 1С")
 
-=======
 
             order_ref = order.get("Ref")
             if not order_ref:
+
                 order_ref = bridge.get_doc_ref("ЗаказВПроизводство", order.get("num", ""))
                 if not order_ref:
                     QMessageBox.warning(self, "Ошибка", f"Не найден заказ {order.get('num')} в базе 1С")
                     continue
->>>>>>> db0a70b836df7f5d5ab0c4f1d0d0e2dcc9327b20
+
 
             method_to_items = defaultdict(list)
 
