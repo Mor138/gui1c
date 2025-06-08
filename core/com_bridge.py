@@ -721,10 +721,18 @@ class COM1CBridge:
             })
         return result
         
+    def detect_method_from_items(self, items: list[dict]) -> str:
+        """Автоматически определяет метод производства по названию номенклатуры"""
+        for row in items:
+            name = row.get("Номенклатура", "").lower()
+            if "д" in name or "d" in name:
+                return "3D печать"
+        return "Резина"    
+        
     def find_production_task_ref_by_method(self, method: str) -> str | None:
         """Возвращает ссылку на первое задание по указанному методу."""
         method_ref = self.get_ref_by_description("ВариантыИзготовленияНоменклатуры", method)
-        if method_enum is None:
+        if method_ref is None:
             log(f"[find_production_task_ref_by_method] Не найден вариант {method}")
             return None
 
