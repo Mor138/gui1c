@@ -99,7 +99,9 @@ class WaxPage(QWidget):
         t1.addWidget(lab1)
 
         self.tree_jobs = QTreeWidget()
-        self.tree_jobs.setHeaderLabels(["Наименование", "Qty", "Вес", "Статус", "1С"])
+        self.tree_jobs.setHeaderLabels([
+            "Артикулы", "Метод", "Qty", "Вес", "Статус", "1С"
+        ])
         self.tree_jobs.header().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.tree_jobs.setStyleSheet(CSS_TREE)
         t1.addWidget(self.tree_jobs, 1)
@@ -160,8 +162,6 @@ class WaxPage(QWidget):
     # ------------------------------------------------------------------
     def _selected_job_code(self):
         item = self.tree_jobs.currentItem()
-        while item and not item.data(0, Qt.UserRole):
-            item = item.parent()
         return item.data(0, Qt.UserRole) if item else None
 
     # ------------------------------------------------------------------
@@ -277,23 +277,16 @@ class WaxPage(QWidget):
     def _fill_jobs_tree(self):
         self.tree_jobs.clear()
 
-        jobs_by_method = defaultdict(list)
         for j in WAX_JOBS_POOL:
-            jobs_by_method[j["method"]].append(j)
-
-        for m_key, jobs in jobs_by_method.items():
-            root = QTreeWidgetItem(self.tree_jobs, [METHOD_LABEL.get(m_key, m_key), "", "", "", ""])
-            root.setExpanded(True)
-
-            for j in jobs:
-                item = QTreeWidgetItem(root, [
-                    f"{j['operation']} ({j['wax_job']})",
-                    str(j.get('qty', 0)),
-                    f"{j.get('weight', 0.0):.3f}",
-                    j.get('status', ''),
-                    '✅' if j.get('sync_doc_num') else ''
-                ])
-                item.setData(0, Qt.UserRole, j['wax_job'])
+            item = QTreeWidgetItem(self.tree_jobs, [
+                j.get('articles', ''),
+                METHOD_LABEL.get(j.get('method'), j.get('method')),
+                str(j.get('qty', 0)),
+                f"{j.get('weight', 0.0):.3f}",
+                j.get('status', ''),
+                '✅' if j.get('sync_doc_num') else ''
+            ])
+            item.setData(0, Qt.UserRole, j['wax_job'])
 
     # —──────────── дерево «Партии» ─────────────
     def _fill_parties_tree(self):
