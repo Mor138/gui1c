@@ -838,6 +838,27 @@ class COM1CBridge:
             log(f"❌ Ошибка при создании задания: {e}")
             return {}
             
+    def calculate_batches(order_lines: list[dict]) -> list[dict]:
+        from collections import defaultdict
+
+        rows_by_batch = defaultdict(lambda: {"qty": 0, "total_w": 0.0})
+        for row in order_lines:
+            key = (row.get("metal"), row.get("assay"), row.get("color"))
+            rows_by_batch[key]["qty"] += row.get("qty", 0)
+            rows_by_batch[key]["total_w"] += row.get("weight", 0.0)
+
+        result = []
+        for (metal, hallmark, color), data in rows_by_batch.items():
+            result.append({
+                "batch_barcode": "AUTO",
+                "metal": metal,
+                "hallmark": hallmark,
+                "color": color,
+                "qty": data["qty"],
+                "total_w": round(data["total_w"], 3)
+            })
+        return result        
+            
     def get_catalog_ref(self, catalog_name, description):
         try:
             catalog = getattr(self.connection.Catalogs, catalog_name, None)
