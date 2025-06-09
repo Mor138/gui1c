@@ -733,9 +733,6 @@ class COM1CBridge:
             doc = doc_manager.CreateDocument()
             doc.Дата = datetime.now()
             doc.КонечнаяДатаЗадания = datetime.now() + timedelta(days=1)
-            doc.ПроизводственныйУчасток = self.get_catalog_ref("ПроизводственныеУчастки", "восковка")
-            doc.ТехОперация = self.get_catalog_ref("ТехнологическиеОперации", "литье 3D")
-            doc.Ответственный = self.get_catalog_ref("Пользователи", "Администратор")
             doc.ДокументОснование = base_doc
 
             # 🔧 Заполнение шапки
@@ -789,18 +786,18 @@ class COM1CBridge:
         try:
             catalog = getattr(self.connection.Catalogs, catalog_name, None)
             if not catalog:
-                print(f"Каталог '{catalog_name}' не найден")
+                log(f"Каталог '{catalog_name}' не найден")
                 return None
             selection = catalog.Select()
             while selection.Next():
                 item = selection.GetObject()
                 if safe_str(item.Description) == description or safe_str(item) == description:
-                    print(f"[{catalog_name}] Найден: {description}")
+                    log(f"[{catalog_name}] Найден: {description}")
                     return item.Ref
-            print(f"[{catalog_name}] Не найден: {description}")
+            log(f"[{catalog_name}] Не найден: {description}")
         except Exception as e:
-            print(f"[{catalog_name}] Ошибка: {e}")
-        return None        
+            log(f"[{catalog_name}] Ошибка: {e}")
+        return None
         
     def get_wax_job_rows(self, num: str) -> list[dict]:
         doc = self._find_doc("НарядВосковыеИзделия", num)
