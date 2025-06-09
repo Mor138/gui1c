@@ -8,39 +8,8 @@ from PyQt5.QtWidgets import (
     QHeaderView, QPushButton, QMessageBox, QTabWidget
 )
 from logic.production_docs import WAX_JOBS_POOL, ORDERS_POOL, METHOD_LABEL
-from core.com_bridge import COM1CBridge
 from core.com_bridge import log
-
-bridge = COM1CBridge("C:\\Users\\Mor\\Desktop\\1C\\proiz")
-
-CSS_TREE = """
-QTreeWidget{
-  background:#ffffff;
-  border:1px solid #d1d5db;
-  color:#111827;
-  font-size:14px;
-}
-QTreeWidget::item{
-  padding:4px 8px;
-  border-bottom:1px solid #e5e7eb;
-}
-
-/* выделение строки */
-QTreeView::item:selected{
-  background:#3b82f6;
-  color:#ffffff;
-}
-
-/* hover */
-QTreeView::item:hover:!selected{
-  background:rgba(59,130,246,0.30);
-}
-
-/*  — если хотите зебру, раскомментируйте ↓ —
-QTreeView::item:nth-child(even):!selected{ background:#f9fafb; }
-QTreeView::item:nth-child(odd):!selected { background:#ffffff; }
-*/
-"""
+from config import BRIDGE as bridge, CSS_TREE
 
 class WaxPage(QWidget):
     def __init__(self):
@@ -280,6 +249,25 @@ class WaxPage(QWidget):
                 task_obj = task_obj.GetObject()
 
             self.last_created_task_ref = task_obj
+            lines = bridge.get_task_lines(num)
+            if lines:
+                from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTreeWidget, QTreeWidgetItem
+
+                dlg = QDialog(self)
+                dlg.setWindowTitle(f"Строки задания {num}")
+                layout = QVBoxLayout(dlg)
+
+                tree = QTreeWidget()
+                tree.setHeaderLabels(["Номенклатура", "Размер", "Проба", "Цвет", "Кол-во", "Вес"])
+                for row in lines:
+                    QTreeWidgetItem(tree, [
+                        row["nomen"], str(row["size"]), str(row["sample"]),
+                        str(row["color"]), str(row["qty"]), str(row["weight"])
+                    ])
+                layout.addWidget(tree)
+                dlg.resize(700, 400)
+                dlg.exec_()
+
             self.refresh()
             self.tabs.setCurrentIndex(0)
             log(f"[UI] Выбрано задание №{num}, переходим к созданию нарядов.")

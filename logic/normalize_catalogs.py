@@ -3,10 +3,8 @@
 # Создание нормализованных справочников на основе грязной базы 1С
 # Вызывается из CatalogsPage — наполняет словари для использования в UI
 
-from core.com_bridge import COM1CBridge
 from collections import defaultdict
-
-bridge = COM1CBridge("C:/Users/Mor/Desktop/1C/proiz")  # путь к базе можно заменить
+from config import BRIDGE as bridge
 
 # Чистый список номенклатуры с группировкой по типу
 NORMALIZED = {
