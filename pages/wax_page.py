@@ -76,6 +76,21 @@ class WaxPage(QWidget):
 
         btn_create_wax_jobs = QPushButton("📄 Создать наряды")
         btn_create_wax_jobs.clicked.connect(self._create_wax_jobs)
+        
+        from PyQt5.QtWidgets import QComboBox
+
+        # Список мастеров
+        self.combo_employee = QComboBox()
+        self.combo_employee.setMinimumWidth(200)
+        self.combo_employee.addItem("— выберите мастера —")
+
+        # загружаем из 1С
+        for item in bridge.list_catalog_items("ФизическиеЛица", limit=100):
+            name = item.get("Description", "")
+            if name:
+                self.combo_employee.addItem(name)
+
+        btn_row.addWidget(self.combo_employee)
 
         for b in [btn_create_task, btn_create_wax_jobs]:
             btn_row.addWidget(b, alignment=Qt.AlignLeft)
@@ -269,6 +284,14 @@ class WaxPage(QWidget):
                 continue
 
             rows = bridge.get_order_lines(order_num)
+            # передаём выбранного мастера
+            employee_name = self.combo_employee.currentText()
+            if employee_name and employee_name != "— выберите мастера —":
+                for r in rows:
+                    r["employee"] = employee_name
+            else:
+                QMessageBox.warning(self, "Мастер не выбран", "Пожалуйста, выберите мастера (рабочий центр)")
+                return
             if not rows:
                 log(f"❌ В заказе №{order_num} нет строк для задания")
                 continue
