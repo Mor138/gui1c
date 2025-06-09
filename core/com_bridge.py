@@ -8,6 +8,7 @@ from typing import Any, Dict, List
 from win32com.client import VARIANT
 from pythoncom import VT_BOOL
 from collections import defaultdict
+from datetime import datetime, timedelta
 
 # ---------------------------
 # Маппинг описаний в системные имена перечисления
@@ -53,6 +54,7 @@ class COM1CBridge:
         "ДавМеталлДавКамни"
     ]
     
+    
     def __init__(self, base_path, usr="Администратор", pwd=""):
         self.connector = win32com.client.Dispatch("V83.COMConnector")
         self.connection = self.connector.Connect(
@@ -61,6 +63,8 @@ class COM1CBridge:
         self.catalogs = self.connection.Catalogs
         self.documents = self.connection.Documents
         self.enums = self.connection.Enums
+        
+
         
     def get_wax_job_lines(self, doc_num: str) -> list[dict]:
         """Возвращает табличную часть 'ТоварыВыдано' по номеру наряда"""
@@ -658,7 +662,7 @@ class COM1CBridge:
         """Возвращает ссылку на первое задание по указанному методу."""
         method_ref = self.get_ref_by_description("ВариантыИзготовленияНоменклатуры", method)
         if not method_ref:
-            self.log_catalog_contents("ВариантыИзготовленияНоменклатуры")
+            print_catalog_contents("ВариантыИзготовленияНоменклатуры")
         if method_ref is None:
             log(f"[find_production_task_ref_by_method] Не найден вариант {method}")
             return None
@@ -714,53 +718,55 @@ class COM1CBridge:
         log(f"[get_ref_by_description] Не найден элемент '{description}' в каталоге '{catalog_name}'")
         return None    
         
-    def create_production_task(self, order_ref: str, rows: list[dict]) -> dict:
+    def create_production_task(self, order_ref, rows: list[dict]) -> dict:
         doc_manager = getattr(self.connection.Documents, "ЗаданиеНаПроизводство", None)
         if doc_manager is None:
-            raise Exception("Документ 'ЗаданиеНаПроизводство' не найден")
+            log("❌ Документ 'ЗаданиеНаПроизводство' не найден в конфигурации")
+            return {}
+
         if not order_ref:
-            raise ValueError("order_ref is None, задание не может быть создано")
+            log("❌ order_ref = None. Задание не может быть создано.")
+            return {}
 
         try:
+            base_doc = order_ref if hasattr(order_ref, "Ref") else self.connection.GetObject(order_ref)
             doc = doc_manager.CreateDocument()
-            # order_ref may already be a COM object; only call GetObject for strings
-            if isinstance(order_ref, str):
-                doc.ДокументОснование = self.connection.GetObject(order_ref)
-            else:
-                doc.ДокументОснование = order_ref
-            doc.Дата = self.connection.CurrentDate()
+            doc.Дата = datetime.now()
+            doc.КонечнаяДатаЗадания = datetime.now() + timedelta(days=1)
+            doc.ПроизводственныйУчасток = self.get_catalog_ref("ПроизводственныеУчастки", "восковка")
+            doc.ТехОперация = self.get_catalog_ref("ТехнологическиеОперации", "литье 3D")
+            doc.Ответственный = self.get_catalog_ref("Пользователи", "Администратор")
+            doc.ДокументОснование = base_doc
 
-            # 👉 Автоматически заполняем заголовок:
-            doc.ПроизводственныйУчасток = self.get_ref("ПроизводственныеУчастки", "восковка")  # Пример: "восковка"
+            # 🔧 Заполнение шапки
+            doc.ПроизводственныйУчасток = self.get_ref("ПроизводственныеУчастки", "восковка")
             doc.ТехОперация = self.get_ref("ТехнологическиеОперации", "восковка")
             doc.Ответственный = self.get_ref("Пользователи", "Администратор")
             doc.Комментарий = "Создано автоматически из GUI"
 
-            from datetime import datetime, timedelta
             date_start = datetime.now()
             date_end = date_start + timedelta(days=1)
 
+            # 🧩 Табличная часть: Продукция
             for row in rows:
                 try:
                     item = doc.Продукция.Add()
-                    item.Номенклатура = self.get_ref("Номенклатура", row["Номенклатура"])
-                    item.Размер = self.get_size_ref(row.get("Размер", ""))
-                    item.Проба = self.get_ref("Проба", row.get("Проба", ""))
-                    item.ЦветМеталла = self.get_ref("ЦветаМеталлов", row.get("Цвет", ""))
-                    item.ХарактеристикаВставок = self.get_ref("ХарактеристикиВставок", row.get("Характеристика", ""))
-                    item.Количество = float(row.get("Количество", 0))
-                    item.Вес = float(row.get("Вес", 0))
-
-                    item.ВариантИзготовления = self.get_ref("ВариантыИзготовленияНоменклатуры", row.get("ВариантИзготовления", ""))
+                    item.Номенклатура = self.get_ref("Номенклатура", row.get("name", ""))
+                    item.Размер = self.get_ref("РазмерыНоменклатуры", row.get("size", ""))
+                    item.Проба = self.get_ref("Проба", row.get("assay", ""))
+                    item.ЦветМеталла = self.get_ref("ЦветаМеталлов", row.get("color", ""))
+                    item.ХарактеристикаВставок = self.get_ref("ХарактеристикиВставок", row.get("insert", ""))
+                    item.ВариантИзготовления = self.get_ref("ВариантыИзготовленияНоменклатуры", row.get("method", ""))
+                    item.Количество = row.get("qty", 0)
+                    item.Вес = float(row.get("weight", 0)) if "weight" in row else 0
 
                     item.ДатаНачала = date_start
                     item.ДатаОкончания = date_end
                     item.РабочийЦентр = self.get_ref("Пользователи", "Администратор")
-                    item.АртикулГП = row.get("Артикул", "")
-
+                    item.АртикулГП = row.get("article", "")
                 except Exception as e:
                     log(f"❌ Ошибка в строке задания: {e}")
-            
+
             doc.Write()
             log(f"✅ Задание создано: №{doc.Номер}")
             return {
@@ -768,9 +774,27 @@ class COM1CBridge:
                 "Номер": str(doc.Номер),
                 "Дата": str(doc.Дата)
             }
+
         except Exception as e:
             log(f"❌ Ошибка при создании задания: {e}")
             return {}
+            
+    def get_catalog_ref(self, catalog_name, description):
+        try:
+            catalog = getattr(self.connection.Catalogs, catalog_name, None)
+            if not catalog:
+                print(f"Каталог '{catalog_name}' не найден")
+                return None
+            selection = catalog.Select()
+            while selection.Next():
+                item = selection.GetObject()
+                if safe_str(item.Description) == description or safe_str(item) == description:
+                    print(f"[{catalog_name}] Найден: {description}")
+                    return item.Ref
+            print(f"[{catalog_name}] Не найден: {description}")
+        except Exception as e:
+            print(f"[{catalog_name}] Ошибка: {e}")
+        return None        
         
     def get_wax_job_rows(self, num: str) -> list[dict]:
         doc = self._find_doc("НарядВосковыеИзделия", num)
