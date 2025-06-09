@@ -111,19 +111,29 @@ def build_wax_jobs(order: dict, batches: list[dict]) -> list[dict]:
 
 # ─────────────  5. главный вход  ────────────────────────────────────────
 def process_new_order(order_json: Dict[str,Any]) -> Dict[str,Any]:
+    def log(msg): print(msg)
     order_code = order_json.get("number", new_order_code())  # fallback на случай отладки без 1С
 
+    # 🔒 Проверка: если заказ уже в ORDERS_POOL — ничего не делать
+    for existing in ORDERS_POOL:
+        if existing["order"].get("number") == order_code:
+            log(f"[process_new_order] ⚠ Заказ №{order_code} уже в ORDERS_POOL, пропускаем")
+            return existing  # можно вернуть старую запись
+
     items      = expand_items(order_json)
-    batches,mapping = group_by_keys(items, GROUP_KEYS_WAX_CAST)
+    batches, mapping = group_by_keys(items, GROUP_KEYS_WAX_CAST)
     wax_jobs   = build_wax_jobs(order_json, batches)
     WAX_JOBS_POOL.extend(wax_jobs)
 
-    ORDERS_POOL.append(dict(order=order_json, docs=dict(
+    record = dict(order=order_json, docs=dict(
         order_code=order_code,
         items=items,
         batches=batches,
         mapping=mapping,
-        wax_jobs=wax_jobs)))
+        wax_jobs=wax_jobs))
+    
+    ORDERS_POOL.append(record)
+    return record
 
 # ─────────────  service helpers  ────────────────────────────────────────
 def _find_job(code: str) -> dict | None:
