@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from core.com_bridge import COM1CBridge
 
@@ -5,7 +6,7 @@ from core.com_bridge import COM1CBridge
 BASE_DIR = Path(__file__).resolve().parent
 
 # Path to 1C database
-ONEC_PATH = "C:/Users/Mor/Desktop/1C/proiz"
+ONEC_PATH = os.getenv("ONEC_PATH", "C:/Users/Mor/Desktop/1C/proiz")
 
 # Global COM bridge instance
 BRIDGE = COM1CBridge(ONEC_PATH)

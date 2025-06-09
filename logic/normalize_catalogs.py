@@ -3,30 +3,35 @@
 # Создание нормализованных справочников на основе грязной базы 1С
 # Вызывается из CatalogsPage — наполняет словари для использования в UI
 
+
 from collections import defaultdict
 from config import BRIDGE as bridge
 
-# Чистый список номенклатуры с группировкой по типу
-NORMALIZED = {
-    "Камни": [],
-    "Вставки": [],
-    "Изделия": []
-}
+_NORMALIZED = None
 
-nomenclature = bridge.list_catalog_items("Номенклатура", 10000)
+def load_normalized():
+    """Возвращает нормализованные справочники, загружая их при первом вызове."""
+    global _NORMALIZED
+    if _NORMALIZED is not None:
+        return _NORMALIZED
 
-for item in nomenclature:
-    name = item.get("Наименование", "")
-    insert = item.get("Вставка", "")
-    method = item.get("ВариантИзготовления", "")
+    normalized = {"Камни": [], "Вставки": [], "Изделия": []}
 
-    # Если присутствует Вставка — заносим как камень или вставку
-    if insert:
-        NORMALIZED["Вставки"].append({"Название": name, "Вставка": insert})
-    elif "камень" in name.lower():
-        NORMALIZED["Камни"].append({"Название": name})
-    else:
-        NORMALIZED["Изделия"].append({"Название": name, "Метод": method})
+    nomenclature = bridge.list_catalog_items("Номенклатура", 10000)
+    for item in nomenclature:
+        name = item.get("Наименование", "")
+        insert = item.get("Вставка", "")
+        method = item.get("ВариантИзготовления", "")
+
+        if insert:
+            normalized["Вставки"].append({"Название": name, "Вставка": insert})
+        elif "камень" in name.lower():
+            normalized["Камни"].append({"Название": name})
+        else:
+            normalized["Изделия"].append({"Название": name, "Метод": method})
+
+    _NORMALIZED = normalized
+    return _NORMALIZED
 
 
 # Можно добавить сохранение в prod_cache.json, если нужно:

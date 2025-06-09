@@ -15,8 +15,13 @@ class WaxPage(QWidget):
     def __init__(self):
         super().__init__()
         self.last_created_task_ref = None
+        self.jobs_page = None
         self._ui()
         self.refresh()
+
+    def set_jobs_page(self, jobs_page):
+        """Позволяет передать внешний объект страницы нарядов."""
+        self.jobs_page = jobs_page
 
     def refresh(self):
         self._fill_jobs_tree()
@@ -244,33 +249,14 @@ class WaxPage(QWidget):
 
         task_obj = bridge._find_task_by_number(num)
         if task_obj:
-            # если вернулась ссылка, превращаем в объект
             if hasattr(task_obj, "GetObject"):
                 task_obj = task_obj.GetObject()
 
             self.last_created_task_ref = task_obj
-            lines = bridge.get_task_lines(num)
-            if lines:
-                from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTreeWidget, QTreeWidgetItem
-
-                dlg = QDialog(self)
-                dlg.setWindowTitle(f"Строки задания {num}")
-                layout = QVBoxLayout(dlg)
-
-                tree = QTreeWidget()
-                tree.setHeaderLabels(["Номенклатура", "Размер", "Проба", "Цвет", "Кол-во", "Вес"])
-                for row in lines:
-                    QTreeWidgetItem(tree, [
-                        row["nomen"], str(row["size"]), str(row["sample"]),
-                        str(row["color"]), str(row["qty"]), str(row["weight"])
-                    ])
-                layout.addWidget(tree)
-                dlg.resize(700, 400)
-                dlg.exec_()
-
             self.refresh()
             self.tabs.setCurrentIndex(0)
-            self.jobs_page.load_task_data(task_obj)
+            target = self.jobs_page or self
+            target.load_task_data(task_obj)
             log(f"[UI] Выбрано задание №{num}, переходим к созданию нарядов.")
 
     def load_task_data(self, task_obj):
@@ -279,8 +265,13 @@ class WaxPage(QWidget):
             return
 
         self.last_created_task_ref = task_obj
-        self._fill_jobs_table_from_task(task_obj)  # или любой метод, который ты используешь
+        self._fill_jobs_table_from_task(task_obj)
         log(f"[UI] ✅ Загружены данные задания №{task_obj.Номер}")
+
+    def _fill_jobs_table_from_task(self, task_obj):
+        """Заполняет таблицу нарядов строками выбранного задания."""
+        lines = bridge.get_task_lines(getattr(task_obj, "Номер", ""))
+        log(f"[UI] Загрузка строк задания: {len(lines)}")
 
     def _on_wax_job_double_click(self, item, column):
         num = item.text(0).strip()
