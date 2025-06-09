@@ -7,7 +7,13 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTreeWidget, QTreeWidgetItem,
     QHeaderView, QPushButton, QMessageBox, QTabWidget
 )
-from logic.production_docs import WAX_JOBS_POOL, ORDERS_POOL, METHOD_LABEL
+from logic.production_docs import (
+    WAX_JOBS_POOL,
+    ORDERS_POOL,
+    METHOD_LABEL,
+    process_new_order,
+)
+from pages.orders_page import parse_variant
 from core.com_bridge import log
 from config import BRIDGE as bridge, CSS_TREE
 
@@ -265,23 +271,29 @@ class WaxPage(QWidget):
                 order_num = base_obj.Номер
                 log(f"[populate_jobs_tree] Задание связано с заказом №{order_num}")
 
-                # Загружаем строки заказа
+                # Загружаем строки заказа и формируем данные как для нового заказа
                 order_lines = bridge.get_order_lines(order_num)
-                batches = bridge.calculate_batches(order_lines)
+                order_json_rows = []
+                for r in order_lines:
+                    metal, hallmark, color = parse_variant(r.get("method", ""))
+                    order_json_rows.append(
+                        {
+                            "article": r.get("article", ""),
+                            "size": r.get("size", 0),
+                            "qty": r.get("qty", 0),
+                            "weight": r.get("weight", 0),
+                            "metal": metal,
+                            "hallmark": hallmark,
+                            "color": color,
+                        }
+                    )
 
-                # Обновляем ORDERS_POOL
+                # Перезаписываем ORDERS_POOL и используем существующую обработку
                 ORDERS_POOL.clear()
-                ORDERS_POOL.append({
-                    "number": order_num,
-                    "order": {
-                        "rows": order_lines
-                    },
-                    "docs": {
-                        "order_code": order_num,
-                        "batches": batches
-                    }
-                })
-                log(f"[ORDERS_POOL] Добавлены строки и партии для заказа №{order_num}")
+                process_new_order({"number": order_num, "rows": order_json_rows})
+                log(
+                    f"[ORDERS_POOL] Добавлены строки и партии для заказа №{order_num}"
+                )
 
                 # Перерисовываем
                 self.refresh()
