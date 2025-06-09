@@ -647,8 +647,10 @@ class COM1CBridge:
                 "employee": self.safe(doc, "Ответственный"),
                 "tech_op": self.safe(doc, "ТехОперация"),
                 "section": self.safe(doc, "ПроизводственныйУчасток"),
+                "posted": getattr(doc, "Проведен", False),
+                "deleted": getattr(doc, "ПометкаУдаления", False),
             })
-        return result 
+        return result
         
     def detect_method_from_items(self, items: list[dict]) -> str:
         """Автоматически определяет метод производства по названию номенклатуры"""
@@ -842,6 +844,7 @@ class COM1CBridge:
             })
 
         return rows   
+           
         
     def get_order_lines(self, doc_number: str) -> list[dict]:
         doc = self._find_document_by_number("ЗаказВПроизводство", doc_number)
@@ -971,3 +974,96 @@ class COM1CBridge:
         except Exception as e:
             log(f"❌ Ошибка create_multiple_wax_jobs_from_task: {e}")
             return 0
+
+    def _find_task_by_number(self, number: str):
+        doc_manager = getattr(self.connection.Documents, "ЗаданиеНаПроизводство", None)
+        if doc_manager is None:
+            log("❌ Документ 'ЗаданиеНаПроизводство' не найден")
+            return None
+        selection = doc_manager.Select()
+        while selection.Next():
+            obj = selection.GetObject()
+            if str(obj.Number).strip() == number.strip():
+                return obj
+        return None
+
+    def post_task(self, number: str) -> bool:
+        obj = self._find_task_by_number(number)
+        if not obj:
+            log(f"[Проведение] ❌ Задание №{number} не найдено")
+            return False
+        try:
+            obj.Проведен = True
+            obj.Write()
+            log(f"[Проведение] ✅ Задание №{number} проведено")
+            return True
+        except Exception as e:
+            log(f"❌ Ошибка при проведении задания №{number}: {e}")
+            return False
+
+    def undo_post_task(self, number: str) -> bool:
+        obj = self._find_task_by_number(number)
+        if not obj:
+            log(f"[Снятие проведения] ❌ Задание №{number} не найдено")
+            return False
+        try:
+            obj.Проведен = False
+            obj.Write()
+            log(f"[Снятие проведения] ✅ Задание №{number} отменено")
+            return True
+        except Exception as e:
+            log(f"❌ Ошибка при снятии проведения задания №{number}: {e}")
+            return False
+
+    def mark_task_for_deletion(self, number: str) -> bool:
+        obj = self._find_task_by_number(number)
+        if not obj:
+            log(f"[Пометка удаления] ❌ Задание №{number} не найдено")
+            return False
+        try:
+            obj.DeletionMark = True
+            obj.Write()
+            log(f"[Пометка удаления] ✅ Задание №{number} помечено на удаление")
+            return True
+        except Exception as e:
+            log(f"❌ Ошибка при пометке на удаление задания №{number}: {e}")
+            return False
+
+    def unmark_task_deletion(self, number: str) -> bool:
+        obj = self._find_task_by_number(number)
+        if not obj:
+            log(f"[Снятие пометки] ❌ Задание №{number} не найдено")
+            return False
+        try:
+            obj.DeletionMark = False
+            obj.Write()
+            log(f"[Снятие пометки] ✅ Задание №{number} восстановлено")
+            return True
+        except Exception as e:
+            log(f"❌ Ошибка при снятии пометки задания №{number}: {e}")
+            return False
+
+    def delete_task(self, number: str) -> bool:
+        obj = self._find_task_by_number(number)
+        if not obj:
+            log(f"[Удаление] ❌ Задание №{number} не найдено")
+            return False
+        try:
+            # Обязательно снять проведение, если стоит
+            if getattr(obj, "Проведен", False):
+                obj.Проведен = False
+                obj.Write()
+
+            # Пометить на удаление (иначе 1С не даст удалить)
+            obj.DeletionMark = True
+            obj.Write()
+
+            # Теперь можно удалить
+            obj.Delete()
+            log(f"[Удаление] ✅ Задание №{number} удалено")
+            return True
+        except Exception as e:
+            log(f"❌ Ошибка при удалении задания №{number}: {e}")
+            return False
+            
+            
