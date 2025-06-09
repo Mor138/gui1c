@@ -962,8 +962,10 @@ class COM1CBridge:
         """Создаёт по заданию два наряда: для 3D и для резины."""
         result = []
         
+        log(f"[create_jobs] type(task_ref) = {type(task_ref)}")
         try:
-            organization = task_ref.Organization
+            organization = getattr(task_ref, "Организация")
+            log(f"[create_jobs] Организация задания: {safe_str(organization)}")
         except Exception as e:
             log(f"❌ Ошибка получения Организации из задания: {e}")
             return []
