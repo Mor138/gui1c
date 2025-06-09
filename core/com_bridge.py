@@ -10,6 +10,10 @@ from pythoncom import VT_BOOL
 from collections import defaultdict
 from datetime import datetime, timedelta
 
+# Управление уровнем логирования. Переменная окружения LOG_VERBOSE может быть 0
+# для подавления подробных сообщений.
+LOG_VERBOSE = os.getenv("LOG_VERBOSE", "1") != "0"
+
 # ---------------------------
 # Маппинг описаний в системные имена перечисления
 # ---------------------------
@@ -42,7 +46,9 @@ def safe_str(val: Any) -> str:
        
 
 def log(msg: str) -> None:
-    print("[LOG]", msg)
+    """Вывод сообщения в консоль с учётом уровня детализации."""
+    if LOG_VERBOSE:
+        print("[LOG]", msg)
     
    
 
@@ -63,6 +69,9 @@ class COM1CBridge:
         self.catalogs = self.connection.Catalogs
         self.documents = self.connection.Documents
         self.enums = self.connection.Enums
+        # Кэш справочников и перечислений: описание → ссылка
+        self._catalog_cache: dict[str, dict[str, Any]] = {}
+        self._enum_cache: dict[str, dict[str, Any]] = {}
         
 
         
@@ -303,14 +312,20 @@ class COM1CBridge:
 
     def get_enum_by_description(self, enum_name: str, description: str):
         """Возвращает элемент перечисления по его представлению"""
-        enum = getattr(self.enums, enum_name, None)
-        if not enum:
-            log(f"Перечисление '{enum_name}' не найдено")
-            return None
         if description is None:
             return None
 
         desc = str(description).strip().lower()
+
+        cache = self._enum_cache.get(enum_name)
+        if cache and desc in cache:
+            return cache[desc]
+
+        enum = getattr(self.enums, enum_name, None)
+        if not enum:
+            log(f"Перечисление '{enum_name}' не найдено")
+            return None
+
         try:
             for attr in dir(enum):
                 if attr.startswith("_"):
@@ -330,7 +345,12 @@ class COM1CBridge:
                 except Exception:
                     pres = str(val)
 
-                if pres.strip().lower() == desc or attr.lower() == desc:
+                key = pres.strip().lower()
+                cache = self._enum_cache.setdefault(enum_name, {})
+                cache[key] = val
+                cache[attr.lower()] = val
+
+                if key == desc or attr.lower() == desc:
                     return val
         except Exception as e:
             log(f"[Enum] Ошибка поиска {description} в {enum_name}: {e}")
@@ -371,37 +391,15 @@ class COM1CBridge:
             
     def get_catalog_object_by_description(self, catalog_name, description):
         if catalog_name == "ВидыСтатусыПродукции":
-            predefined = {
-                "Собств металл, собств камни": "СобствМеталлСобствКамни",
-                "Собств металл, дав камни":    "СобствМеталлДавКамни",
-                "Дав металл, собств камни":    "ДавМеталлСобствКамни",
-                "Дав металл, дав камни":       "ДавМеталлДавКамни"
-            }
-            internal = predefined.get(description.strip())
-            if internal:
-                enum = getattr(self.enums, "ВидыСтатусыПродукции", None)
-                if enum:
-                    try:
-                        val = getattr(enum, internal)
-                        log(f"[{catalog_name}] Найден (Enum): {description} → {internal}")
-                        return val
-                    except Exception as e:
-                        log(f"[Enum Error] {catalog_name}.{internal}: {e}")
-            log(f"[{catalog_name}] Не найден по описанию: {description}")
-            return None
+            return self.get_enum_by_description("ВидыСтатусыПродукции", description)
 
-        catalog = getattr(self.catalogs, catalog_name, None)
-        if not catalog:
-            log(f"Каталог '{catalog_name}' не найден")
+        ref = self.get_catalog_ref(catalog_name, description)
+        if not ref:
             return None
-        selection = catalog.Select()
-        while selection.Next():
-            obj = selection.GetObject()
-            if str(obj.Description).strip() == str(description).strip():
-                log(f"[{catalog_name}] Найден: {description}")
-                return obj
-        log(f"[{catalog_name}] Не найден: {description}")
-        return None        
+        try:
+            return ref.GetObject()
+        except Exception:
+            return ref
 
     def update_order(self, number: str, fields: dict, items: list) -> bool:
         obj = self._find_document_by_number("ЗаказВПроизводство", number)
@@ -880,20 +878,39 @@ class COM1CBridge:
         return result      
             
     def get_catalog_ref(self, catalog_name, description):
-        try:
-            catalog = getattr(self.connection.Catalogs, catalog_name, None)
-            if not catalog:
-                log(f"Каталог '{catalog_name}' не найден")
+        """Возвращает ссылку на элемент справочника с использованием кэша."""
+        desc = str(description).strip()
+
+        cache = self._catalog_cache.get(catalog_name)
+        if cache is None:
+            cache = {}
+            try:
+                catalog = getattr(self.connection.Catalogs, catalog_name, None)
+                if not catalog:
+                    log(f"Каталог '{catalog_name}' не найден")
+                    return None
+                selection = catalog.Select()
+                while selection.Next():
+                    item = selection.GetObject()
+                    cache[safe_str(item.Description).strip()] = item.Ref
+            except Exception as e:
+                log(f"[{catalog_name}] Ошибка: {e}")
                 return None
-            selection = catalog.Select()
-            while selection.Next():
-                item = selection.GetObject()
-                if safe_str(item.Description) == description or safe_str(item) == description:
-                    log(f"[{catalog_name}] Найден: {description}")
-                    return item.Ref
-            log(f"[{catalog_name}] Не найден: {description}")
-        except Exception as e:
-            log(f"[{catalog_name}] Ошибка: {e}")
+            self._catalog_cache[catalog_name] = cache
+
+        ref = cache.get(desc)
+        if ref:
+            log(f"[{catalog_name}] Найден: {description}")
+            return ref
+
+        # Поиск без учёта регистра, если прямого совпадения нет
+        for key, val in cache.items():
+            if key.lower() == desc.lower():
+                self._catalog_cache[catalog_name][desc] = val
+                log(f"[{catalog_name}] Найден: {description}")
+                return val
+
+        log(f"[{catalog_name}] Не найден: {description}")
         return None
         
     def get_wax_job_rows(self, num: str) -> list[dict]:
