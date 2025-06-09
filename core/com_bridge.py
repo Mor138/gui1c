@@ -761,6 +761,14 @@ class COM1CBridge:
             else:
                 log("❌ order_ref — неизвестного типа")
                 return {}
+            base_doc_ref = base_doc.Ref
+            doc = doc_manager.CreateDocument()
+            doc.Дата = datetime.now()
+            doc.КонечнаяДатаЗадания = datetime.now() + timedelta(days=1)
+            doc.ДокументОснование = base_doc_ref
+            if hasattr(doc, "Заказ"):
+                try:
+                    doc.Заказ = base_doc_ref
 
             doc = doc_manager.CreateDocument()
             doc.Дата = datetime.now()
@@ -781,6 +789,13 @@ class COM1CBridge:
                     doc.Организация = org
                 except Exception as e:
                     log(f"[create_production_task] ⚠ Не удалось установить организацию: {e}")
+
+            wh = getattr(base_doc, "Склад", None)
+            if wh and hasattr(doc, "Склад"):
+                try:
+                    doc.Склад = wh
+                except Exception as e:
+                    log(f"[create_production_task] ⚠ Не удалось установить склад: {e}")
 
             wh = getattr(base_doc, "Склад", None)
             if wh and hasattr(doc, "Склад"):
@@ -828,7 +843,7 @@ class COM1CBridge:
                     item.ДатаНачала = date_start
                     item.ДатаОкончания = date_end
                     item.РабочийЦентр = self.get_ref("ФизическиеЛица", employee_name)
-                    item.Заказ = base_doc
+                    item.Заказ = base_doc_ref
                     item.КонечнаяПродукция = item.Номенклатура
                     item.ВариантИзготовленияПродукции = item.ВариантИзготовления
                     if hasattr(item, "АртикулГП"):
@@ -839,6 +854,9 @@ class COM1CBridge:
             for row in rows:
                 try:
                     z = doc.ЗаданияНаВыполнениеТехОперации.Add()
+                    w = row.get("weight")
+                    z.Вес = float(w) if w not in (None, "", 0) else 0
+                    z.Заказ = base_doc_ref
                     z.Вес = float(row.get("weight", 0) or 0)
                     z.Заказ = base_doc
                     z.ТехОперация = self.get_ref("ТехОперации", "работа с восковыми изделиями")
