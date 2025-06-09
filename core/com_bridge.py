@@ -718,6 +718,8 @@ class COM1CBridge:
         log(f"[get_ref_by_description] Не найден элемент '{description}' в каталоге '{catalog_name}'")
         return None    
         
+        
+        
     def create_production_task(self, order_ref, rows: list[dict]) -> dict:
         doc_manager = getattr(self.connection.Documents, "ЗаданиеНаПроизводство", None)
         if doc_manager is None:
@@ -776,7 +778,6 @@ class COM1CBridge:
                     # иное не указано во входных данных.
                     item.КонечнаяПродукция = item.Номенклатура
                     item.ВариантИзготовленияПродукции = item.ВариантИзготовления
-                    item.РабочийЦентр = self.get_ref("Пользователи", "Администратор")
                     # В конфигурации строки задания могут не содержать поля
                     # "АртикулГП". Если попытаться установить его принудительно,
                     # 1С выбрасывает исключение "Property '<unknown>.АртикулГП'
