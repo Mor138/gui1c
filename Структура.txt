@@ -4,6 +4,7 @@ PS C:\Users\Mor\Documents\GitHub\gui1c> tree /F
 C:.
 │   .gitattributes
 │   .gitignore
+│   config.py
 │   main.py
 │   README.md
 │   structured_form_fields.json
@@ -30,7 +31,6 @@ C:.
 │       1Cv8.1CD.cfl
 │       ConfigDumpInfo.xml
 │       Configuration.xml
-│       prod_cache.json
 │
 ├───form_schemas
 │       orders.json
@@ -41,12 +41,14 @@ C:.
 │   │   loss_calc.py
 │   │   normalize_catalogs.py
 │   │   production_docs.py
+│   │   state.py
 │   │   validation.py
 │   │   __init__.py
 │   │
 │   └───__pycache__
 │           normalize_catalogs.cpython-310.pyc
 │           production_docs.cpython-310.pyc
+│           state.cpython-310.pyc
 │           __init__.cpython-310.pyc
 │
 ├───pages
@@ -99,6 +101,5 @@ C:.
 │           __init__.cpython-310.pyc
 │
 └───__pycache__
+        config.cpython-310.pyc
         form_renderer.cpython-310.pyc
-
-PS C:\Users\Mor\Documents\GitHub\gui1c>
