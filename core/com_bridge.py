@@ -761,61 +761,35 @@ class COM1CBridge:
             else:
                 log("❌ order_ref — неизвестного типа")
                 return {}
-            base_doc_ref = base_doc.Ref
+
+            base_doc_ref = base_doc.Ref  # ссылка на заказ
+
             doc = doc_manager.CreateDocument()
             doc.Дата = datetime.now()
             doc.КонечнаяДатаЗадания = datetime.now() + timedelta(days=1)
             doc.ДокументОснование = base_doc_ref
+
             if hasattr(doc, "Заказ"):
                 try:
                     doc.Заказ = base_doc_ref
-
-            doc = doc_manager.CreateDocument()
-            doc.Дата = datetime.now()
-            doc.КонечнаяДатаЗадания = datetime.now() + timedelta(days=1)
-            doc.ДокументОснование = base_doc
-            if hasattr(doc, "Заказ"):
-                try:
-                    doc.Заказ = base_doc
                 except Exception as e:
-                    log(f"[create_production_task] ⚠ Не удалось установить заказ: {e}")
-
-            # копируем организацию и склад из заказа, чтобы наряды могли
-            # корректно создаваться по заданию
-
-            org = getattr(base_doc, "Организация", None)
-            if org and hasattr(doc, "Организация"):
-                try:
-                    doc.Организация = org
-                except Exception as e:
-                    log(f"[create_production_task] ⚠ Не удалось установить организацию: {e}")
-
-            wh = getattr(base_doc, "Склад", None)
-            if wh and hasattr(doc, "Склад"):
-                try:
-                    doc.Склад = wh
-                except Exception as e:
-                    log(f"[create_production_task] ⚠ Не удалось установить склад: {e}")
-
-            wh = getattr(base_doc, "Склад", None)
-            if wh and hasattr(doc, "Склад"):
-                try:
-                    doc.Склад = wh
-                except Exception as e:
-                    log(f"[create_production_task] ⚠ Не удалось установить склад: {e}")
+                    log(f"[create_production_task] ⚠ Не удалось установить поле 'Заказ': {e}")
 
             if hasattr(doc, "ЗаказВПроизводство"):
-                doc.ЗаказВПроизводство = base_doc
+                try:
+                    doc.ЗаказВПроизводство = base_doc_ref
+                except Exception as e:
+                    log(f"[create_production_task] ⚠ Не удалось установить поле 'ЗаказВПроизводство': {e}")
 
             if hasattr(base_doc, "Организация") and hasattr(doc, "Организация"):
                 try:
-                    doc.Организация = base_doc.Организация.Ref
+                    doc.Организация = base_doc.Организация
                 except Exception as e:
                     log(f"[create_production_task] ⚠ Не удалось установить организацию: {e}")
 
             if hasattr(base_doc, "Склад") and hasattr(doc, "Склад"):
                 try:
-                    doc.Склад = base_doc.Склад.Ref
+                    doc.Склад = base_doc.Склад
                 except Exception as e:
                     log(f"[create_production_task] ⚠ Не удалось установить склад: {e}")
 
@@ -854,11 +828,8 @@ class COM1CBridge:
             for row in rows:
                 try:
                     z = doc.ЗаданияНаВыполнениеТехОперации.Add()
-                    w = row.get("weight")
-                    z.Вес = float(w) if w not in (None, "", 0) else 0
-                    z.Заказ = base_doc_ref
                     z.Вес = float(row.get("weight", 0) or 0)
-                    z.Заказ = base_doc
+                    z.Заказ = base_doc_ref
                     z.ТехОперация = self.get_ref("ТехОперации", "работа с восковыми изделиями")
                     z.РабочийЦентр = self.get_ref("ФизическиеЛица", employee_name)
                     z.Номенклатура = self.get_ref("Номенклатура", row.get("name", ""))
