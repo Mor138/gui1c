@@ -432,7 +432,7 @@ class WaxPage(QWidget):
             try:
                 result = bridge.create_production_task(order_ref, rows)
                 docs["sync_task_num"] = result.get("Номер")  # ✅ запоминаем
-                self.last_created_task_ref = result.get("Ref")
+                self.last_created_task_ref = bridge._get_object_from_ref(result.get("Ref"))
                 log(f"✅ Создано задание №{result.get('Номер', '?')}")
             except Exception as e:
                 log(f"❌ Ошибка создания задания: {e}")
