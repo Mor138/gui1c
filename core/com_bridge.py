@@ -748,15 +748,20 @@ class COM1CBridge:
             return {}
 
         try:
+            # 🎯 Получаем объект документа-заказа
             if hasattr(order_ref, "GetObject"):
                 base_doc = order_ref.GetObject()
             elif hasattr(order_ref, "Ref"):
                 base_doc = self.connection.GetObject(order_ref.Ref)
             elif isinstance(order_ref, str):
-                base_doc = self.connection.GetObject(order_ref)
+                base_doc = self._find_document_by_number("ЗаказВПроизводство", order_ref)
+                if base_doc is None:
+                    log(f"[create_production_task] ❌ Не удалось найти заказ №{order_ref}")
+                    return {}
             else:
                 log("❌ order_ref — неизвестного типа")
                 return {}
+
             doc = doc_manager.CreateDocument()
             doc.Дата = datetime.now()
             doc.КонечнаяДатаЗадания = datetime.now() + timedelta(days=1)
@@ -784,8 +789,21 @@ class COM1CBridge:
                 except Exception as e:
                     log(f"[create_production_task] ⚠ Не удалось установить склад: {e}")
 
+            if hasattr(doc, "ЗаказВПроизводство"):
+                doc.ЗаказВПроизводство = base_doc
 
-            # Шапка
+            if hasattr(base_doc, "Организация") and hasattr(doc, "Организация"):
+                try:
+                    doc.Организация = base_doc.Организация.Ref
+                except Exception as e:
+                    log(f"[create_production_task] ⚠ Не удалось установить организацию: {e}")
+
+            if hasattr(base_doc, "Склад") and hasattr(doc, "Склад"):
+                try:
+                    doc.Склад = base_doc.Склад.Ref
+                except Exception as e:
+                    log(f"[create_production_task] ⚠ Не удалось установить склад: {e}")
+
             doc.ПроизводственныйУчасток = self.get_ref("ПроизводственныеУчастки", "задание на производство")
             doc.ТехОперация = self.get_ref("ТехОперации", "работа с восковыми изделиями")
             employee_name = rows[0].get("employee", "Администратор")
@@ -796,7 +814,6 @@ class COM1CBridge:
             date_start = datetime.now()
             date_end = date_start + timedelta(days=1)
 
-            # Добавление строк в Продукция
             for row in rows:
                 try:
                     item = doc.Продукция.Add()
@@ -807,8 +824,7 @@ class COM1CBridge:
                     item.ХарактеристикаВставок = self.get_ref("ХарактеристикиВставок", row.get("insert", ""))
                     item.ВариантИзготовления = self.get_ref("ВариантыИзготовленияНоменклатуры", row.get("method", ""))
                     item.Количество = row.get("qty", 0)
-                    w = row.get("weight")
-                    item.Вес = float(w) if w not in (None, "", 0) else 0
+                    item.Вес = float(row.get("weight", 0) or 0)
                     item.ДатаНачала = date_start
                     item.ДатаОкончания = date_end
                     item.РабочийЦентр = self.get_ref("ФизическиеЛица", employee_name)
@@ -820,12 +836,10 @@ class COM1CBridge:
                 except Exception as e:
                     log(f"❌ Ошибка в строке 'Продукция': {e}")
 
-            # Создание строк в ЗаданияНаВыполнениеТехОперации вручную
             for row in rows:
                 try:
                     z = doc.ЗаданияНаВыполнениеТехОперации.Add()
-                    w = row.get("weight")
-                    z.Вес = float(w) if w not in (None, "", 0) else 0
+                    z.Вес = float(row.get("weight", 0) or 0)
                     z.Заказ = base_doc
                     z.ТехОперация = self.get_ref("ТехОперации", "работа с восковыми изделиями")
                     z.РабочийЦентр = self.get_ref("ФизическиеЛица", employee_name)
