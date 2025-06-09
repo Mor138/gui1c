@@ -270,7 +270,17 @@ class WaxPage(QWidget):
 
             self.refresh()
             self.tabs.setCurrentIndex(0)
+            self.jobs_page.load_task_data(task_obj)
             log(f"[UI] Выбрано задание №{num}, переходим к созданию нарядов.")
+
+    def load_task_data(self, task_obj):
+        if not task_obj:
+            log("[UI] ❌ Нет задания для отображения.")
+            return
+
+        self.last_created_task_ref = task_obj
+        self._fill_jobs_table_from_task(task_obj)  # или любой метод, который ты используешь
+        log(f"[UI] ✅ Загружены данные задания №{task_obj.Номер}")
 
     def _on_wax_job_double_click(self, item, column):
         num = item.text(0).strip()
