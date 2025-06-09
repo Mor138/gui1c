@@ -304,9 +304,9 @@ class WaxPage(QWidget):
                 else:
                     row["color"] = ""
 
-                # Вес если нулевой — ставим 1.0 по умолчанию
                 if not row.get("weight"):
-                    row["weight"] = 1.0
+                    # Ставим None вместо 0, чтобы избежать подстановки фиктивного 1
+                    row["weight"] = None
 
                 # Мастер
                 employee_name = self.combo_employee.currentText()
