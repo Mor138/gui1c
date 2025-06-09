@@ -11,11 +11,9 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt, QDate
-from core.com_bridge import COM1CBridge
 from logic.production_docs import process_new_order
 from core.com_bridge import log
-
-bridge = COM1CBridge("C:\\Users\\Mor\\Desktop\\1C\\proiz")
+from config import BRIDGE as bridge, ORDERS_COLS
 
 def parse_variant(variant: str) -> tuple[str, str, str]:
     """Разбирает строку варианта на металл, пробу и цвет.
@@ -37,7 +35,7 @@ def parse_variant(variant: str) -> tuple[str, str, str]:
     return metal, hallmark, color
 
 class OrdersPage(QWidget):
-    COLS = ["Артикул", "Наим.", "Вариант", "Размер", "Кол-во", "Вес, г", "Примечание"]
+    COLS = ORDERS_COLS
 
     def __init__(self, on_send_to_wax=None):
         super().__init__()
