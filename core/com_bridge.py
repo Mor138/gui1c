@@ -562,6 +562,23 @@ class COM1CBridge:
         except Exception as e:
             log(f"[get_doc_object_by_number] ❌ Ошибка: {e}")
         return None
+
+    def get_doc_ref(self, doc_name: str, number: str):
+        """Возвращает ссылку на документ по номеру."""
+        docs = getattr(self.connection.Documents, doc_name, None)
+        if docs is None:
+            log(f"[get_doc_ref] Документ '{doc_name}' не найден")
+            return None
+
+        selection = docs.Select()
+        while selection.Next():
+            doc = selection.GetObject()
+            if str(doc.Number).strip() == str(number).strip():
+                log(f"[get_doc_ref] ✅ Найден документ {doc_name} №{number}")
+                return doc.Ref
+
+        log(f"[get_doc_ref] ❌ Документ {doc_name} №{number} не найден")
+        return None
     # ------------------------------------------------------------------
     def list_orders(self):
         result = []
@@ -962,8 +979,18 @@ class COM1CBridge:
         """Создаёт по заданию два наряда: для 3D и для резины."""
         result = []
         
+        log(f"[create_jobs] type(task_ref) = {type(task_ref)}")
+        log(
+            f"[create_jobs] hasattr 'Организация': {hasattr(task_ref, 'Организация')} "
+            f"hasattr 'Organization': {hasattr(task_ref, 'Organization')}"
+        )
         try:
-            organization = task_ref.Organization
+            organization = getattr(
+                task_ref,
+                "Организация",
+                getattr(task_ref, "Organization", None),
+            )
+            log(f"[create_jobs] Организация задания: {safe_str(organization)}")
         except Exception as e:
             log(f"❌ Ошибка получения Организации из задания: {e}")
             return []

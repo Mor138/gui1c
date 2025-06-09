@@ -279,7 +279,10 @@ class WaxPage(QWidget):
             return
 
         self.last_created_task_ref = obj
-        log(f"[DEBUG] last_created_task_ref = {obj}")
+        log(
+            f"[DEBUG] last_created_task_ref type={type(obj)}, has Org? "
+            f"{hasattr(obj, 'Организация')}"
+        )
         self.refresh()
         self.tabs.setCurrentIndex(0)
         log(f"[UI] Выбрано задание №{num}, переходим к созданию нарядов.")
