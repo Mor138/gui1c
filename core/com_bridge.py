@@ -929,6 +929,13 @@ class COM1CBridge:
         except Exception as e:
             log(f"❌ Ошибка создания Наряда: {e}")
             return ""
+            
+    def _get_object_from_ref(self, ref):
+        try:
+            return self.connection.GetObject(ref)
+        except Exception as e:
+            log(f"[get_object_from_ref] ❌ Ошибка получения объекта по ссылке: {e}")
+            return None        
 
     # ------------------------------------------------------------------
     def create_multiple_wax_jobs_from_task(self, task_ref, method_to_employee: dict) -> list[str]:
@@ -936,9 +943,16 @@ class COM1CBridge:
         result = []
 
         try:
-            task = task_ref
-            if not hasattr(task_ref, "Продукция"):
+            if isinstance(task_ref, str):
                 task = self.connection.GetObject(task_ref)
+            elif hasattr(task_ref, "Ref"):
+                task = task_ref
+            else:
+                log("[create_jobs] ❌ Неизвестный тип ссылки на задание")
+                return []
+        except Exception as e:
+            log(f"[create_jobs] ❌ Ошибка получения объекта задания: {e}")
+            return []
         except Exception as e:
             log(f"[create_jobs] ❌ Задание не найдено: {e}")
             return result
@@ -951,15 +965,13 @@ class COM1CBridge:
 
         for method, rows in rows_by_method.items():
             try:
-                job = self.connection.Documents.НарядВосковыеИзделия.CreateDocument()
+                job = self.documents.НарядВосковыеИзделия.CreateDocument()
                 job.Дата = datetime.now()
                 job.Организация = task.Организация
                 job.Склад = task.Склад
                 job.ПроизводственныйУчасток = task.ПроизводственныйУчасток
                 job.ЗаданиеНаПроизводство = task
-                job.ТехОперация = self.get_ref(
-                    "ТехОперации", "3D" if method == "3D печать" else "Пресс-форма"
-                )
+                job.ТехОперация = self.get_ref("ТехОперации", "3D" if method == "3D печать" else "Пресс-форма")
 
                 master_name = method_to_employee.get(method)
                 job.Сотрудник = self.get_ref("ФизическиеЛица", master_name)
