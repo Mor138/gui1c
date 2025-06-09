@@ -739,6 +739,15 @@ class COM1CBridge:
             doc.КонечнаяДатаЗадания = datetime.now() + timedelta(days=1)
             doc.ДокументОснование = base_doc
 
+            # копируем организацию и склад из заказа, чтобы наряды могли
+            # корректно создаваться по заданию
+            org = getattr(base_doc, "Организация", None)
+            if org:
+                doc.Организация = org
+            wh = getattr(base_doc, "Склад", None)
+            if wh:
+                doc.Склад = wh
+
             # Шапка
             doc.ПроизводственныйУчасток = self.get_ref("ПроизводственныеУчастки", "задание на производство")
             doc.ТехОперация = self.get_ref("ТехОперации", "работа с восковыми изделиями")
@@ -977,8 +986,12 @@ class COM1CBridge:
             try:
                 job = self.documents.НарядВосковыеИзделия.CreateDocument()
                 job.Дата = datetime.now()
-                job.Организация = task.Организация
-                job.Склад = task.Склад
+                org = getattr(task, "Организация", None)
+                if org:
+                    job.Организация = org
+                wh = getattr(task, "Склад", None)
+                if wh:
+                    job.Склад = wh
                 job.ПроизводственныйУчасток = task.ПроизводственныйУчасток
                 job.ЗаданиеНаПроизводство = task
                 job.ТехОперация = self.get_ref("ТехОперации", "3D" if method == "3D печать" else "Пресс-форма")
