@@ -269,31 +269,17 @@ class WaxPage(QWidget):
         self._fill_tasks_tree()    
 
     def _on_task_double_click(self, item, column):
-        num = item.text(0).strip()
+        num = item.text(1).strip() if item.columnCount() > 1 else item.text(0).strip()
         if not num:
             return
 
-        lines = bridge.get_task_lines(num)
-        if not lines:
-            QMessageBox.information(self, "Нет данных", f"В задании {num} нет строк")
-            return
-
-        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTreeWidget, QTreeWidgetItem
-
-        dlg = QDialog(self)
-        dlg.setWindowTitle(f"Продукция по заданию {num}")
-        layout = QVBoxLayout(dlg)
-
-        tree = QTreeWidget()
-        tree.setHeaderLabels(["Номенклатура", "Размер", "Проба", "Цвет", "Кол-во", "Вес"])
-        for row in lines:
-            QTreeWidgetItem(tree, [
-                row["nomen"], str(row["size"]), str(row["sample"]),
-                str(row["color"]), str(row["qty"]), str(row["weight"])
-            ])
-        layout.addWidget(tree)
-        dlg.resize(700, 400)
-        dlg.exec_()
+        task_obj = bridge._find_task_by_number(num)
+        if task_obj:
+            self.last_created_task_ref = task_obj
+            self.tabs.setCurrentIndex(0)
+            log(f"[UI] Выбрано задание №{num}, переходим к созданию нарядов.")
+        else:
+            log(f"[UI] ❌ Задание №{num} не найдено")
 
     def _on_wax_job_double_click(self, item, column):
         num = item.text(0).strip()
@@ -432,7 +418,8 @@ class WaxPage(QWidget):
             try:
                 result = bridge.create_production_task(order_ref, rows)
                 docs["sync_task_num"] = result.get("Номер")  # ✅ запоминаем
-                self.last_created_task_ref = bridge._get_object_from_ref(result.get("Ref"))
+                ref = result.get("Ref")
+                self.last_created_task_ref = bridge.get_object_from_ref(ref) if ref else None
                 log(f"✅ Создано задание №{result.get('Номер', '?')}")
             except Exception as e:
                 log(f"❌ Ошибка создания задания: {e}")
@@ -450,8 +437,8 @@ class WaxPage(QWidget):
             QMessageBox.warning(self, "Ошибка", "Выберите мастеров для обоих методов.")
             return
 
-        if not self.last_created_task_ref:
-            QMessageBox.warning(self, "Ошибка", "Нет последнего созданного задания")
+        if self.last_created_task_ref is None:
+            QMessageBox.warning(self, "Ошибка", "Нет выбранного задания для создания нарядов.")
             return
 
         result = bridge.create_multiple_wax_jobs_from_task(
