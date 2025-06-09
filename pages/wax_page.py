@@ -130,7 +130,7 @@ class WaxPage(QWidget):
         t2.addWidget(lbl2)
 
         self.tree_tasks = QTreeWidget()
-        self.tree_tasks.setHeaderLabels(["Номер", "Дата", "Участок", "Операция", "Ответственный"])
+        self.tree_tasks.setHeaderLabels(["✓", "Номер", "Дата", "Участок", "Операция", "Ответственный"])
         self.tree_tasks.header().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.tree_tasks.setStyleSheet(CSS_TREE)
         t2.addWidget(self.tree_tasks, 1)
@@ -154,6 +154,31 @@ class WaxPage(QWidget):
         self.tree_acts.itemDoubleClicked.connect(self._on_wax_job_double_click)
 
         self.tabs.addTab(tab3, "Наряды из 1С")
+        
+        btn_bar = QHBoxLayout()
+
+        btn_refresh = QPushButton("🔄 Обновить")
+        btn_post = QPushButton("✅ Провести отмеченные")
+        btn_unpost = QPushButton("↩ Отменить проведение")
+        btn_mark = QPushButton("🏷 Пометить")
+        btn_unmark = QPushButton("🚫 Снять пометку")
+        btn_delete = QPushButton("🗑 Удалить")
+
+        btn_bar.addWidget(btn_refresh)
+        btn_bar.addWidget(btn_post)
+        btn_bar.addWidget(btn_unpost)
+        btn_bar.addWidget(btn_mark)
+        btn_bar.addWidget(btn_unmark)
+        btn_bar.addWidget(btn_delete)
+
+        btn_refresh.clicked.connect(self._fill_tasks_tree)
+        btn_post.clicked.connect(self._post_selected_tasks)
+        btn_unpost.clicked.connect(self._unpost_selected_tasks)
+        btn_mark.clicked.connect(self._mark_selected_tasks)
+        btn_unmark.clicked.connect(self._unmark_selected_tasks)
+        btn_delete.clicked.connect(self._delete_selected_tasks)
+
+        t2.addLayout(btn_bar)
 
     def _show_wax_job_detail(self, item):
         from PyQt5.QtWidgets import QDialog, QTableWidget, QTableWidgetItem, QVBoxLayout
@@ -181,6 +206,45 @@ class WaxPage(QWidget):
         layout.addWidget(tbl)
         dlg.setLayout(layout)
         dlg.exec_()
+        
+    def _get_checked_tasks(self):
+        result = []
+        for i in range(self.tree_tasks.topLevelItemCount()):
+            item = self.tree_tasks.topLevelItem(i)
+            if item.checkState(0) == Qt.Checked:
+                result.append(item.text(1))  # Номер
+        print("[DEBUG] Отмечены задания:", result)
+        return result
+    
+    def _post_selected_tasks(self):
+        for num in self._get_checked_tasks():
+            print(f"[DEBUG] Проведение: {num}")
+            bridge.post_task(num)
+        self._fill_tasks_tree()
+
+    def _unpost_selected_tasks(self):
+        for num in self._get_checked_tasks():
+            print(f"[DEBUG] Проведение: {num}")
+            bridge.undo_post_task(num)
+        self._fill_tasks_tree()
+
+    def _mark_selected_tasks(self):
+        for num in self._get_checked_tasks():
+            print(f"[DEBUG] Проведение: {num}")
+            bridge.mark_task_for_deletion(num)
+        self._fill_tasks_tree()
+
+    def _unmark_selected_tasks(self):
+        for num in self._get_checked_tasks():
+            print(f"[DEBUG] Проведение: {num}")
+            bridge.unmark_task_deletion(num)
+        self._fill_tasks_tree()
+
+    def _delete_selected_tasks(self):
+        for num in self._get_checked_tasks():
+            print(f"[DEBUG] Проведение: {num}")
+            bridge.delete_task(num)
+        self._fill_tasks_tree()    
 
     def _on_task_double_click(self, item, column):
         num = item.text(0).strip()
@@ -239,13 +303,29 @@ class WaxPage(QWidget):
     def _fill_tasks_tree(self):
         self.tree_tasks.clear()
         for t in bridge.list_tasks():
-            QTreeWidgetItem(self.tree_tasks, [
+            status = ""
+            if t.get("posted"):
+                status = "✅"
+            elif t.get("deleted"):
+                status = "🗑"
+            item = QTreeWidgetItem([
+                status,
                 t.get("num", ""),
                 t.get("date", ""),
-                t.get("employee", ""),
+                t.get("section", ""),
                 t.get("tech_op", ""),
-                ""
+                t.get("employee", "")
             ])
+            item.setCheckState(0, Qt.Unchecked)
+            from PyQt5.QtGui import QBrush, QColor
+
+            if t.get("deleted"):
+                for i in range(item.columnCount()):
+                    item.setBackground(i, QBrush(QColor("#f87171")))  # красный
+            elif t.get("posted"):
+                for i in range(item.columnCount()):
+                    item.setBackground(i, QBrush(QColor("#bbf7d0")))  # зелёный
+            self.tree_tasks.addTopLevelItem(item)
 
     def _fill_wax_jobs_tree(self):
         self.tree_acts.clear()
