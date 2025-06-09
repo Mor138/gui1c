@@ -8,39 +8,8 @@ from PyQt5.QtWidgets import (
     QHeaderView, QPushButton, QMessageBox, QTabWidget
 )
 from logic.production_docs import WAX_JOBS_POOL, ORDERS_POOL, METHOD_LABEL
-from core.com_bridge import COM1CBridge
 from core.com_bridge import log
-
-bridge = COM1CBridge("C:\\Users\\Mor\\Desktop\\1C\\proiz")
-
-CSS_TREE = """
-QTreeWidget{
-  background:#ffffff;
-  border:1px solid #d1d5db;
-  color:#111827;
-  font-size:14px;
-}
-QTreeWidget::item{
-  padding:4px 8px;
-  border-bottom:1px solid #e5e7eb;
-}
-
-/* выделение строки */
-QTreeView::item:selected{
-  background:#3b82f6;
-  color:#ffffff;
-}
-
-/* hover */
-QTreeView::item:hover:!selected{
-  background:rgba(59,130,246,0.30);
-}
-
-/*  — если хотите зебру, раскомментируйте ↓ —
-QTreeView::item:nth-child(even):!selected{ background:#f9fafb; }
-QTreeView::item:nth-child(odd):!selected { background:#ffffff; }
-*/
-"""
+from config import BRIDGE as bridge, CSS_TREE
 
 class WaxPage(QWidget):
     def __init__(self):

@@ -15,8 +15,16 @@ sys.path.append(str(base_dir / "pages"))
 sys.path.append(str(base_dir / "core"))
 sys.path.append(str(base_dir / "logic"))
 
-from core.com_bridge import COM1CBridge
-bridge = COM1CBridge("C:\\Users\\Mor\\Desktop\\1C\\proiz")
+from config import (
+    BRIDGE as bridge,
+    APP_NAME as APP,
+    APP_VERSION as VER,
+    MENU_ITEMS,
+    HEADER_HEIGHT as HEADER_H,
+    SIDEBAR_WIDTH,
+    HEADER_CSS,
+    SIDEBAR_CSS,
+)
 from PyQt5.QtCore    import Qt
 from PyQt5.QtGui     import QFont, QCursor
 from PyQt5.QtWidgets import (
@@ -28,55 +36,6 @@ from PyQt5.QtWidgets import (
 from pages.orders_page import OrdersPage
 from pages.wax_page import WaxPage
 from pages.catalogs_page import CatalogsPage
-
-
-APP = "Jewelry MES (shell-only)"
-VER = "v0.3b"
-
-MENU_ITEMS = [
-    ("📄  Заказы",            "orders"),       # → pages/orders_page.py     + logic/production_docs.py
-    ("🖨️  Воскование / 3D печать", "wax"),      # → pages/wax_page.py        + logic/production_docs.py
-    ("🔥  Отливка",           "casting"),      # → pages/casting_page.py    [в разработке]
-    ("📥  Приём литья",       "casting_in"),   # → pages/casting_in_page.py [в разработке]
-    ("📦  Комплектация",      "kit"),          # → pages/kit_page.py        [в разработке]
-    ("🛠️  Монтировка",        "assembly"),     # → pages/assembly_page.py   [в разработке]
-    ("🪚  Шкурка",            "sanding"),      # → pages/sanding_page.py    [в разработке]
-    ("🔄  Галтовка",          "tumbling"),     # → pages/tumbling_page.py   + logic/loss_calc.py
-    ("💎  Закрепка",          "stone_set"),    # → pages/stone_set_page.py  + logic/normalize_catalogs.py
-    ("📏  Палата",            "inspection"),   # → pages/inspection_page.py + logic/validation.py (возможн.)
-    ("✨  Полировка",         "polish"),       # → pages/polish_page.py     [в разработке]
-    ("⚡  Гальваника",        "plating"),      # → pages/plating_page.py    [в разработке]
-    ("📑  Выпуск",            "release"),      # → pages/release_page.py    + logic/production_docs.py
-    ("📤  Отгрузка",          "shipment"),     # → pages/shipment_page.py   [в разработке]
-    ("📊  Статистика",        "stats"),        # → pages/stats_page.py      + widgets/charts.py + logic/loss_calc.py
-    ("🏬  Склады",            "stock"),        # → pages/stock_page.py      + core/com_bridge.py
-    ("🗺️  Маршруты",          "routes"),       # → pages/routes_page.py     [в разработке]
-    ("🗓️  Планирование",      "planning"),     # → pages/planning_page.py   [в разработке]
-    ("💰  Зарплата",          "payroll"),      # → pages/payroll_page.py    [в разработке]
-    ("🏷️  Маркировка",        "marking"),      # → pages/marking_page.py    [в разработке]
-    ("🌐  ГИИС ДМДК",         "giis"),         # → pages/giis_page.py       [в разработке]
-    ("📚  Справочники",       "catalogs")      # → pages/catalogs_page.py   + logic/normalize_catalogs.py + core/catalogs.py
-]
-
-HEADER_H       = 38
-SIDEBAR_WIDTH  = 260
-
-HEADER_CSS = """
-QWidget{background:#111827;}
-QLabel#brand{color:#e5e7eb;font-size:15px;font-weight:600;}
-QToolButton{background:#111827;color:#9ca3af;border:none;font-size:16px;}
-QToolButton:hover{color:white;}
-"""
-
-SIDEBAR_CSS = """
-QListWidget{background:#1f2937;border:none;color:#e5e7eb;
-            padding-top:6px;font-size:15px;}
-QListWidget::item{height:46px;margin:4px 8px;padding-left:14px;
-                  border-radius:12px;}
-QListWidget::item:selected{background:#3b82f6;color:white;}
-QListWidget QScrollBar:vertical{width:0px;background:transparent;}
-QListWidget:hover QScrollBar:vertical{width:8px;}
-"""
 
 # Заглушка
 class StubPage(QWidget):
