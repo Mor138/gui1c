@@ -438,8 +438,6 @@ class WaxPage(QWidget):
             return
 
 
-        if self.last_created_task_ref is None:
-
         if not self.last_created_task_ref:
 
             QMessageBox.warning(self, "Ошибка", "Нет выбранного задания для создания нарядов.")
