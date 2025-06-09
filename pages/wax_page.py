@@ -91,7 +91,7 @@ class WaxPage(QWidget):
         h = QHBoxLayout()
         h.addWidget(QLabel("3D:"))
         h.addWidget(self.combo_3d_master)
-        h.addWidget(QLabel("Резина:"))
+        h.addWidget(QLabel("Пресс-форма:"))
         h.addWidget(self.combo_resin_master)
 
         t1.addWidget(label)
@@ -512,7 +512,7 @@ class WaxPage(QWidget):
         print("[DEBUG] last_created_task_ref =", self.last_created_task_ref)
         result = bridge.create_multiple_wax_jobs_from_task(
             self.last_created_task_ref,
-            {"3D печать": master_3d, "Резина": master_resin}
+            {"3D печать": master_3d, "Пресс-форма": master_resin}
         )
 
         if result:
@@ -609,4 +609,4 @@ def _wax_method(article: str) -> str:
     art = str(article).lower()
     if "д" in art or "d" in art:
         return "3D печать"
-    return "Резина"
+    return "Пресс-форма"
