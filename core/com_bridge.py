@@ -766,14 +766,18 @@ class COM1CBridge:
             # корректно создаваться по заданию
 
             org = getattr(base_doc, "Организация", None)
-            if org:
-                doc.Организация = org
-            wh = getattr(base_doc, "Склад", None)
-            if wh:
-                doc.Склад = wh
+            if org and hasattr(doc, "Организация"):
+                try:
+                    doc.Организация = org
+                except Exception as e:
+                    log(f"[create_production_task] ⚠ Не удалось установить организацию: {e}")
 
-            doc.Организация = getattr(base_doc, "Организация", None)
-            doc.Склад = getattr(base_doc, "Склад", None)
+            wh = getattr(base_doc, "Склад", None)
+            if wh and hasattr(doc, "Склад"):
+                try:
+                    doc.Склад = wh
+                except Exception as e:
+                    log(f"[create_production_task] ⚠ Не удалось установить склад: {e}")
 
 
             # Шапка
