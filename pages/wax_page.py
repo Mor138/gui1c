@@ -427,9 +427,9 @@ class WaxPage(QWidget):
 
     # ------------------------------------------------------------------
     def _create_wax_jobs(self):
-        if not ORDERS_POOL:
-            QMessageBox.warning(self, "Нет данных", "Нет заказов для создания нарядов")
-            return
+        # Для создания наряда достаточно выбранного задания.
+        # Проверка ORDERS_POOL мешала создавать наряды для уже существующих
+        # заданий, поэтому её убрали.
 
         master_3d = self.combo_3d_master.currentText().strip()
         master_resin = self.combo_resin_master.currentText().strip()

@@ -741,8 +741,17 @@ class COM1CBridge:
 
             # копируем организацию и склад из заказа, чтобы наряды могли
             # корректно создаваться по заданию
+
+            org = getattr(base_doc, "Организация", None)
+            if org:
+                doc.Организация = org
+            wh = getattr(base_doc, "Склад", None)
+            if wh:
+                doc.Склад = wh
+
             doc.Организация = getattr(base_doc, "Организация", None)
             doc.Склад = getattr(base_doc, "Склад", None)
+
 
             # Шапка
             doc.ПроизводственныйУчасток = self.get_ref("ПроизводственныеУчастки", "задание на производство")
