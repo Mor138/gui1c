@@ -761,19 +761,28 @@ class COM1CBridge:
             doc.Дата = datetime.now()
             doc.КонечнаяДатаЗадания = datetime.now() + timedelta(days=1)
             doc.ДокументОснование = base_doc
+            if hasattr(doc, "Заказ"):
+                try:
+                    doc.Заказ = base_doc
+                except Exception as e:
+                    log(f"[create_production_task] ⚠ Не удалось установить заказ: {e}")
 
             # копируем организацию и склад из заказа, чтобы наряды могли
             # корректно создаваться по заданию
 
             org = getattr(base_doc, "Организация", None)
-            if org:
-                doc.Организация = org
-            wh = getattr(base_doc, "Склад", None)
-            if wh:
-                doc.Склад = wh
+            if org and hasattr(doc, "Организация"):
+                try:
+                    doc.Организация = org
+                except Exception as e:
+                    log(f"[create_production_task] ⚠ Не удалось установить организацию: {e}")
 
-            doc.Организация = getattr(base_doc, "Организация", None)
-            doc.Склад = getattr(base_doc, "Склад", None)
+            wh = getattr(base_doc, "Склад", None)
+            if wh and hasattr(doc, "Склад"):
+                try:
+                    doc.Склад = wh
+                except Exception as e:
+                    log(f"[create_production_task] ⚠ Не удалось установить склад: {e}")
 
 
             # Шапка
@@ -837,7 +846,7 @@ class COM1CBridge:
             doc.Write()
             log(f"✅ Задание создано: №{doc.Номер}")
             return {
-                "Ref": str(doc.Ref),
+                "Ref": doc.Ref,
                 "Номер": str(doc.Номер),
                 "Дата": str(doc.Дата)
             }
