@@ -931,49 +931,61 @@ class COM1CBridge:
             return ""
 
     # ------------------------------------------------------------------
-    def create_multiple_wax_jobs_from_task(self, task_number: str) -> int:
-        """Создаёт несколько нарядов на основании задания по методу (3d или резина)."""
-        task = self._find_document_by_number("ЗаданиеНаПроизводство", task_number)
-        if not task:
-            log(f"❌ Задание №{task_number} не найдено")
-            return 0
+    def create_multiple_wax_jobs_from_task(self, task_ref, method_to_employee: dict) -> list[str]:
+        """Создаёт по заданию два наряда: для 3D и для резины."""
+        result = []
 
         try:
-            rows_by_method = defaultdict(list)
-            for row in task.Продукция:
-                art = safe_str(row.Номенклатура)
-                method = "3d" if ("д" in art.lower() or "d" in art.lower()) else "rubber"
-                rows_by_method[method].append(row)
-
-            count = 0
-            from datetime import datetime
-            for rows in rows_by_method.values():
-                doc = self.documents.НарядВосковыеИзделия.CreateDocument()
-                doc.Date = datetime.now()
-                doc.ДокументОснование = task
-                doc.ТехОперация = getattr(task, "ТехОперация", None)
-                doc.ПроизводственныйУчасток = getattr(task, "ПроизводственныйУчасток", None)
-                doc.Ответственный = getattr(task, "РабочийЦентр", None)
-
-                for row in rows:
-                    r = doc.ТоварыВыдано.Add()
-                    r.Номенклатура = row.Номенклатура
-                    r.Размер = row.Размер
-                    r.Количество = row.Количество
-                    r.ВариантИзготовления = row.ВариантИзготовления
-                    r.Проба = row.Проба
-                    r.ЦветМеталла = row.ЦветМеталла
-                    r.Вес = row.Вес
-
-                doc.Write()
-                doc.Провести()
-                count += 1
-
-            log(f"✅ Создано {count} нарядов по заданию №{task_number}")
-            return count
+            task = task_ref
+            if not hasattr(task_ref, "Продукция"):
+                task = self.connection.GetObject(task_ref)
         except Exception as e:
-            log(f"❌ Ошибка create_multiple_wax_jobs_from_task: {e}")
-            return 0
+            log(f"[create_jobs] ❌ Задание не найдено: {e}")
+            return result
+
+        rows_by_method = defaultdict(list)
+        for row in task.Продукция:
+            name = safe_str(row.Номенклатура).lower()
+            method = "3D печать" if "д" in name or "d" in name else "Резина"
+            rows_by_method[method].append(row)
+
+        for method, rows in rows_by_method.items():
+            try:
+                job = self.connection.Documents.НарядВосковыеИзделия.CreateDocument()
+                job.Дата = datetime.now()
+                job.Организация = task.Организация
+                job.Склад = task.Склад
+                job.ПроизводственныйУчасток = task.ПроизводственныйУчасток
+                job.ЗаданиеНаПроизводство = task
+                job.ТехОперация = self.get_ref(
+                    "ТехОперации", "3D" if method == "3D печать" else "Пресс-форма"
+                )
+
+                master_name = method_to_employee.get(method)
+                job.Сотрудник = self.get_ref("ФизическиеЛица", master_name)
+                job.Комментарий = f"Создан автоматически для {method}"
+
+                for r in rows:
+                    row = job.Товары.Add()
+                    row.Номенклатура = r.Номенклатура
+                    row.Количество = r.Количество
+                    row.Размер = r.Размер
+                    row.ВариантИзготовления = r.ВариантИзготовления
+                    row.Проба = r.Проба
+                    row.ЦветМеталла = r.ЦветМеталла
+                    if hasattr(r, "ХарактеристикаВставок"):
+                        row.ХарактеристикаВставок = r.ХарактеристикаВставок
+                    row.Заказ = r.Заказ
+                    row.КонечнаяПродукция = r.КонечнаяПродукция
+                    if hasattr(r, "Вес"):
+                        row.Вес = r.Вес
+
+                job.Write()
+                result.append(str(job.Номер))
+                log(f"[create_job] ✅ Наряд для {method} создан: №{job.Номер}")
+            except Exception as e:
+                log(f"[create_job] ❌ Ошибка для {method}: {e}")
+        return result
 
     def _find_task_by_number(self, number: str):
         doc_manager = getattr(self.connection.Documents, "ЗаданиеНаПроизводство", None)
