@@ -982,8 +982,12 @@ class COM1CBridge:
             try:
                 job = self.documents.НарядВосковыеИзделия.CreateDocument()
                 job.Дата = datetime.now()
-                job.Организация = task.Организация
-                job.Склад = task.Склад
+                org = getattr(task, "Организация", None)
+                if org:
+                    job.Организация = org
+                wh = getattr(task, "Склад", None)
+                if wh:
+                    job.Склад = wh
                 job.ПроизводственныйУчасток = task.ПроизводственныйУчасток
                 job.ЗаданиеНаПроизводство = task
                 job.ТехОперация = self.get_ref("ТехОперации", "3D" if method == "3D печать" else "Пресс-форма")
