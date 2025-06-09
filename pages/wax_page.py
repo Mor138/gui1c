@@ -437,7 +437,11 @@ class WaxPage(QWidget):
             QMessageBox.warning(self, "Ошибка", "Выберите мастеров для обоих методов.")
             return
 
+
+        if self.last_created_task_ref is None:
+
         if not self.last_created_task_ref:
+
             QMessageBox.warning(self, "Ошибка", "Нет выбранного задания для создания нарядов.")
             return
 
