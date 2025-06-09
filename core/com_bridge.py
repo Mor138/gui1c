@@ -593,22 +593,40 @@ class COM1CBridge:
             })
         return result
 
-    def list_catalog_items(self, catalog_name, limit=1000):
+    def list_catalog_items(self, catalog_name: str, limit: int = 1000) -> list[dict]:
+        """Возвращает список элементов справочника"""
         result = []
-        catalog = getattr(self.catalogs, catalog_name, None)
-        if not catalog:
-            log(f"[Catalog Error] {catalog_name}: not found")
+        try:
+            catalog = getattr(self.connection.Catalogs, catalog_name, None)
+            if catalog is None:
+                self._log(f"[Catalog Error] Справочник '{catalog_name}' не найден")
+                return result
+
+            selection = catalog.Select()
+            count = 0
+            while selection.Next() and count < limit:
+                obj = selection.GetObject()
+                item = {
+                    "Ref": str(obj.Ref),
+                    "Code": str(obj.Code),
+                    "Description": str(obj.Description)
+                }
+                result.append(item)
+                count += 1
             return result
-        selection = catalog.Select()
-        count = 0
-        while selection.Next() and count < limit:
-            obj = selection.GetObject()
-            result.append({
-                "Description": safe_str(obj.Description),
-                "Ref": obj.Ref
-            })
-            count += 1
-        return result
+        except Exception as e:
+            self._log(f"[Catalog Exception] {catalog_name}: {e}")
+            return []
+            
+    def log_catalog_contents(self, catalog_name: str, limit: int = 1000):
+        """Логирует все элементы указанного справочника по имени"""
+        print(f"[Catalog Dump] Содержимое справочника '{catalog_name}':")
+        items = self.list_catalog_items(catalog_name, limit)
+        if not items:
+            print("📭 Пусто или справочник не найден")
+            return
+        for item in items:
+            print(f" - {item.get('Description', '?')} (Код: {item.get('Code', '?')}, Ref: {item.get('Ref', '?')})")       
         
     def list_tasks(self) -> list[dict]:
         result = []
@@ -639,6 +657,8 @@ class COM1CBridge:
     def find_production_task_ref_by_method(self, method: str) -> str | None:
         """Возвращает ссылку на первое задание по указанному методу."""
         method_ref = self.get_ref_by_description("ВариантыИзготовленияНоменклатуры", method)
+        if not method_ref:
+            self.log_catalog_contents("ВариантыИзготовленияНоменклатуры")
         if method_ref is None:
             log(f"[find_production_task_ref_by_method] Не найден вариант {method}")
             return None
@@ -694,35 +714,58 @@ class COM1CBridge:
         log(f"[get_ref_by_description] Не найден элемент '{description}' в каталоге '{catalog_name}'")
         return None    
         
-    def create_production_task(self, order_ref, method, rows) -> dict:
+    def create_production_task(self, order_ref, rows) -> dict:
         doc_manager = getattr(self.connection.Documents, "ЗаданиеНаПроизводство", None)
         if doc_manager is None:
-            raise Exception("Документ 'ЗаданиеНаПроизводство' не найден")
-        if not order_ref:
-            raise ValueError("order_ref is None, задание не может быть создано")
+            log("❌ Документ 'ЗаданиеНаПроизводство' не найден в конфигурации")
+            return {}
 
-        doc = doc_manager.CreateDocument()
-        doc.ДокументОснование = self.connection.GetObject(order_ref)
-        doc.Дата = self.connection.CurrentDate()
+        if not order_ref:
+            log("❌ order_ref = None. Задание не может быть создано.")
+            return {}
+
+        try:
+            if hasattr(order_ref, "Ref"):
+                base_doc = order_ref
+            else:
+                base_doc = self.connection.GetObject(order_ref)
+        except Exception as e:
+            log(f"❌ Ошибка при получении документа-основания: {e}")
+            return {}
+
+        try:
+            doc = doc_manager.CreateDocument()
+            from datetime import datetime
+            doc.Дата = datetime.now()
+            doc.ДокументОснование = base_doc
+        except Exception as e:
+            log(f"❌ Ошибка при создании нового задания: {e}")
+            return {}
 
         for row in rows:
-            item = doc.Товары.Add()
-            item.Номенклатура = self.get_ref("Номенклатура", row["name"])
-            item.Размер = self.get_ref("РазмерыНоменклатуры", row.get("size", ""))
-            item.ХарактеристикаВставок = self.get_ref("ХарактеристикиВставок", row.get("insert", ""))
-            item.Проба = self.get_ref("Проба", row.get("assay", ""))
-            item.ЦветМеталла = self.get_ref("ЦветаМеталлов", row.get("color", ""))
-            item_variant = self.get_enum_by_description("ВариантыИзготовления", method)
-            if item_variant is not None:
-                item.ВариантИзготовления = item_variant
-            item.Количество = row["qty"]
+            try:
+                item = doc.Товары.Add()
+                item.Номенклатура = self.get_ref("Номенклатура", row.get("name", ""))
+                item.Размер = self.get_ref("РазмерыНоменклатуры", row.get("size", ""))
+                item.ХарактеристикаВставок = self.get_ref("ХарактеристикиВставок", row.get("insert", ""))
+                item.Проба = self.get_ref("Проба", row.get("assay", ""))
+                item.ЦветМеталла = self.get_ref("ЦветаМеталлов", row.get("color", ""))
+                item.ВариантИзготовления = self.get_ref_by_description("ВариантыИзготовленияНоменклатуры", row.get("method", ""))
+                item.Количество = row.get("qty", 0)
+            except Exception as e:
+                log(f"❌ Ошибка в строке задания: {e}")
 
-        doc.Write()
-        return {
-            "Ref": str(doc.Ref),
-            "Номер": str(doc.Номер),
-            "Дата": str(doc.Дата)
-        }   
+        try:
+            doc.Write()
+            log(f"✅ Задание создано: №{doc.Номер}")
+            return {
+                "Ref": str(doc.Ref),
+                "Номер": str(doc.Номер),
+                "Дата": str(doc.Дата)
+            }
+        except Exception as e:
+            log(f"❌ Ошибка при записи задания: {e}")
+            return {}
         
     def get_wax_job_rows(self, num: str) -> list[dict]:
         doc = self._find_doc("НарядВосковыеИзделия", num)
