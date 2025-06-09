@@ -240,24 +240,67 @@ class WaxPage(QWidget):
         for num in self._get_checked_tasks():
             print(f"[DEBUG] Проведение: {num}")
             bridge.delete_task(num)
-        self._fill_tasks_tree()    
+        self._fill_tasks_tree() 
+
+    def populate_jobs_tree(self, doc_num: str):
+        self.tree_jobs.clear()
+        self.tree_part.clear()
+
+        try:
+            # Попытка как наряд
+            rows = bridge.get_wax_job_rows(doc_num)
+            if rows:
+                log(f"[populate_jobs_tree] Найдены строки наряда №{doc_num}: {len(rows)}")
+                self.refresh()
+                return
+        except Exception as e:
+            log(f"[populate_jobs_tree] Не удалось как наряд: {e}")
+
+        try:
+            # Попытка как задание на производство
+            task = bridge._find_task_by_number(doc_num)
+            if task and getattr(task, "ДокументОснование", None):
+                base_ref = getattr(task, "ДокументОснование")
+                base_obj = bridge.get_object_from_ref(base_ref)
+                order_num = base_obj.Номер
+                log(f"[populate_jobs_tree] Задание связано с заказом №{order_num}")
+
+                # Загружаем строки заказа
+                order_lines = bridge.get_order_lines(order_num)
+                batches = bridge.calculate_batches(order_lines)
+
+                # Обновляем ORDERS_POOL
+                ORDERS_POOL.clear()
+                ORDERS_POOL.append({
+                    "number": order_num,
+                    "order": {
+                        "rows": order_lines
+                    },
+                    "docs": {
+                        "order_code": order_num,
+                        "batches": batches
+                    }
+                })
+                log(f"[ORDERS_POOL] Добавлены строки и партии для заказа №{order_num}")
+
+                # Перерисовываем
+                self.refresh()
+            else:
+                log("[populate_jobs_tree] Не найден документ основания")
+        except Exception as ee:
+            log(f"[populate_jobs_tree] Ошибка при получении заказа из задания: {ee}")
 
     def _on_task_double_click(self, item, column):
         num = item.text(1).strip() if item.columnCount() > 1 else item.text(0).strip()
         if not num:
             return
 
-        task_obj = bridge._find_task_by_number(num)
-        if task_obj:
-            if hasattr(task_obj, "GetObject"):
-                task_obj = task_obj.GetObject()
+        task_ref = bridge._find_task_by_number(num)   # <-- это ссылка (Ref)
+        self.last_created_task_ref = task_ref
 
-            self.last_created_task_ref = task_obj
-            self.refresh()
-            self.tabs.setCurrentIndex(0)
-            target = self.jobs_page or self
-            target.load_task_data(task_obj)
-            log(f"[UI] Выбрано задание №{num}, переходим к созданию нарядов.")
+        self.tabs.setCurrentIndex(0)
+        self.populate_jobs_tree(num)                  # <-- передаём строковый номер
+        log(f"[UI] Выбрано задание №{num}, переходим к созданию нарядов.")
 
     def load_task_data(self, task_obj):
         if not task_obj:
@@ -415,6 +458,25 @@ class WaxPage(QWidget):
                 log(f"✅ Создано задание №{result.get('Номер', '?')}")
             except Exception as e:
                 log(f"❌ Ошибка создания задания: {e}")
+                
+            if not docs.get("batches"):
+                from collections import defaultdict
+                rows_by_batch = defaultdict(lambda: {"qty": 0, "total_w": 0.0})
+                for row in rows:
+                    key = (row["metal"], row["assay"], row["color"])
+                    rows_by_batch[key]["qty"] += row["qty"]
+                    rows_by_batch[key]["total_w"] += row["weight"]
+
+                docs["batches"] = []
+                for (metal, hallmark, color), data in rows_by_batch.items():
+                    docs["batches"].append({
+                        "batch_barcode": "AUTO",  # или сгенерируй штрихкод
+                        "metal": metal,
+                        "hallmark": hallmark,
+                        "color": color,
+                        "qty": data["qty"],
+                        "total_w": round(data["total_w"], 3)
+                    })    
 
     # ------------------------------------------------------------------
     def _create_wax_jobs(self):
