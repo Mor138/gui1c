@@ -284,6 +284,37 @@ class WaxPage(QWidget):
                 continue
 
             rows = bridge.get_order_lines(order_num)
+            # 🔄 обогащаем строку заказа
+            for row in rows:
+                # Пробуем вытащить пробу и цвет из варианта
+                variant = row.get("method", "")
+                if "585" in variant:
+                    row["assay"] = "585"
+                elif "925" in variant:
+                    row["assay"] = "925"
+                else:
+                    row["assay"] = ""
+
+                if "Красный" in variant:
+                    row["color"] = "Красный"
+                elif "Желтый" in variant:
+                    row["color"] = "Желтый"
+                elif "серебро" in variant.lower():
+                    row["color"] = "Светлый"
+                else:
+                    row["color"] = ""
+
+                # Вес если нулевой — ставим 1.0 по умолчанию
+                if not row.get("weight"):
+                    row["weight"] = 1.0
+
+                # Мастер
+                employee_name = self.combo_employee.currentText()
+                if employee_name and employee_name != "— выберите мастера —":
+                    row["employee"] = employee_name
+                else:
+                    QMessageBox.warning(self, "Мастер не выбран", "Пожалуйста, выберите мастера")
+                    return
             # передаём выбранного мастера
             employee_name = self.combo_employee.currentText()
             if employee_name and employee_name != "— выберите мастера —":
