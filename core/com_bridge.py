@@ -723,7 +723,7 @@ class COM1CBridge:
     def create_production_task(self, order_ref, rows: list[dict]) -> dict:
         doc_manager = getattr(self.connection.Documents, "ЗаданиеНаПроизводство", None)
         if doc_manager is None:
-            log("❌ Документ 'ЗаданиеНаПроизводство' не найден в конфигурации")
+            log("❌ Документ 'ЗаданиеНаПроизводство' не найден")
             return {}
 
         if not order_ref:
@@ -737,7 +737,7 @@ class COM1CBridge:
             doc.КонечнаяДатаЗадания = datetime.now() + timedelta(days=1)
             doc.ДокументОснование = base_doc
 
-            # Шапка задания
+            # Шапка
             doc.ПроизводственныйУчасток = self.get_ref("ПроизводственныеУчастки", "задание на производство")
             doc.ТехОперация = self.get_ref("ТехОперации", "работа с восковыми изделиями")
             employee_name = rows[0].get("employee", "Администратор")
@@ -745,10 +745,10 @@ class COM1CBridge:
             doc.Ответственный = self.get_ref("Пользователи", "Администратор")
             doc.Комментарий = "Создано автоматически из GUI"
 
-            # Добавляем строки в табличную часть "Продукция"
             date_start = datetime.now()
             date_end = date_start + timedelta(days=1)
 
+            # Добавление строк в Продукция
             for row in rows:
                 try:
                     item = doc.Продукция.Add()
@@ -759,26 +759,41 @@ class COM1CBridge:
                     item.ХарактеристикаВставок = self.get_ref("ХарактеристикиВставок", row.get("insert", ""))
                     item.ВариантИзготовления = self.get_ref("ВариантыИзготовленияНоменклатуры", row.get("method", ""))
                     item.Количество = row.get("qty", 0)
-                    item.Вес = float(row.get("weight", 0)) if "weight" in row else 0
+                    w = row.get("weight")
+                    item.Вес = float(w) if w not in (None, "", 0) else 0
                     item.ДатаНачала = date_start
                     item.ДатаОкончания = date_end
                     item.РабочийЦентр = self.get_ref("ФизическиеЛица", employee_name)
                     item.Заказ = base_doc
                     item.КонечнаяПродукция = item.Номенклатура
                     item.ВариантИзготовленияПродукции = item.ВариантИзготовления
-
                     if hasattr(item, "АртикулГП"):
                         item.АртикулГП = row.get("article", "")
                 except Exception as e:
-                    log(f"❌ Ошибка в строке задания: {e}")
+                    log(f"❌ Ошибка в строке 'Продукция': {e}")
 
-            try:
-                # Пытаемся вызвать серверный метод инициализации
-                self.connection.Документы.ЗаданиеНаПроизводство.ИнициализироватьДанныеДокумента(doc)
-                log("✅ Вызван метод ИнициализироватьДанныеДокумента()")
-            except Exception as e:
-                log(f"⚠ Не удалось вызвать ИнициализироватьДанныеДокумента(): {e}")
-                # Альтернатива: можно вручную добавить строки в "ЗаданияНаВыполнениеТехОперации" если потребуется
+            # Создание строк в ЗаданияНаВыполнениеТехОперации вручную
+            for row in rows:
+                try:
+                    z = doc.ЗаданияНаВыполнениеТехОперации.Add()
+                    w = row.get("weight")
+                    z.Вес = float(w) if w not in (None, "", 0) else 0
+                    z.Заказ = base_doc
+                    z.ТехОперация = self.get_ref("ТехОперации", "работа с восковыми изделиями")
+                    z.РабочийЦентр = self.get_ref("ФизическиеЛица", employee_name)
+                    z.Номенклатура = self.get_ref("Номенклатура", row.get("name", ""))
+                    z.ВариантИзготовления = self.get_ref("ВариантыИзготовленияНоменклатуры", row.get("method", ""))
+                    z.Размер = self.get_ref("Размеры", row.get("size", ""))
+                    z.Проба = self.get_ref("Пробы", row.get("assay", ""))
+                    z.ЦветМеталла = self.get_ref("ЦветаМеталла", row.get("color", ""))
+                    z.ХарактеристикаВставок = self.get_ref("ХарактеристикиВставок", row.get("insert", ""))
+                    z.Количество = row.get("qty", 0)
+                    z.ДатаНачала = date_start
+                    z.ДатаОкончания = date_end
+                    z.КонечнаяПродукция = z.Номенклатура
+                    z.ВариантИзготовленияПродукции = z.ВариантИзготовления
+                except Exception as e:
+                    log(f"❌ Ошибка в строке 'ЗаданияНаВыполнениеТехОперации': {e}")
 
             doc.Write()
             log(f"✅ Задание создано: №{doc.Номер}")
@@ -829,7 +844,6 @@ class COM1CBridge:
         return rows   
         
     def get_order_lines(self, doc_number: str) -> list[dict]:
-        """Получает строки из заказа по номеру"""
         doc = self._find_document_by_number("ЗаказВПроизводство", doc_number)
         if not doc:
             log(f"❌ Заказ №{doc_number} не найден")
@@ -844,9 +858,11 @@ class COM1CBridge:
                 "assay": safe_str(getattr(r, "Проба", "")),
                 "color": safe_str(getattr(r, "ЦветМеталла", "")),
                 "method": safe_str(getattr(r, "ВариантИзготовления", "")),
-                "qty": getattr(r, "Количество", 0)
+                "qty": getattr(r, "Количество", 0),
+                "weight": float(getattr(r, "Вес", 0)),  # ← добавлено
+                "article": safe_str(getattr(r.Номенклатура, "Артикул", ""))
             })
-        return rows    
+        return rows   
         
     def get_task_lines(self, doc_num: str) -> list[dict]:
         """Возвращает табличную часть 'Продукция' по номеру задания"""
