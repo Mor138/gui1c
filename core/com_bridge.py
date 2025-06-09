@@ -980,6 +980,7 @@ class COM1CBridge:
         result = []
         
         log(f"[create_jobs] type(task_ref) = {type(task_ref)}")
+
         log(
             f"[create_jobs] hasattr 'Организация': {hasattr(task_ref, 'Организация')} "
             f"hasattr 'Organization': {hasattr(task_ref, 'Organization')}"
@@ -990,6 +991,10 @@ class COM1CBridge:
                 "Организация",
                 getattr(task_ref, "Organization", None),
             )
+
+        try:
+            organization = getattr(task_ref, "Организация")
+
             log(f"[create_jobs] Организация задания: {safe_str(organization)}")
         except Exception as e:
             log(f"❌ Ошибка получения Организации из задания: {e}")
