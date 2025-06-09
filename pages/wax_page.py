@@ -45,6 +45,7 @@ QTreeView::item:nth-child(odd):!selected { background:#ffffff; }
 class WaxPage(QWidget):
     def __init__(self):
         super().__init__()
+        self.last_created_task_ref = None
         self._ui()
         self.refresh()
 
@@ -76,10 +77,10 @@ class WaxPage(QWidget):
 
         btn_create_wax_jobs = QPushButton("📄 Создать наряды")
         btn_create_wax_jobs.clicked.connect(self._create_wax_jobs)
-        
+
         from PyQt5.QtWidgets import QComboBox
 
-        # Список мастеров
+        # Список мастеров для задания
         self.combo_employee = QComboBox()
         self.combo_employee.setMinimumWidth(200)
         self.combo_employee.addItem("— выберите мастера —")
@@ -94,6 +95,27 @@ class WaxPage(QWidget):
 
         for b in [btn_create_task, btn_create_wax_jobs]:
             btn_row.addWidget(b, alignment=Qt.AlignLeft)
+
+        # -------- выбор мастеров для нарядов --------
+        label = QLabel("→ выберите мастеров")
+        label.setStyleSheet("font-weight: bold; padding: 6px")
+
+        self.combo_3d_master = QComboBox()
+        self.combo_resin_master = QComboBox()
+
+        employees = bridge.list_catalog_items("ФизическиеЛица", limit=100)
+        names = [e.get("Description", "") for e in employees]
+        self.combo_3d_master.addItems(names)
+        self.combo_resin_master.addItems(names)
+
+        h = QHBoxLayout()
+        h.addWidget(QLabel("3D:"))
+        h.addWidget(self.combo_3d_master)
+        h.addWidget(QLabel("Резина:"))
+        h.addWidget(self.combo_resin_master)
+
+        t1.addWidget(label)
+        t1.addLayout(h)
 
         t1.addLayout(btn_row)
 
@@ -410,6 +432,7 @@ class WaxPage(QWidget):
             try:
                 result = bridge.create_production_task(order_ref, rows)
                 docs["sync_task_num"] = result.get("Номер")  # ✅ запоминаем
+                self.last_created_task_ref = result.get("Ref")
                 log(f"✅ Создано задание №{result.get('Номер', '?')}")
             except Exception as e:
                 log(f"❌ Ошибка создания задания: {e}")
@@ -420,27 +443,27 @@ class WaxPage(QWidget):
             QMessageBox.warning(self, "Нет данных", "Нет заказов для создания нарядов")
             return
 
-        for o in ORDERS_POOL:
-            docs = o.get("docs", {})
-            if docs.get("sync_job_num"):
-                continue  # ⛔️ уже создано
+        master_3d = self.combo_3d_master.currentText().strip()
+        master_resin = self.combo_resin_master.currentText().strip()
 
-            order_num = o.get("number") or docs.get("order_code")
-            if not order_num:
-                log("❌ У заказа нет номера")
-                continue
+        if not master_3d or not master_resin:
+            QMessageBox.warning(self, "Ошибка", "Выберите мастеров для обоих методов.")
+            return
 
-            task_ref = bridge.find_production_task_ref_by_method("3D печать")
-            if not task_ref:
-                log(f"❌ Нет задания для метода 3D печать")
-                continue
+        if not self.last_created_task_ref:
+            QMessageBox.warning(self, "Ошибка", "Нет последнего созданного задания")
+            return
 
-            try:
-                job_num = bridge.create_wax_job_from_task(task_ref)
-                docs["sync_job_num"] = job_num  # ✅ запоминаем
-                log(f"✅ Создан наряд №{job_num}")
-            except Exception as e:
-                log(f"❌ Ошибка создания наряда: {e}")
+        result = bridge.create_multiple_wax_jobs_from_task(
+            self.last_created_task_ref,
+            {"3D печать": master_3d, "Резина": master_resin}
+        )
+
+        if result:
+            QMessageBox.information(self, "Успех", "Созданы наряды: " + ", ".join(result))
+            self.refresh()
+        else:
+            QMessageBox.critical(self, "Ошибка", "Не удалось создать наряды.")
 
     # ------------------------------------------------------------------
     def _sync_job(self):
