@@ -549,21 +549,19 @@ class COM1CBridge:
             log(f"❌ Ошибка при записи документа: {e}")
             return f"Ошибка: {e}"
             
-    def get_doc_ref(self, doc_name: str, number: str):
-        docs = getattr(self.connection.Documents, doc_name, None)
-        if docs is None:
-            log(f"[get_doc_ref] Документ '{doc_name}' не найден")
-            return None
-
-        selection = docs.Select()
-        while selection.Next():
-            doc = selection.GetObject()
-            if number in str(doc.Number):  # вместо ==
-                return doc.Ref
-
-        log(f"[get_doc_ref] Заказ с номером '{number}' не найден")
+    def get_doc_object_by_number(self, doc_type: str, number: str):
+        try:
+            catalog = getattr(self.connection.Documents, doc_type)
+            selection = catalog.Select()
+            while selection.Next():
+                doc = selection.GetObject()
+                if str(doc.Number).strip() == str(number).strip():
+                    log(f"[get_doc_object_by_number] ✅ Найден объект документа {doc_type} №{number}")
+                    return doc
+            log(f"[get_doc_object_by_number] ❌ Документ {doc_type} №{number} не найден")
+        except Exception as e:
+            log(f"[get_doc_object_by_number] ❌ Ошибка: {e}")
         return None
-
     # ------------------------------------------------------------------
     def list_orders(self):
         result = []
@@ -953,18 +951,22 @@ class COM1CBridge:
 
     def get_object_from_ref(self, ref):
         try:
-            if not ref:
-                log("[get_object_from_ref] ❌ Пустая ссылка")
-                return None
-            return self.connection.GetObject(ref)
+            obj = ref.GetObject()
+            log(f"[get_object_from_ref] ✅ Получен объект из ссылки")
+            return obj
         except Exception as e:
             log(f"[get_object_from_ref] ❌ Ошибка получения объекта по ссылке: {e}")
             return None
-
     # ------------------------------------------------------------------
     def create_multiple_wax_jobs_from_task(self, task_ref, method_to_employee: dict) -> list[str]:
         """Создаёт по заданию два наряда: для 3D и для резины."""
         result = []
+        
+        try:
+            organization = task_ref.Organization
+        except Exception as e:
+            log(f"❌ Ошибка получения Организации из задания: {e}")
+            return []
 
         try:
             if isinstance(task_ref, str):
