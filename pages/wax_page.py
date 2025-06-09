@@ -265,17 +265,18 @@ class WaxPage(QWidget):
 
             order_ref = bridge.get_doc_ref("ЗаказВПроизводство", order_num)
             if not order_ref:
-                log(f"❌ Не найден заказ {order_num} в базе 1С")
+                log(f"❌ Не удалось получить ссылку на заказ №{order_num}")
                 continue
 
-            order = o.get("order", {})
-            items = docs.get("items", [])
-            method = bridge.detect_method_from_items(items)
+            rows = bridge.get_order_lines(order_num)
+            if not rows:
+                log(f"❌ В заказе №{order_num} нет строк для задания")
+                continue
 
             try:
-                task_num = bridge.create_production_task(order_ref, method, items)
-                docs["sync_task_num"] = task_num  # ✅ запоминаем
-                log(f"✅ Создано задание №{task_num} на метод {method}")
+                result = bridge.create_production_task(order_ref, rows)
+                docs["sync_task_num"] = result.get("Номер")  # ✅ запоминаем
+                log(f"✅ Создано задание №{result.get('Номер', '?')}")
             except Exception as e:
                 log(f"❌ Ошибка создания задания: {e}")
 
