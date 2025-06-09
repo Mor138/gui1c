@@ -935,7 +935,17 @@ class COM1CBridge:
             return self.connection.GetObject(ref)
         except Exception as e:
             log(f"[get_object_from_ref] ❌ Ошибка получения объекта по ссылке: {e}")
-            return None        
+            return None
+
+    def get_object_from_ref(self, ref):
+        try:
+            if not ref:
+                log("[get_object_from_ref] ❌ Пустая ссылка")
+                return None
+            return self.connection.GetObject(ref)
+        except Exception as e:
+            log(f"[get_object_from_ref] ❌ Ошибка получения объекта по ссылке: {e}")
+            return None
 
     # ------------------------------------------------------------------
     def create_multiple_wax_jobs_from_task(self, task_ref, method_to_employee: dict) -> list[str]:
