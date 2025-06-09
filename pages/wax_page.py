@@ -249,6 +249,25 @@ class WaxPage(QWidget):
                 task_obj = task_obj.GetObject()
 
             self.last_created_task_ref = task_obj
+            lines = bridge.get_task_lines(num)
+            if lines:
+                from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTreeWidget, QTreeWidgetItem
+
+                dlg = QDialog(self)
+                dlg.setWindowTitle(f"Строки задания {num}")
+                layout = QVBoxLayout(dlg)
+
+                tree = QTreeWidget()
+                tree.setHeaderLabels(["Номенклатура", "Размер", "Проба", "Цвет", "Кол-во", "Вес"])
+                for row in lines:
+                    QTreeWidgetItem(tree, [
+                        row["nomen"], str(row["size"]), str(row["sample"]),
+                        str(row["color"]), str(row["qty"]), str(row["weight"])
+                    ])
+                layout.addWidget(tree)
+                dlg.resize(700, 400)
+                dlg.exec_()
+
             self.refresh()
             self.tabs.setCurrentIndex(0)
             log(f"[UI] Выбрано задание №{num}, переходим к созданию нарядов.")
