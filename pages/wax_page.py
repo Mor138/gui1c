@@ -273,19 +273,16 @@ class WaxPage(QWidget):
         if not num:
             return
 
-        obj = bridge.get_doc_object_by_number("ЗаданиеНаПроизводство", num)
-        if not obj:
-            log(f"[UI] ❌ Не удалось получить объект задания №{num}")
-            return
+        task_obj = bridge._find_task_by_number(num)
+        if task_obj:
+            # если вернулась ссылка, превращаем в объект
+            if hasattr(task_obj, "GetObject"):
+                task_obj = task_obj.GetObject()
 
-        self.last_created_task_ref = obj
-        log(
-            f"[DEBUG] last_created_task_ref type={type(obj)}, has Org? "
-            f"{hasattr(obj, 'Организация')}"
-        )
-        self.refresh()
-        self.tabs.setCurrentIndex(0)
-        log(f"[UI] Выбрано задание №{num}, переходим к созданию нарядов.")
+            self.last_created_task_ref = task_obj
+            self.refresh()
+            self.tabs.setCurrentIndex(0)
+            log(f"[UI] Выбрано задание №{num}, переходим к созданию нарядов.")
 
     def _on_wax_job_double_click(self, item, column):
         num = item.text(0).strip()
