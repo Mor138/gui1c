@@ -4,6 +4,7 @@ PS C:\Users\Mor\Documents\GitHub\gui1c> tree /F
 C:.
 │   .gitattributes
 │   .gitignore
+│   AGENTS.md
 │   config.py
 │   main.py
 │   README.md
@@ -103,3 +104,5 @@ C:.
 └───__pycache__
         config.cpython-310.pyc
         form_renderer.cpython-310.pyc
+
+PS C:\Users\Mor\Documents\GitHub\gui1c>
