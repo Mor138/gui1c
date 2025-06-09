@@ -748,7 +748,15 @@ class COM1CBridge:
             return {}
 
         try:
-            base_doc = order_ref if hasattr(order_ref, "Ref") else self.connection.GetObject(order_ref)
+            if hasattr(order_ref, "GetObject"):
+                base_doc = order_ref.GetObject()
+            elif hasattr(order_ref, "Ref"):
+                base_doc = self.connection.GetObject(order_ref.Ref)
+            elif isinstance(order_ref, str):
+                base_doc = self.connection.GetObject(order_ref)
+            else:
+                log("❌ order_ref — неизвестного типа")
+                return {}
             doc = doc_manager.CreateDocument()
             doc.Дата = datetime.now()
             doc.КонечнаяДатаЗадания = datetime.now() + timedelta(days=1)
@@ -838,7 +846,7 @@ class COM1CBridge:
             log(f"❌ Ошибка при создании задания: {e}")
             return {}
             
-    def calculate_batches(order_lines: list[dict]) -> list[dict]:
+    def calculate_batches(self, order_lines: list[dict]) -> list[dict]:
         from collections import defaultdict
 
         rows_by_batch = defaultdict(lambda: {"qty": 0, "total_w": 0.0})
@@ -857,7 +865,7 @@ class COM1CBridge:
                 "qty": data["qty"],
                 "total_w": round(data["total_w"], 3)
             })
-        return result        
+        return result      
             
     def get_catalog_ref(self, catalog_name, description):
         try:
