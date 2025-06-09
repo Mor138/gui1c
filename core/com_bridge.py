@@ -978,42 +978,36 @@ class COM1CBridge:
     def create_multiple_wax_jobs_from_task(self, task_ref, method_to_employee: dict) -> list[str]:
         """Создаёт по заданию два наряда: для 3D и для резины."""
         result = []
-        
-        log(f"[create_jobs] type(task_ref) = {type(task_ref)}")
 
+        log(f"[create_jobs] type(task_ref) = {type(task_ref)}")
         log(
             f"[create_jobs] hasattr 'Организация': {hasattr(task_ref, 'Организация')} "
             f"hasattr 'Organization': {hasattr(task_ref, 'Organization')}"
         )
-        try:
-            organization = getattr(
-                task_ref,
-                "Организация",
-                getattr(task_ref, "Organization", None),
-            )
 
         try:
-            organization = getattr(task_ref, "Организация")
-
+            organization = getattr(task_ref, "Организация", None)
             log(f"[create_jobs] Организация задания: {safe_str(organization)}")
         except Exception as e:
             log(f"❌ Ошибка получения Организации из задания: {e}")
             return []
 
         try:
-            if isinstance(task_ref, str):
+            if isinstance(task_ref, str):                     # передали строку-Ref
                 task = self.connection.GetObject(task_ref)
-            elif hasattr(task_ref, "Ref"):
+
+            elif hasattr(task_ref, "Продукция"):             # уже полноценный объект
                 task = task_ref
+
+            elif hasattr(task_ref, "GetObject"):             # DocumentRef → поднимаем
+                task = task_ref.GetObject()
+
             else:
                 log("[create_jobs] ❌ Неизвестный тип ссылки на задание")
                 return []
         except Exception as e:
             log(f"[create_jobs] ❌ Ошибка получения объекта задания: {e}")
             return []
-        except Exception as e:
-            log(f"[create_jobs] ❌ Задание не найдено: {e}")
-            return result
 
         rows_by_method = defaultdict(list)
         for row in task.Продукция:
@@ -1025,9 +1019,9 @@ class COM1CBridge:
             try:
                 job = self.documents.НарядВосковыеИзделия.CreateDocument()
                 job.Дата = datetime.now()
-                org = getattr(task, "Организация", None)
-                if org:
-                    job.Организация = org
+
+                if organization:
+                    job.Организация = organization
                 wh = getattr(task, "Склад", None)
                 if wh:
                     job.Склад = wh
