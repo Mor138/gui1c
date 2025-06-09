@@ -723,7 +723,11 @@ class COM1CBridge:
 
         try:
             doc = doc_manager.CreateDocument()
-            doc.ДокументОснование = self.connection.GetObject(order_ref)
+            # order_ref may already be a COM object; only call GetObject for strings
+            if isinstance(order_ref, str):
+                doc.ДокументОснование = self.connection.GetObject(order_ref)
+            else:
+                doc.ДокументОснование = order_ref
             doc.Дата = self.connection.CurrentDate()
 
             # 👉 Автоматически заполняем заголовок:
