@@ -275,7 +275,8 @@ class WaxPage(QWidget):
 
         task_obj = bridge._find_task_by_number(num)
         if task_obj:
-            self.last_created_task_ref = task_obj
+            self.last_created_task_ref = task_obj  # сохраняем полный объект
+            self.refresh()  # ← добавь это чтобы подгрузились строки, партии и т.д.
             self.tabs.setCurrentIndex(0)
             log(f"[UI] Выбрано задание №{num}, переходим к созданию нарядов.")
         else:
@@ -443,6 +444,7 @@ class WaxPage(QWidget):
             QMessageBox.warning(self, "Ошибка", "Нет выбранного задания для создания нарядов.")
             return
 
+        print("[DEBUG] last_created_task_ref =", self.last_created_task_ref)
         result = bridge.create_multiple_wax_jobs_from_task(
             self.last_created_task_ref,
             {"3D печать": master_3d, "Резина": master_resin}
