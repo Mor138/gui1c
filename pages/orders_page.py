@@ -55,6 +55,8 @@ class OrdersPage(QWidget):
     def set_selection_callback(self, callback=None):
         """Устанавливает внешний callback для выбора заказа."""
         self._select_callback = callback
+        if hasattr(self, "tabs"):
+            self.tabs.setCurrentIndex(1)
         
     def _update_order(self):
         if not self._edit_mode or not self._current_number:
@@ -406,6 +408,11 @@ class OrdersPage(QWidget):
             order_number = self.tbl_orders.item(row, 1).text().strip().replace("⚪", "")
             self._select_callback(order_number)
             self._select_callback = None
+            main_win = self.window()
+            if hasattr(main_win, "menu") and hasattr(main_win, "page_idx"):
+                wax_idx = main_win.page_idx.get("wax")
+                if wax_idx is not None:
+                    main_win.menu.setCurrentRow(wax_idx)
             return
 
         o = self._orders[row]

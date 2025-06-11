@@ -41,6 +41,8 @@ class WaxPage(QWidget):
                 orders_page = main_win.page_refs.get("orders")
                 if orders_page and hasattr(orders_page, "set_selection_callback"):
                     orders_page.set_selection_callback(callback)
+                    if hasattr(orders_page, "tabs"):
+                        orders_page.tabs.setCurrentIndex(1)
 
     def refresh(self):
         """Обновляет данные текущей вкладки."""
@@ -61,8 +63,8 @@ class WaxPage(QWidget):
         # ----- Tab: Задания на производство -----
         self.tab_tasks = QWidget()
         t_main = QVBoxLayout(self.tab_tasks)
-        tabs_tasks = QTabWidget()
-        t_main.addWidget(tabs_tasks, 1)
+        self.tabs_tasks = QTabWidget()
+        t_main.addWidget(self.tabs_tasks, 1)
 
         # --- sub-tab: создание задания ---
         tab_task_new = QWidget(); t_new = QVBoxLayout(tab_task_new)
@@ -110,8 +112,8 @@ class WaxPage(QWidget):
 
         t1.addLayout(btn_bar)
 
-        tabs_tasks.addTab(tab_task_new, "Создание")
-        tabs_tasks.addTab(tab_tasks_list, "Задания")
+        self.tabs_tasks.addTab(tab_task_new, "Создание")
+        self.tabs_tasks.addTab(tab_tasks_list, "Задания")
         self.tabs.addTab(self.tab_tasks, "Задания на производство")
 
         # подключения сигналов
@@ -256,9 +258,15 @@ class WaxPage(QWidget):
         if not num:
             return
 
-        task_ref = bridge._find_task_by_number(num)   # <-- это ссылка (Ref)
-        self.last_created_task_ref = task_ref
+        task_obj = bridge._find_task_by_number(num)
+        if hasattr(task_obj, "GetObject"):
+            task_obj = task_obj.GetObject()
+        self.last_created_task_ref = task_obj
 
+        self.tabs.setCurrentIndex(0)
+        if hasattr(self, "tabs_tasks"):
+            self.tabs_tasks.setCurrentIndex(0)
+        self.task_form.load_task_object(task_obj)
         log(f"[UI] Выбрано задание №{num}.")
 
     def load_task_data(self, task_obj):
