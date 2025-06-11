@@ -679,7 +679,7 @@ class COM1CBridge:
         """Возвращает ссылку на первое задание по указанному методу."""
         method_ref = self.get_ref_by_description("ВариантыИзготовленияНоменклатуры", method)
         if not method_ref:
-            print_catalog_contents("ВариантыИзготовленияНоменклатуры")
+            self.log_catalog_contents("ВариантыИзготовленияНоменклатуры")
         if method_ref is None:
             log(f"[find_production_task_ref_by_method] Не найден вариант {method}")
             return None
