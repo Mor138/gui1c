@@ -91,7 +91,13 @@ class Main(QMainWindow):
         for idx, (title, key) in enumerate(MENU_ITEMS):
             self.menu.addItem(title)
             if key == "orders":
-                page = OrdersPage(on_send_to_wax=lambda: (self.page_refs["wax"].refresh(), self.menu.setCurrentRow(self.page_idx.get("wax", wax_index))))
+                def _open_wax_with_order(order_num=None):
+                    self.page_refs["wax"].refresh()
+                    if order_num:
+                        self.page_refs["wax"].task_form.load_order_by_number(order_num)
+                    self.menu.setCurrentRow(self.page_idx.get("wax", wax_index))
+
+                page = OrdersPage(on_send_to_wax=_open_wax_with_order)
             elif key == "wax":
                 page = WaxPage()
             elif key == "catalogs":

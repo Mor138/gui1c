@@ -382,7 +382,7 @@ class OrdersPage(QWidget):
 
         process_new_order(order_json)
         if callable(self.on_send_to_wax):
-            self.on_send_to_wax()
+            self.on_send_to_wax(number)
 
     def _delete_selected_order(self):
         selected = [i for i in range(self.tbl_orders.rowCount())

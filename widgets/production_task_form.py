@@ -129,7 +129,13 @@ class ProductionTaskEditForm(QWidget):
     def request_order_selection(self):
         """Запрашивает выбор заказа на внешней вкладке."""
         parent = self.parent()
+
+        while parent and not hasattr(parent, "goto_order_selection"):
+            parent = parent.parent() if hasattr(parent, "parent") else None
+        if parent and hasattr(parent, "goto_order_selection"):
+
         if hasattr(parent, "goto_order_selection"):
+
             parent.goto_order_selection(callback=self.load_order_by_number)
 
     def load_from_order(self):
@@ -146,6 +152,9 @@ class ProductionTaskEditForm(QWidget):
         self.order_line.setText(order_number)
         self._order_ref = self.bridge.get_doc_ref("ЗаказВПроизводство", order_number)
         self._load_lines(order_number)
+
+        self.lbl_status.setText("Заполнено")
+
 
     def _load_lines(self, num):
         lines = self.bridge.get_order_lines(num)
