@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import QDate, pyqtSignal
+import getpass
 
 
 class ProductionTaskEditForm(QWidget):
@@ -23,6 +24,7 @@ class ProductionTaskEditForm(QWidget):
         self.bridge = bridge
         self._order_ref = None
         self._build_ui()
+        self.c_center.setCurrentText(getpass.getuser())
 
     # ------------------------------------------------------------------
     def _build_ui(self):
@@ -104,6 +106,7 @@ class ProductionTaskEditForm(QWidget):
         self.ed_comment.clear()
         self.lbl_status.setText("Черновик")
         self._order_ref = None
+        self.c_center.setCurrentText(getpass.getuser())
 
     def add_row(self, copy_from=None):
         r = self.tbl.rowCount()
@@ -148,7 +151,56 @@ class ProductionTaskEditForm(QWidget):
         """Загружается из внешнего выбора (например, из вкладки Заказы)."""
         self.order_line.setText(order_number)
         self._order_ref = self.bridge.get_doc_ref("ЗаказВПроизводство", order_number)
+        self.c_center.setCurrentText(getpass.getuser())
         self._load_lines(order_number)
+
+        self.lbl_status.setText("Заполнено")
+
+    def load_task_object(self, task_obj):
+        """Заполняет форму данными выбранного задания."""
+        if not task_obj:
+            return
+
+        self.lbl_number.setText(str(getattr(task_obj, "Номер", "")))
+        try:
+            d_start = QDate.fromString(str(task_obj.Дата)[:10], "yyyy-MM-dd")
+            self.d_date.setDate(d_start)
+        except Exception:
+            pass
+        try:
+            d_end = QDate.fromString(str(task_obj.ДатаОкончания)[:10], "yyyy-MM-dd")
+            self.d_end.setDate(d_end)
+        except Exception:
+            pass
+
+        self.c_section.setCurrentText(str(getattr(task_obj, "ПроизводственныйУчасток", "")))
+        self.c_op.setCurrentText(str(getattr(task_obj, "ТехОперация", "")))
+        self.c_center.setCurrentText(str(getattr(task_obj, "РабочийЦентр", getpass.getuser())))
+
+        base = getattr(task_obj, "ДокументОснование", None)
+        if base and hasattr(base, "Номер"):
+            self.order_line.setText(str(base.Номер))
+            self._order_ref = base
+
+        self.tbl.setRowCount(0)
+        lines = self.bridge.get_task_lines(str(getattr(task_obj, "Номер", "")))
+        for line in lines:
+            self.add_row()
+            r = self.tbl.rowCount() - 1
+            self.tbl.item(r, 0).setText(str(r + 1))
+            self.tbl.item(r, 1).setText(self.d_date.date().toString("dd.MM.yyyy"))
+            self.tbl.item(r, 2).setText(self.d_end.date().toString("dd.MM.yyyy"))
+            self.tbl.item(r, 3).setText("")
+            self.tbl.item(r, 4).setText(self.c_center.currentText())
+            self.tbl.item(r, 5).setText(line.get("nomen", ""))
+            self.tbl.item(r, 6).setText("")
+            self.tbl.item(r, 7).setText(str(line.get("size", "")))
+            self.tbl.item(r, 8).setText(str(line.get("qty", "")))
+            self.tbl.item(r, 9).setText(str(line.get("weight", "")))
+            self.tbl.item(r, 10).setText(line.get("sample", ""))
+            self.tbl.item(r, 11).setText(line.get("color", ""))
+            self.tbl.item(r, 12).setText("")
+            self.tbl.item(r, 13).setText(self.order_line.text())
 
         self.lbl_status.setText("Заполнено")
 
