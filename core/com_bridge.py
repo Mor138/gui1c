@@ -360,6 +360,32 @@ class COM1CBridge:
             return f"{prefix}-{next_num:06d}"
         except:
             return "00ЮП-000001"
+
+    # ------------------------------------------------------------------
+    def get_last_task_number(self):
+        """Возвращает номер последнего документа 'ЗаданиеНаПроизводство'."""
+        doc = getattr(self.documents, "ЗаданиеНаПроизводство", None)
+        if not doc:
+            return "ТП-000000"
+        selection = doc.Select()
+        number = "ТП-000000"
+        while selection.Next():
+            try:
+                obj = selection.GetObject()
+                number = str(obj.Number)
+            except Exception:
+                continue
+        return number
+
+    def get_next_task_number(self):
+        """Возвращает следующий номер задания на производство."""
+        last = self.get_last_task_number()
+        try:
+            prefix, num = last.split("-")
+            next_num = int(num) + 1
+            return f"{prefix}-{next_num:06d}"
+        except Exception:
+            return "ТП-000001"
             
     def to_string(self, value):
         """Возвращает строковое представление значения через 1С Application"""
