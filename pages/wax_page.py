@@ -32,22 +32,19 @@ class WaxPage(QWidget):
         self.jobs_page = jobs_page
 
     def goto_order_selection(self, callback=None):
-        """Открывает вкладку Заказы и передаёт callback выбора."""
-        from pages.orders_page import OrdersPage
-        if hasattr(self.parent(), "tabs"):
-            for i in range(self.parent().tabs.count()):
-                w = self.parent().tabs.widget(i)
-                if isinstance(w, OrdersPage):
-                    self.parent().tabs.setCurrentIndex(i)
-                    if hasattr(w, "set_selection_callback"):
-                        w.set_selection_callback(callback)
-                    break
+        """Открывает страницу заказов и передаёт callback выбора."""
+        main_win = self.window()
+        if hasattr(main_win, "menu") and hasattr(main_win, "page_idx"):
+            orders_idx = main_win.page_idx.get("orders")
+            if orders_idx is not None:
+                main_win.menu.setCurrentRow(orders_idx)
+                orders_page = main_win.page_refs.get("orders")
+                if orders_page and hasattr(orders_page, "set_selection_callback"):
+                    orders_page.set_selection_callback(callback)
 
     def refresh(self):
-        self._fill_jobs_tree()
-        self._fill_parties_tree()
+        """Обновляет данные текущей вкладки."""
         self._fill_tasks_tree()
-        self._fill_wax_jobs_tree()
 
     # ------------------------------------------------------------------
     def _ui(self):
@@ -117,97 +114,8 @@ class WaxPage(QWidget):
         tabs_tasks.addTab(tab_tasks_list, "Задания")
         self.tabs.addTab(self.tab_tasks, "Задания на производство")
 
-        # ----- Tab: Наряды на восковые изделия -----
-        self.tab_wax = QWidget()
-        t_wax = QVBoxLayout(self.tab_wax)
-        tabs_wax = QTabWidget()
-        t_wax.addWidget(tabs_wax, 1)
-
-        tab_wax_new = QWidget(); t_new_wax = QVBoxLayout(tab_wax_new)
-        lbl_new_wax = QLabel("Создание наряда")
-        lbl_new_wax.setFont(QFont("Arial", 16, QFont.Bold))
-        t_new_wax.addWidget(lbl_new_wax)
-
-        from PyQt5.QtWidgets import QComboBox
-        label = QLabel("→ выберите мастеров")
-        label.setStyleSheet("font-weight: bold; padding: 6px")
-
-        self.combo_3d_master = QComboBox()
-        self.combo_resin_master = QComboBox()
-        employees = bridge.list_catalog_items("ФизическиеЛица", limit=100)
-        names = [e.get("Description", "") for e in employees]
-        self.combo_3d_master.addItems(names)
-        self.combo_resin_master.addItems(names)
-
-        h_wax = QHBoxLayout()
-        h_wax.addWidget(QLabel("3D:"))
-        h_wax.addWidget(self.combo_3d_master)
-        h_wax.addWidget(QLabel("Пресс-форма:"))
-        h_wax.addWidget(self.combo_resin_master)
-        t_new_wax.addWidget(label)
-        t_new_wax.addLayout(h_wax)
-
-        btn_create_wax_jobs = QPushButton("📄 Создать наряды")
-        btn_create_wax_jobs.clicked.connect(self._create_wax_jobs)
-        t_new_wax.addWidget(btn_create_wax_jobs, alignment=Qt.AlignLeft)
-
-        tab_wax_list = QWidget(); t2 = QVBoxLayout(tab_wax_list)
-        lbl3 = QLabel("Наряды на восковку")
-        lbl3.setFont(QFont("Arial", 16, QFont.Bold))
-        t2.addWidget(lbl3)
-
-        self.tree_acts = QTreeWidget()
-        self.tree_acts.setHeaderLabels([
-            "Номер", "Дата", "Орг.", "Склад", "Участок", "Сотрудник",
-            "Операция", "Статус", "Основание"
-        ])
-        self.tree_acts.header().setSectionResizeMode(QHeaderView.ResizeToContents)
-        self.tree_acts.setStyleSheet(CSS_TREE)
-        t2.addWidget(self.tree_acts, 1)
-
-        tabs_wax.addTab(tab_wax_new, "Создание")
-        tabs_wax.addTab(tab_wax_list, "Наряды")
-        self.tabs.addTab(self.tab_wax, "Наряды на восковые изделия")
-
-        # ----- Tab: Формирование партий -----
-        self.tab_batches = QWidget()
-        t_batches = QVBoxLayout(self.tab_batches)
-
-        tabs_batches = QTabWidget()
-        t_batches.addWidget(tabs_batches, 1)
-
-        tab_jobs = QWidget(); j = QVBoxLayout(tab_jobs)
-        lab1 = QLabel("Наряды (по методам)")
-        lab1.setFont(QFont("Arial", 16, QFont.Bold))
-        j.addWidget(lab1)
-
-        self.tree_jobs = QTreeWidget()
-        self.tree_jobs.setHeaderLabels([
-            "Артикулы", "Метод", "Qty", "Вес", "Статус", "1С"
-        ])
-        self.tree_jobs.header().setSectionResizeMode(QHeaderView.ResizeToContents)
-        self.tree_jobs.setStyleSheet(CSS_TREE)
-        j.addWidget(self.tree_jobs, 1)
-
-        tab_parts = QWidget(); p = QVBoxLayout(tab_parts)
-        lab2 = QLabel("Партии (металл / проба / цвет)")
-        lab2.setFont(QFont("Arial", 16, QFont.Bold))
-        p.addWidget(lab2)
-
-        self.tree_part = QTreeWidget()
-        self.tree_part.setHeaderLabels(["Наименование", "Qty", "Вес"])
-        self.tree_part.header().setSectionResizeMode(QHeaderView.ResizeToContents)
-        self.tree_part.setStyleSheet(CSS_TREE)
-        p.addWidget(self.tree_part, 1)
-
-        tabs_batches.addTab(tab_jobs, "Наряды")
-        tabs_batches.addTab(tab_parts, "Партии")
-
-        self.tabs.addTab(self.tab_batches, "Формирование партий")
-
         # подключения сигналов
         self.tree_tasks.itemDoubleClicked.connect(self._on_task_double_click)
-        self.tree_acts.itemDoubleClicked.connect(self._on_wax_job_double_click)
 
     def _show_wax_job_detail(self, item):
         from PyQt5.QtWidgets import QDialog, QTableWidget, QTableWidgetItem, QVBoxLayout
@@ -351,10 +259,7 @@ class WaxPage(QWidget):
         task_ref = bridge._find_task_by_number(num)   # <-- это ссылка (Ref)
         self.last_created_task_ref = task_ref
 
-        index = self.tabs.indexOf(self.tab_batches)
-        self.tabs.setCurrentIndex(index)
-        self.populate_jobs_tree(num)                  # <-- передаём строковый номер
-        log(f"[UI] Выбрано задание №{num}, переходим к созданию нарядов.")
+        log(f"[UI] Выбрано задание №{num}.")
 
     def load_task_data(self, task_obj):
         if not task_obj:
@@ -371,6 +276,8 @@ class WaxPage(QWidget):
         log(f"[UI] Загрузка строк задания: {len(lines)}")
 
     def _on_wax_job_double_click(self, item, column):
+        if not hasattr(self, "tree_acts"):
+            return
         num = item.text(0).strip()
         if not num:
             return
@@ -425,6 +332,8 @@ class WaxPage(QWidget):
             self.tree_tasks.addTopLevelItem(item)
 
     def _fill_wax_jobs_tree(self):
+        if not hasattr(self, "tree_acts"):
+            return
         self.tree_acts.clear()
         for t in bridge.list_wax_jobs():
             QTreeWidgetItem(self.tree_acts, [
@@ -445,6 +354,10 @@ class WaxPage(QWidget):
         # Для создания наряда достаточно выбранного задания.
         # Проверка ORDERS_POOL мешала создавать наряды для уже существующих
         # заданий, поэтому её убрали.
+
+        if not hasattr(self, "combo_3d_master") or not hasattr(self, "combo_resin_master"):
+            QMessageBox.warning(self, "Ошибка", "Создание нарядов отключено")
+            return
 
         master_3d = self.combo_3d_master.currentText().strip()
         master_resin = self.combo_resin_master.currentText().strip()
@@ -473,6 +386,10 @@ class WaxPage(QWidget):
 
     # ------------------------------------------------------------------
     def _sync_job(self):
+        if not hasattr(self, "tree_jobs"):
+            QMessageBox.warning(self, "Ошибка", "Синхронизация отключена")
+            return
+
         code = self._selected_job_code()
         if not code:
             QMessageBox.warning(self, "Наряд", "Не выбран наряд")
@@ -491,6 +408,8 @@ class WaxPage(QWidget):
 
     # —──────────── дерево «Наряды» ─────────────
     def _fill_jobs_tree(self):
+        if not hasattr(self, "tree_jobs"):
+            return
         self.tree_jobs.clear()
 
         # Группируем по wax_job (один наряд = одна запись)
@@ -527,6 +446,8 @@ class WaxPage(QWidget):
 
     # —──────────── дерево «Партии» ─────────────
     def _fill_parties_tree(self):
+        if not hasattr(self, "tree_part"):
+            return
         self.tree_part.clear()
 
         # Информацию о партиях берём из ORDERS_POOL
