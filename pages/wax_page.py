@@ -54,6 +54,29 @@ class WaxPage(QWidget):
         tabs_tasks = QTabWidget()
         t_main.addWidget(tabs_tasks, 1)
 
+        # --- sub-tab: создание задания ---
+        tab_task_new = QWidget(); t_new = QVBoxLayout(tab_task_new)
+        lbl_new = QLabel("Создание задания")
+        lbl_new.setFont(QFont("Arial", 16, QFont.Bold))
+        t_new.addWidget(lbl_new)
+
+        from PyQt5.QtWidgets import QComboBox
+        self.combo_employee = QComboBox()
+        self.combo_employee.setMinimumWidth(200)
+        self.combo_employee.addItem("— выберите мастера —")
+        for item in bridge.list_catalog_items("ФизическиеЛица", limit=100):
+            name = item.get("Description", "")
+            if name:
+                self.combo_employee.addItem(name)
+        btn_create_task = QPushButton("📋 Создать задание")
+        btn_create_task.clicked.connect(self._create_task)
+
+        h_new = QHBoxLayout()
+        h_new.addWidget(QLabel("Мастер:"))
+        h_new.addWidget(self.combo_employee)
+        h_new.addWidget(btn_create_task)
+        t_new.addLayout(h_new)
+
         tab_tasks_list = QWidget(); t1 = QVBoxLayout(tab_tasks_list)
         lbl2 = QLabel("Задания на производство")
         lbl2.setFont(QFont("Arial", 16, QFont.Bold))
@@ -92,6 +115,7 @@ class WaxPage(QWidget):
 
         t1.addLayout(btn_bar)
 
+        tabs_tasks.addTab(tab_task_new, "Создание")
         tabs_tasks.addTab(tab_tasks_list, "Задания")
         self.tabs.addTab(self.tab_tasks, "Задания на производство")
 
@@ -100,6 +124,34 @@ class WaxPage(QWidget):
         t_wax = QVBoxLayout(self.tab_wax)
         tabs_wax = QTabWidget()
         t_wax.addWidget(tabs_wax, 1)
+
+        tab_wax_new = QWidget(); t_new_wax = QVBoxLayout(tab_wax_new)
+        lbl_new_wax = QLabel("Создание наряда")
+        lbl_new_wax.setFont(QFont("Arial", 16, QFont.Bold))
+        t_new_wax.addWidget(lbl_new_wax)
+
+        from PyQt5.QtWidgets import QComboBox
+        label = QLabel("→ выберите мастеров")
+        label.setStyleSheet("font-weight: bold; padding: 6px")
+
+        self.combo_3d_master = QComboBox()
+        self.combo_resin_master = QComboBox()
+        employees = bridge.list_catalog_items("ФизическиеЛица", limit=100)
+        names = [e.get("Description", "") for e in employees]
+        self.combo_3d_master.addItems(names)
+        self.combo_resin_master.addItems(names)
+
+        h_wax = QHBoxLayout()
+        h_wax.addWidget(QLabel("3D:"))
+        h_wax.addWidget(self.combo_3d_master)
+        h_wax.addWidget(QLabel("Пресс-форма:"))
+        h_wax.addWidget(self.combo_resin_master)
+        t_new_wax.addWidget(label)
+        t_new_wax.addLayout(h_wax)
+
+        btn_create_wax_jobs = QPushButton("📄 Создать наряды")
+        btn_create_wax_jobs.clicked.connect(self._create_wax_jobs)
+        t_new_wax.addWidget(btn_create_wax_jobs, alignment=Qt.AlignLeft)
 
         tab_wax_list = QWidget(); t2 = QVBoxLayout(tab_wax_list)
         lbl3 = QLabel("Наряды на восковку")
@@ -115,60 +167,13 @@ class WaxPage(QWidget):
         self.tree_acts.setStyleSheet(CSS_TREE)
         t2.addWidget(self.tree_acts, 1)
 
+        tabs_wax.addTab(tab_wax_new, "Создание")
         tabs_wax.addTab(tab_wax_list, "Наряды")
         self.tabs.addTab(self.tab_wax, "Наряды на восковые изделия")
 
         # ----- Tab: Формирование партий -----
         self.tab_batches = QWidget()
         t_batches = QVBoxLayout(self.tab_batches)
-
-        btn_row = QHBoxLayout()
-
-        btn_create_task = QPushButton("📋 Создать задание")
-        btn_create_task.clicked.connect(self._create_task)
-
-        btn_create_wax_jobs = QPushButton("📄 Создать наряды")
-        btn_create_wax_jobs.clicked.connect(self._create_wax_jobs)
-
-        from PyQt5.QtWidgets import QComboBox
-
-        # Список мастеров для задания
-        self.combo_employee = QComboBox()
-        self.combo_employee.setMinimumWidth(200)
-        self.combo_employee.addItem("— выберите мастера —")
-
-        # загружаем из 1С
-        for item in bridge.list_catalog_items("ФизическиеЛица", limit=100):
-            name = item.get("Description", "")
-            if name:
-                self.combo_employee.addItem(name)
-
-        btn_row.addWidget(self.combo_employee)
-
-        for b in [btn_create_task, btn_create_wax_jobs]:
-            btn_row.addWidget(b, alignment=Qt.AlignLeft)
-
-        # -------- выбор мастеров для нарядов --------
-        label = QLabel("→ выберите мастеров")
-        label.setStyleSheet("font-weight: bold; padding: 6px")
-
-        self.combo_3d_master = QComboBox()
-        self.combo_resin_master = QComboBox()
-
-        employees = bridge.list_catalog_items("ФизическиеЛица", limit=100)
-        names = [e.get("Description", "") for e in employees]
-        self.combo_3d_master.addItems(names)
-        self.combo_resin_master.addItems(names)
-
-        h = QHBoxLayout()
-        h.addWidget(QLabel("3D:"))
-        h.addWidget(self.combo_3d_master)
-        h.addWidget(QLabel("Пресс-форма:"))
-        h.addWidget(self.combo_resin_master)
-
-        t_batches.addWidget(label)
-        t_batches.addLayout(h)
-        t_batches.addLayout(btn_row)
 
         tabs_batches = QTabWidget()
         t_batches.addWidget(tabs_batches, 1)
