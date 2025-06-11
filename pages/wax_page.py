@@ -602,11 +602,3 @@ class WaxPage(QWidget):
                         str(d["qty"]), f"{d['weight']:.3f}"
                     ])
 
-
-
-# ----------------------------------------------------------------------
-def _wax_method(article: str) -> str:
-    art = str(article).lower()
-    if "д" in art or "d" in art:
-        return "3D печать"
-    return "Пресс-форма"
