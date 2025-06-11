@@ -5,7 +5,7 @@ from PyQt5.QtCore    import Qt
 from PyQt5.QtGui     import QFont
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTreeWidget, QTreeWidgetItem,
-    QHeaderView, QPushButton, QMessageBox, QTabWidget
+    QHeaderView, QPushButton, QMessageBox, QTabWidget, QInputDialog
 )
 from logic.production_docs import (
     WAX_JOBS_POOL,
@@ -47,8 +47,79 @@ class WaxPage(QWidget):
         self.tabs = QTabWidget()
         v.addWidget(self.tabs, 1)
 
-        # ----- Tab 1: Jobs and Batches -----
-        tab1 = QWidget(); t1 = QVBoxLayout(tab1)
+        # ----- Tab: Задания на производство -----
+        self.tab_tasks = QWidget()
+        t_main = QVBoxLayout(self.tab_tasks)
+        tabs_tasks = QTabWidget()
+        t_main.addWidget(tabs_tasks, 1)
+
+        tab_tasks_list = QWidget(); t1 = QVBoxLayout(tab_tasks_list)
+        lbl2 = QLabel("Задания на производство")
+        lbl2.setFont(QFont("Arial", 16, QFont.Bold))
+        t1.addWidget(lbl2)
+
+        self.tree_tasks = QTreeWidget()
+        self.tree_tasks.setHeaderLabels([
+            "✓", "Номер", "Дата", "Участок", "Операция", "Ответственный"
+        ])
+        self.tree_tasks.header().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.tree_tasks.setStyleSheet(CSS_TREE)
+        t1.addWidget(self.tree_tasks, 1)
+
+        btn_bar = QHBoxLayout()
+
+        btn_refresh = QPushButton("🔄 Обновить")
+        btn_post = QPushButton("✅ Провести отмеченные")
+        btn_unpost = QPushButton("↩ Отменить проведение")
+        btn_mark = QPushButton("🏷 Пометить")
+        btn_unmark = QPushButton("🚫 Снять пометку")
+        btn_delete = QPushButton("🗑 Удалить")
+
+        btn_bar.addWidget(btn_refresh)
+        btn_bar.addWidget(btn_post)
+        btn_bar.addWidget(btn_unpost)
+        btn_bar.addWidget(btn_mark)
+        btn_bar.addWidget(btn_unmark)
+        btn_bar.addWidget(btn_delete)
+
+        btn_refresh.clicked.connect(self._fill_tasks_tree)
+        btn_post.clicked.connect(self._post_selected_tasks)
+        btn_unpost.clicked.connect(self._unpost_selected_tasks)
+        btn_mark.clicked.connect(self._mark_selected_tasks)
+        btn_unmark.clicked.connect(self._unmark_selected_tasks)
+        btn_delete.clicked.connect(self._delete_selected_tasks)
+
+        t1.addLayout(btn_bar)
+
+        tabs_tasks.addTab(tab_tasks_list, "Задания")
+        self.tabs.addTab(self.tab_tasks, "Задания на производство")
+
+        # ----- Tab: Наряды на восковые изделия -----
+        self.tab_wax = QWidget()
+        t_wax = QVBoxLayout(self.tab_wax)
+        tabs_wax = QTabWidget()
+        t_wax.addWidget(tabs_wax, 1)
+
+        tab_wax_list = QWidget(); t2 = QVBoxLayout(tab_wax_list)
+        lbl3 = QLabel("Наряды на восковку")
+        lbl3.setFont(QFont("Arial", 16, QFont.Bold))
+        t2.addWidget(lbl3)
+
+        self.tree_acts = QTreeWidget()
+        self.tree_acts.setHeaderLabels([
+            "Номер", "Дата", "Орг.", "Склад", "Участок", "Сотрудник",
+            "Операция", "Статус", "Основание"
+        ])
+        self.tree_acts.header().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.tree_acts.setStyleSheet(CSS_TREE)
+        t2.addWidget(self.tree_acts, 1)
+
+        tabs_wax.addTab(tab_wax_list, "Наряды")
+        self.tabs.addTab(self.tab_wax, "Наряды на восковые изделия")
+
+        # ----- Tab: Формирование партий -----
+        self.tab_batches = QWidget()
+        t_batches = QVBoxLayout(self.tab_batches)
 
         btn_row = QHBoxLayout()
 
@@ -94,15 +165,17 @@ class WaxPage(QWidget):
         h.addWidget(QLabel("Пресс-форма:"))
         h.addWidget(self.combo_resin_master)
 
-        t1.addWidget(label)
-        t1.addLayout(h)
+        t_batches.addWidget(label)
+        t_batches.addLayout(h)
+        t_batches.addLayout(btn_row)
 
-        t1.addLayout(btn_row)
+        tabs_batches = QTabWidget()
+        t_batches.addWidget(tabs_batches, 1)
 
-        # — дерево нарядов —
+        tab_jobs = QWidget(); j = QVBoxLayout(tab_jobs)
         lab1 = QLabel("Наряды (по методам)")
         lab1.setFont(QFont("Arial", 16, QFont.Bold))
-        t1.addWidget(lab1)
+        j.addWidget(lab1)
 
         self.tree_jobs = QTreeWidget()
         self.tree_jobs.setHeaderLabels([
@@ -110,77 +183,27 @@ class WaxPage(QWidget):
         ])
         self.tree_jobs.header().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.tree_jobs.setStyleSheet(CSS_TREE)
-        t1.addWidget(self.tree_jobs, 1)
+        j.addWidget(self.tree_jobs, 1)
 
-        # — дерево партий —
+        tab_parts = QWidget(); p = QVBoxLayout(tab_parts)
         lab2 = QLabel("Партии (металл / проба / цвет)")
         lab2.setFont(QFont("Arial", 16, QFont.Bold))
-        t1.addWidget(lab2)
+        p.addWidget(lab2)
 
         self.tree_part = QTreeWidget()
         self.tree_part.setHeaderLabels(["Наименование", "Qty", "Вес"])
         self.tree_part.header().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.tree_part.setStyleSheet(CSS_TREE)
-        t1.addWidget(self.tree_part, 1)
+        p.addWidget(self.tree_part, 1)
 
-        self.tabs.addTab(tab1, "Наряды")
+        tabs_batches.addTab(tab_jobs, "Наряды")
+        tabs_batches.addTab(tab_parts, "Партии")
 
-        # ----- Tab 2: Задания -----
-        tab2 = QWidget(); t2 = QVBoxLayout(tab2)
-        lbl2 = QLabel("Задания на производство")
-        lbl2.setFont(QFont("Arial", 16, QFont.Bold))
-        t2.addWidget(lbl2)
-
-        self.tree_tasks = QTreeWidget()
-        self.tree_tasks.setHeaderLabels(["✓", "Номер", "Дата", "Участок", "Операция", "Ответственный"])
-        self.tree_tasks.header().setSectionResizeMode(QHeaderView.ResizeToContents)
-        self.tree_tasks.setStyleSheet(CSS_TREE)
-        t2.addWidget(self.tree_tasks, 1)
-
-        self.tabs.addTab(tab2, "Задания")
-
-        # ----- Tab 3: Наряды -----
-        tab3 = QWidget(); t3 = QVBoxLayout(tab3)
-        lbl3 = QLabel("Наряды на восковку")
-        lbl3.setFont(QFont("Arial", 16, QFont.Bold))
-        t3.addWidget(lbl3)
-
-        self.tree_acts = QTreeWidget()
-        self.tree_acts.setHeaderLabels(["Номер", "Дата", "Орг.", "Склад", "Участок", "Сотрудник", "Операция", "Статус", "Основание"])
-        self.tree_acts.header().setSectionResizeMode(QHeaderView.ResizeToContents)
-        self.tree_acts.setStyleSheet(CSS_TREE)
-        t3.addWidget(self.tree_acts, 1)
+        self.tabs.addTab(self.tab_batches, "Формирование партий")
 
         # подключения сигналов
         self.tree_tasks.itemDoubleClicked.connect(self._on_task_double_click)
         self.tree_acts.itemDoubleClicked.connect(self._on_wax_job_double_click)
-
-        self.tabs.addTab(tab3, "Наряды из 1С")
-        
-        btn_bar = QHBoxLayout()
-
-        btn_refresh = QPushButton("🔄 Обновить")
-        btn_post = QPushButton("✅ Провести отмеченные")
-        btn_unpost = QPushButton("↩ Отменить проведение")
-        btn_mark = QPushButton("🏷 Пометить")
-        btn_unmark = QPushButton("🚫 Снять пометку")
-        btn_delete = QPushButton("🗑 Удалить")
-
-        btn_bar.addWidget(btn_refresh)
-        btn_bar.addWidget(btn_post)
-        btn_bar.addWidget(btn_unpost)
-        btn_bar.addWidget(btn_mark)
-        btn_bar.addWidget(btn_unmark)
-        btn_bar.addWidget(btn_delete)
-
-        btn_refresh.clicked.connect(self._fill_tasks_tree)
-        btn_post.clicked.connect(self._post_selected_tasks)
-        btn_unpost.clicked.connect(self._unpost_selected_tasks)
-        btn_mark.clicked.connect(self._mark_selected_tasks)
-        btn_unmark.clicked.connect(self._unmark_selected_tasks)
-        btn_delete.clicked.connect(self._delete_selected_tasks)
-
-        t2.addLayout(btn_bar)
 
     def _show_wax_job_detail(self, item):
         from PyQt5.QtWidgets import QDialog, QTableWidget, QTableWidgetItem, QVBoxLayout
@@ -310,7 +333,8 @@ class WaxPage(QWidget):
         task_ref = bridge._find_task_by_number(num)   # <-- это ссылка (Ref)
         self.last_created_task_ref = task_ref
 
-        self.tabs.setCurrentIndex(0)
+        index = self.tabs.indexOf(self.tab_batches)
+        self.tabs.setCurrentIndex(index)
         self.populate_jobs_tree(num)                  # <-- передаём строковый номер
         log(f"[UI] Выбрано задание №{num}, переходим к созданию нарядов.")
 
