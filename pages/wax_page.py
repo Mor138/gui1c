@@ -1,6 +1,7 @@
 # wax_page.py • v0.8
 # ─────────────────────────────────────────────────────────────────────────
 from collections import defaultdict
+import re
 from PyQt5.QtCore    import Qt
 from PyQt5.QtGui     import QFont
 from PyQt5.QtWidgets import (
@@ -217,6 +218,20 @@ class WaxPage(QWidget):
                 result.append(item.text(1))  # Номер
         print("[DEBUG] Отмечены задания:", result)
         return result
+
+    def _selected_job_code(self):
+        """Возвращает код выбранного наряда или None."""
+        item = self.tree_jobs.currentItem()
+        if not item:
+            return None
+
+        # Если выбран подэлемент, поднимаемся к корневому уровню
+        while item.parent():
+            item = item.parent()
+
+        text = item.text(0)
+        m = re.search(r"\((WX[^)]+)\)", text)
+        return m.group(1) if m else None
     
     def _post_selected_tasks(self):
         for num in self._get_checked_tasks():
