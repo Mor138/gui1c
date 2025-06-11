@@ -7,6 +7,7 @@ from typing import Dict, Any, List, Tuple
 from uuid import uuid4
 
 from catalogs import NOMENCLATURE                      # метод 3d / rubber
+from core.logger import logger
 
 from .state import ORDERS_POOL, WAX_JOBS_POOL  # централизованное хранилище
 
@@ -111,13 +112,14 @@ def build_wax_jobs(order: dict, batches: list[dict]) -> list[dict]:
 
 # ─────────────  5. главный вход  ────────────────────────────────────────
 def process_new_order(order_json: Dict[str,Any]) -> Dict[str,Any]:
-    def log(msg): print(msg)
     order_code = order_json.get("number", new_order_code())  # fallback на случай отладки без 1С
 
     # 🔒 Проверка: если заказ уже в ORDERS_POOL — ничего не делать
     for existing in ORDERS_POOL:
         if existing["order"].get("number") == order_code:
-            log(f"[process_new_order] ⚠ Заказ №{order_code} уже в ORDERS_POOL, пропускаем")
+            logger.warning(
+                f"[process_new_order] Заказ №{order_code} уже в ORDERS_POOL, пропускаем"
+            )
             return existing  # можно вернуть старую запись
 
     items      = expand_items(order_json)

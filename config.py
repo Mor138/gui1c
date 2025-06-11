@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from core.logger import logger  # инициализация логирования
 from core.com_bridge import COM1CBridge
 
 # Base directory of the project
