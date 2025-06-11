@@ -50,7 +50,7 @@ class ProductionTaskEditForm(QWidget):
 
         self.order_line = QLineEdit(); self.order_line.setReadOnly(True)
         self.btn_order = QPushButton("Выбрать")
-        self.btn_order.clicked.connect(self.load_from_order)
+        self.btn_order.clicked.connect(self.request_order_selection)
         h_order = QHBoxLayout(); h_order.addWidget(self.order_line); h_order.addWidget(self.btn_order)
 
         form.addRow("Номер", self.lbl_number)
@@ -126,20 +126,41 @@ class ProductionTaskEditForm(QWidget):
         if row >= 0:
             self.tbl.removeRow(row)
 
+    def request_order_selection(self):
+        """Запрашивает выбор заказа на внешней вкладке."""
+        parent = self.parent()
+        while parent and not hasattr(parent, "goto_order_selection"):
+            parent = parent.parent() if hasattr(parent, "parent") else None
+        if parent and hasattr(parent, "goto_order_selection"):
+            parent.goto_order_selection(callback=self.load_order_by_number)
+
     def load_from_order(self):
         orders = self.bridge.list_orders()
         nums = [o.get("num") for o in orders]
         num, ok = QInputDialog.getItem(self, "Выбор заказа", "Заказ", nums, 0, False)
         if not ok or not num:
             return
-        self.order_line.setText(num)
-        self._order_ref = self.bridge.get_doc_ref("ЗаказВПроизводство", num)
+        self.load_order_by_number(num)
+        self.lbl_status.setText("Заполнено")
+
+    def load_order_by_number(self, order_number: str):
+        """Загружается из внешнего выбора (например, из вкладки Заказы)."""
+        self.order_line.setText(order_number)
+        self._order_ref = self.bridge.get_doc_ref("ЗаказВПроизводство", order_number)
+        self._load_lines(order_number)
+        self.lbl_status.setText("Заполнено")
+
+    def _load_lines(self, num):
         lines = self.bridge.get_order_lines(num)
         self.tbl.setRowCount(0)
         for line in lines:
             self.add_row()
             r = self.tbl.rowCount() - 1
+            self.tbl.item(r, 0).setText(str(r + 1))
+            self.tbl.item(r, 1).setText(QDate.currentDate().toString("dd.MM.yyyy"))
+            self.tbl.item(r, 2).setText(QDate.currentDate().addDays(1).toString("dd.MM.yyyy"))
             self.tbl.item(r, 3).setText(line.get("article", ""))
+            self.tbl.item(r, 4).setText(self.c_center.currentText())
             self.tbl.item(r, 5).setText(line.get("name", ""))
             self.tbl.item(r, 6).setText(line.get("method", ""))
             self.tbl.item(r, 7).setText(str(line.get("size", "")))
@@ -147,8 +168,8 @@ class ProductionTaskEditForm(QWidget):
             self.tbl.item(r, 9).setText(str(line.get("weight", "")))
             self.tbl.item(r, 10).setText(line.get("assay", ""))
             self.tbl.item(r, 11).setText(line.get("color", ""))
+            self.tbl.item(r, 12).setText(line.get("insert", ""))
             self.tbl.item(r, 13).setText(num)
-        self.lbl_status.setText("Заполнено")
 
     def _collect_rows(self):
         rows = []

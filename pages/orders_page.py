@@ -50,6 +50,11 @@ class OrdersPage(QWidget):
         self._load_orders()
         self._edit_mode = False
         self._current_number = ""
+        self._select_callback = None
+
+    def set_selection_callback(self, callback=None):
+        """Устанавливает внешний callback для выбора заказа."""
+        self._select_callback = callback
         
     def _update_order(self):
         if not self._edit_mode or not self._current_number:
@@ -377,7 +382,7 @@ class OrdersPage(QWidget):
 
         process_new_order(order_json)
         if callable(self.on_send_to_wax):
-            self.on_send_to_wax()
+            self.on_send_to_wax(number)
 
     def _delete_selected_order(self):
         selected = [i for i in range(self.tbl_orders.rowCount())
@@ -397,6 +402,12 @@ class OrdersPage(QWidget):
         self._load_orders()
 
     def _show_order(self, row, col):
+        if self._select_callback:
+            order_number = self.tbl_orders.item(row, 1).text().strip().replace("⚪", "")
+            self._select_callback(order_number)
+            self._select_callback = None
+            return
+
         o = self._orders[row]
         
         self.comment_input.setText(o.get("comment", ""))
