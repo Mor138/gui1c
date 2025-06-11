@@ -194,7 +194,8 @@ class OrdersPage(QWidget):
         variant = QComboBox()
         size = QDoubleSpinBox()
         size.setDecimals(1)
-        size.setRange(0.5, 50.0)
+        # Максимальный размер увеличен до 100, чтобы поддерживать крупные кольца
+        size.setRange(0.5, 100.0)
         size.setSingleStep(0.5)     # шаг изменения
         size.setValue(16.0)
         qty = QSpinBox(); qty.setRange(1, 999); qty.setValue(1)
@@ -256,6 +257,9 @@ class OrdersPage(QWidget):
         self.ed_num.setText(bridge.get_next_order_number())
         self.tbl.setRowCount(0)
         self._add_row()
+        # Сбрасываем дату и комментарий при создании нового заказа
+        self.d_date.setDate(QDate.currentDate())
+        self.comment_input.clear()
         self.tabs.setCurrentIndex(0)
         self._edit_mode = False
         self._current_number = ""
