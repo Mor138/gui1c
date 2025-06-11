@@ -10,6 +10,8 @@ from pythoncom import VT_BOOL
 from collections import defaultdict
 from datetime import datetime, timedelta
 
+from .logger import logger
+
 # ---------------------------
 # Маппинг описаний в системные имена перечисления
 # ---------------------------
@@ -42,7 +44,15 @@ def safe_str(val: Any) -> str:
        
 
 def log(msg: str) -> None:
-    print("[LOG]", msg)
+    """Выводит сообщение через модуль logging с определением уровня."""
+    text = str(msg)
+    lower = text.lower()
+    if "❌" in text or "error" in lower or "ошибка" in lower:
+        logger.error(text)
+    elif "⚠" in text or "warning" in lower:
+        logger.warning(text)
+    else:
+        logger.info(text)
     
    
 
@@ -599,7 +609,7 @@ class COM1CBridge:
         try:
             catalog = getattr(self.connection.Catalogs, catalog_name, None)
             if catalog is None:
-                self._log(f"[Catalog Error] Справочник '{catalog_name}' не найден")
+                log(f"[Catalog Error] Справочник '{catalog_name}' не найден")
                 return result
 
             selection = catalog.Select()
@@ -615,7 +625,7 @@ class COM1CBridge:
                 count += 1
             return result
         except Exception as e:
-            self._log(f"[Catalog Exception] {catalog_name}: {e}")
+            log(f"[Catalog Exception] {catalog_name}: {e}")
             return []
             
     def log_catalog_contents(self, catalog_name: str, limit: int = 1000):
