@@ -31,6 +31,18 @@ class WaxPage(QWidget):
         """Позволяет передать внешний объект страницы нарядов."""
         self.jobs_page = jobs_page
 
+    def goto_order_selection(self, callback=None):
+        """Открывает вкладку Заказы и передаёт callback выбора."""
+        from pages.orders_page import OrdersPage
+        if hasattr(self.parent(), "tabs"):
+            for i in range(self.parent().tabs.count()):
+                w = self.parent().tabs.widget(i)
+                if isinstance(w, OrdersPage):
+                    self.parent().tabs.setCurrentIndex(i)
+                    if hasattr(w, "set_selection_callback"):
+                        w.set_selection_callback(callback)
+                    break
+
     def refresh(self):
         self._fill_jobs_tree()
         self._fill_parties_tree()
