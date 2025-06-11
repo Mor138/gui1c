@@ -17,6 +17,7 @@ from logic.production_docs import (
 from pages.orders_page import parse_variant
 from core.com_bridge import log
 from config import BRIDGE as bridge, CSS_TREE
+from widgets.production_task_form import ProductionTaskEditForm
 
 class WaxPage(QWidget):
     def __init__(self):
@@ -56,26 +57,11 @@ class WaxPage(QWidget):
 
         # --- sub-tab: создание задания ---
         tab_task_new = QWidget(); t_new = QVBoxLayout(tab_task_new)
-        lbl_new = QLabel("Создание задания")
-        lbl_new.setFont(QFont("Arial", 16, QFont.Bold))
-        t_new.addWidget(lbl_new)
-
-        from PyQt5.QtWidgets import QComboBox
-        self.combo_employee = QComboBox()
-        self.combo_employee.setMinimumWidth(200)
-        self.combo_employee.addItem("— выберите мастера —")
-        for item in bridge.list_catalog_items("ФизическиеЛица", limit=100):
-            name = item.get("Description", "")
-            if name:
-                self.combo_employee.addItem(name)
-        btn_create_task = QPushButton("📋 Создать задание")
-        btn_create_task.clicked.connect(self._create_task)
-
-        h_new = QHBoxLayout()
-        h_new.addWidget(QLabel("Мастер:"))
-        h_new.addWidget(self.combo_employee)
-        h_new.addWidget(btn_create_task)
-        t_new.addLayout(h_new)
+        self.task_form = ProductionTaskEditForm(bridge)
+        self.task_form.task_saved.connect(
+            lambda ref: setattr(self, "last_created_task_ref", bridge.get_object_from_ref(ref) if ref else None)
+        )
+        t_new.addWidget(self.task_form)
 
         tab_tasks_list = QWidget(); t1 = QVBoxLayout(tab_tasks_list)
         lbl2 = QLabel("Задания на производство")
@@ -441,98 +427,6 @@ class WaxPage(QWidget):
                 t.get("based_on", "")
             ])
 
-
-    def _create_task(self):
-        if not ORDERS_POOL:
-            QMessageBox.warning(self, "Нет данных", "Нет заказов для создания")
-            return
-
-        for o in ORDERS_POOL:
-            docs = o.get("docs", {})
-            if docs.get("sync_task_num"):
-                continue  # ⛔️ уже создано
-
-            order_num = o.get("number") or docs.get("order_code")
-            if not order_num:
-                log("❌ У заказа нет номера")
-                continue
-
-            order_ref = bridge.get_doc_ref("ЗаказВПроизводство", order_num)
-            if not order_ref:
-                log(f"❌ Не удалось получить ссылку на заказ №{order_num}")
-                continue
-
-            rows = bridge.get_order_lines(order_num)
-            # 🔄 обогащаем строку заказа
-            for row in rows:
-                # Пробуем вытащить пробу и цвет из варианта
-                variant = row.get("method", "")
-                if "585" in variant:
-                    row["assay"] = "585"
-                elif "925" in variant:
-                    row["assay"] = "925"
-                else:
-                    row["assay"] = ""
-
-                if "Красный" in variant:
-                    row["color"] = "Красный"
-                elif "Желтый" in variant:
-                    row["color"] = "Желтый"
-                elif "серебро" in variant.lower():
-                    row["color"] = "Светлый"
-                else:
-                    row["color"] = ""
-
-                if not row.get("weight"):
-                    # Ставим None вместо 0, чтобы избежать подстановки фиктивного 1
-                    row["weight"] = None
-
-                # Мастер
-                employee_name = self.combo_employee.currentText()
-                if employee_name and employee_name != "— выберите мастера —":
-                    row["employee"] = employee_name
-                else:
-                    QMessageBox.warning(self, "Мастер не выбран", "Пожалуйста, выберите мастера")
-                    return
-            # передаём выбранного мастера
-            employee_name = self.combo_employee.currentText()
-            if employee_name and employee_name != "— выберите мастера —":
-                for r in rows:
-                    r["employee"] = employee_name
-            else:
-                QMessageBox.warning(self, "Мастер не выбран", "Пожалуйста, выберите мастера (рабочий центр)")
-                return
-            if not rows:
-                log(f"❌ В заказе №{order_num} нет строк для задания")
-                continue
-
-            try:
-                result = bridge.create_production_task(order_ref, rows)
-                docs["sync_task_num"] = result.get("Номер")  # ✅ запоминаем
-                ref = result.get("Ref")
-                self.last_created_task_ref = bridge.get_object_from_ref(ref) if ref else None
-                log(f"✅ Создано задание №{result.get('Номер', '?')}")
-            except Exception as e:
-                log(f"❌ Ошибка создания задания: {e}")
-                
-            if not docs.get("batches"):
-                from collections import defaultdict
-                rows_by_batch = defaultdict(lambda: {"qty": 0, "total_w": 0.0})
-                for row in rows:
-                    key = (row["metal"], row["assay"], row["color"])
-                    rows_by_batch[key]["qty"] += row["qty"]
-                    rows_by_batch[key]["total_w"] += row["weight"]
-
-                docs["batches"] = []
-                for (metal, hallmark, color), data in rows_by_batch.items():
-                    docs["batches"].append({
-                        "batch_barcode": "AUTO",  # или сгенерируй штрихкод
-                        "metal": metal,
-                        "hallmark": hallmark,
-                        "color": color,
-                        "qty": data["qty"],
-                        "total_w": round(data["total_w"], 3)
-                    })    
 
     # ------------------------------------------------------------------
     def _create_wax_jobs(self):
