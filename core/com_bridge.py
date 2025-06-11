@@ -63,6 +63,8 @@ class COM1CBridge:
         self.catalogs = self.connection.Catalogs
         self.documents = self.connection.Documents
         self.enums = self.connection.Enums
+        # Кэш ссылок на элементы справочников
+        self._ref_cache: dict[str, dict[str, Any]] = {}
         
 
         
@@ -260,17 +262,12 @@ class COM1CBridge:
         return result
 
     def get_size_ref(self, size_value):
-        catalog = getattr(self.catalogs, "Размеры", None)
-        if catalog is None:
-            log("❌ Каталог 'Размеры' не найден")
-            return None
-        selection = catalog.Select()
-        while selection.Next():
-            obj = selection.GetObject()
-            if str(obj.Description).strip().replace(",", ".") == str(size_value).strip().replace(",", "."):
-                return obj.Ref
-        log(f"❌ Размер '{size_value}' не найден в справочнике 'Размеры'")
-        return None
+        """Возвращает ссылку на размер с учётом кеша."""
+        desc = str(size_value).strip().replace(",", ".")
+        ref = self.get_ref_by_description("Размеры", desc)
+        if not ref:
+            log(f"❌ Размер '{size_value}' не найден в справочнике 'Размеры'")
+        return ref
 
     def cache_variants(self):
         self._all_variants = []
@@ -290,16 +287,9 @@ class COM1CBridge:
 
 
     def get_ref(self, catalog_name, description):
-        obj = self.get_catalog_object_by_description(catalog_name, description)
-        return obj.Ref if hasattr(obj, "Ref") else obj
+        """Возвращает ссылку на элемент справочника или перечисления."""
+        return self.get_ref_by_description(catalog_name, description)
 
-    def get_ref_by_description(self, catalog_name: str, description: str):
-        """Возвращает ссылку на элемент каталога по его описанию."""
-        obj = self.get_catalog_object_by_description(catalog_name, description)
-        if obj and hasattr(obj, "Ref"):
-            return obj.Ref
-        log(f"[get_ref_by_description] Не найден элемент '{description}' в каталоге '{catalog_name}'")
-        return None
 
     def get_enum_by_description(self, enum_name: str, description: str):
         """Возвращает элемент перечисления по его представлению"""
@@ -722,18 +712,49 @@ class COM1CBridge:
         return result
         
     def get_ref_by_description(self, catalog_name: str, description: str):
-        catalog = getattr(self.connection.Catalogs, catalog_name, None)
-        if catalog is None:
-            log(f"[get_ref_by_description] Каталог '{catalog_name}' не найден")
+        """Возвращает ссылку на элемент каталога по описанию с кешированием."""
+        if catalog_name == "ВидыСтатусыПродукции":
+            predefined = {
+                "Собств металл, собств камни": "СобствМеталлСобствКамни",
+                "Собств металл, дав камни":    "СобствМеталлДавКамни",
+                "Дав металл, собств камни":    "ДавМеталлСобствКамни",
+                "Дав металл, дав камни":       "ДавМеталлДавКамни",
+            }
+            internal = predefined.get(str(description).strip())
+            if internal:
+                enum = getattr(self.enums, "ВидыСтатусыПродукции", None)
+                if enum is not None:
+                    try:
+                        return getattr(enum, internal)
+                    except Exception as e:
+                        log(f"[Enum Error] {catalog_name}.{internal}: {e}")
+            log(f"[{catalog_name}] Не найден по описанию: {description}")
             return None
 
-        selection = catalog.Select()
-        while selection.Next():
-            obj = selection.GetObject()
-            if str(obj.Description).strip().lower() == description.strip().lower():
-                return obj.Ref
-        log(f"[get_ref_by_description] Не найден элемент '{description}' в каталоге '{catalog_name}'")
-        return None    
+        desc = str(description).strip().lower()
+        if catalog_name == "Размеры":
+            desc = desc.replace(",", ".")
+
+        cache = self._ref_cache.get(catalog_name)
+        if cache is None:
+            catalog = getattr(self.connection.Catalogs, catalog_name, None)
+            if catalog is None:
+                log(f"[get_ref_by_description] Каталог '{catalog_name}' не найден")
+                return None
+            cache = {}
+            selection = catalog.Select()
+            while selection.Next():
+                obj = selection.GetObject()
+                key = str(obj.Description).strip().lower()
+                if catalog_name == "Размеры":
+                    key = key.replace(",", ".")
+                cache[key] = obj.Ref
+            self._ref_cache[catalog_name] = cache
+
+        ref = cache.get(desc)
+        if ref is None:
+            log(f"[get_ref_by_description] Не найден элемент '{description}' в каталоге '{catalog_name}'")
+        return ref
         
         
         
