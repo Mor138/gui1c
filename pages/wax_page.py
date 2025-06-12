@@ -7,7 +7,7 @@ from PyQt5.QtGui     import QFont
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTreeWidget, QTreeWidgetItem,
     QHeaderView, QPushButton, QMessageBox, QTabWidget, QInputDialog,
-    QComboBox, QFormLayout
+    QComboBox, QFormLayout, QTableWidget, QTableWidgetItem
 )
 from logic.production_docs import (
     WAX_JOBS_POOL,
