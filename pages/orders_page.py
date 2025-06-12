@@ -92,8 +92,7 @@ class OrdersPage(QWidget):
                 "ЕдиницаИзмерения": "шт"
             })
 
-        success = bridge.update_order(self._current_number, fields, items, self._current_date)
-        success = config.BRIDGE.update_order(self._current_number, fields, items)
+        success = config.BRIDGE.update_order(self._current_number, fields, items, self._current_date)
         if success:
             QMessageBox.information(self, "Готово", f"Заказ №{self._current_number} обновлён.")
             self._load_orders()
@@ -193,8 +192,7 @@ class OrdersPage(QWidget):
             return
         number = self.tbl_orders.item(selected, 1).text().strip().replace("⚪", "")
         date = self._orders[selected]["date"]
-        success = bridge.print_order_preview_pdf(number, date)
-        success = config.BRIDGE.print_order_preview_pdf(number)
+        success = config.BRIDGE.print_order_preview_pdf(number, date)
         if not success:
             QMessageBox.critical(self, "Ошибка", f"Не удалось сформировать предпросмотр для заказа №{number}")   
 
@@ -363,8 +361,7 @@ class OrdersPage(QWidget):
     def _mass_post(self):
         for i, o in enumerate(self._orders):
             if self.tbl_orders.item(i, 0).checkState() == Qt.Checked:
-                bridge.post_order(o["num"], o["date"])
-                config.BRIDGE.post_order(o["num"])
+                config.BRIDGE.post_order(o["num"], o["date"])
         self._load_orders()
 
     def _send_to_wax(self):
@@ -401,8 +398,7 @@ class OrdersPage(QWidget):
         selected = [i for i in range(self.tbl_orders.rowCount())
                     if self.tbl_orders.item(i, 0).checkState() == Qt.Checked]
         for i in selected:
-            bridge.delete_order_by_number(self._orders[i]["num"], self._orders[i]["date"])
-            config.BRIDGE.delete_order_by_number(self._orders[i]["num"])
+            config.BRIDGE.delete_order_by_number(self._orders[i]["num"], self._orders[i]["date"])
         self._load_orders()
 
     def _mark_deleted(self, mark=True):
@@ -411,11 +407,9 @@ class OrdersPage(QWidget):
                 number = self._orders[i]["num"]
                 date = self._orders[i]["date"]
                 if mark:
-                    bridge.mark_order_for_deletion(number, date)
-                    config.BRIDGE.mark_order_for_deletion(number)
+                    config.BRIDGE.mark_order_for_deletion(number, date)
                 else:
-                    bridge.unmark_order_deletion(number, date)
-                    config.BRIDGE.unmark_order_deletion(number)
+                    config.BRIDGE.unmark_order_deletion(number, date)
 
         self._load_orders()
 
