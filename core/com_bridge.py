@@ -729,19 +729,27 @@ class COM1CBridge:
         docs = self.connection.Documents.НарядВосковыеИзделия.Select()
         while docs.Next():
             obj = docs.GetObject()
+
             rows = getattr(obj, "Товары", [])
             weight = 0.0
             qty = 0
             for r in rows:
                 weight += getattr(r, "Вес", 0)
                 qty += getattr(r, "Количество", 0)
+
+
             result.append({
                 "Номер": str(obj.Номер),
                 "Метод": safe_str(obj.ТехОперация.Description),
                 "Дата": obj.Дата.strftime("%d.%m.%Y"),
                 "Сотрудник": safe_str(obj.Сотрудник.Description),
+
                 "Вес": weight,
                 "Кол-во": qty,
+
+                "Вес": sum([getattr(r, "Вес", 0) for r in obj.Товары]),
+                "Кол-во": sum([getattr(r, "Количество", 0) for r in obj.Товары]),
+
                 "Проведен": obj.Проведен,
             })
         return result
