@@ -347,9 +347,7 @@ class WaxPage(QWidget):
         log(f"[UI] Загрузка строк задания: {len(lines)}")
 
     def _on_wax_job_double_click(self, item, column):
-        if not hasattr(self, "tree_acts"):
-            return
-        num = item.text(0).strip()
+        num = item.text(0).split()[0].strip()
         if not num:
             return
 
@@ -502,37 +500,16 @@ class WaxPage(QWidget):
             return
         self.tree_jobs.clear()
 
-        # Группируем по wax_job (один наряд = одна запись)
-        grouped = defaultdict(list)
-        for job in WAX_JOBS_POOL:
-            grouped[job["wax_job"]].append(job)
-
-        for wax_code, rows in grouped.items():
-            j0 = rows[0]  # первая строка — для заголовка
-            method_label = METHOD_LABEL.get(j0["method"], j0["method"])
-            total_qty = sum(r["qty"] for r in rows)
-            total_weight = sum(r["weight"] for r in rows)
-
-            # верхний уровень — сам наряд
-            root = QTreeWidgetItem(self.tree_jobs, [
-                f"{method_label} ({wax_code})",
-                method_label,
-                str(total_qty),
-                f"{total_weight:.{config.WEIGHT_DECIMALS}f}",
-                j0.get("status", ""),
-                '✅' if j0.get('sync_doc_num') else ''
+        jobs = config.BRIDGE.list_wax_jobs()
+        for job in jobs:
+            item = QTreeWidgetItem([
+                f"{job['Номер']} ({job['Метод']})",
+                job["Метод"],
+                str(job["Кол-во"]),
+                f"{job['Вес']:.2f} г",
+                "✅ Проведен" if job["Проведен"] else "⏳ Черновик",
             ])
-            root.setExpanded(True)
-
-            # дочерние элементы — артикула с количеством
-            for r in rows:
-                QTreeWidgetItem(root, [
-                    r["articles"],
-                    "",
-                    str(r["qty"]),
-                    f"{r.get('weight', 0.0):.{config.WEIGHT_DECIMALS}f}",
-                    "", ""
-                ])
+            self.tree_jobs.addTopLevelItem(item)
 
     # —──────────── дерево «Партии» ─────────────
     def _fill_parties_tree(self):
