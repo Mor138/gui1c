@@ -7,7 +7,7 @@ from PyQt5.QtGui     import QFont
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTreeWidget, QTreeWidgetItem,
     QHeaderView, QPushButton, QMessageBox, QTabWidget, QInputDialog,
-    QComboBox, QFormLayout, QTableWidget, QTableWidgetItem
+    QComboBox, QFormLayout, QTableWidget, QTableWidgetItem, QGroupBox
 )
 from logic.production_docs import (
     WAX_JOBS_POOL,
@@ -168,14 +168,33 @@ class WaxPage(QWidget):
         j_new.addWidget(self.lbl_task_info, alignment=Qt.AlignLeft)
 
 
-        self.tbl_task_lines = QTableWidget(0, 7)
-        self.tbl_task_lines.setHorizontalHeaderLabels([
+        tables_layout = QHBoxLayout()
+
+        group_3d = QGroupBox("3D печать")
+        v_3d = QVBoxLayout(group_3d)
+        self.tbl_3d = QTableWidget(0, 7)
+        self.tbl_3d.setHorizontalHeaderLabels([
             "Номенклатура", "Артикул", "Размер", "Проба", "Цвет",
             "Кол-во", "Вес"
         ])
-        self.tbl_task_lines.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.tbl_task_lines.verticalHeader().setVisible(False)
-        j_new.addWidget(self.tbl_task_lines, 1)
+        self.tbl_3d.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.tbl_3d.verticalHeader().setVisible(False)
+        v_3d.addWidget(self.tbl_3d)
+
+        group_form = QGroupBox("Пресс-форма")
+        v_form = QVBoxLayout(group_form)
+        self.tbl_form = QTableWidget(0, 7)
+        self.tbl_form.setHorizontalHeaderLabels([
+            "Номенклатура", "Артикул", "Размер", "Проба", "Цвет",
+            "Кол-во", "Вес"
+        ])
+        self.tbl_form.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.tbl_form.verticalHeader().setVisible(False)
+        v_form.addWidget(self.tbl_form)
+
+        tables_layout.addWidget(group_3d)
+        tables_layout.addWidget(group_form)
+        j_new.addLayout(tables_layout, 1)
 
         btn_create_jobs = QPushButton("Создать наряды")
         btn_create_jobs.clicked.connect(self._create_wax_jobs)
@@ -433,12 +452,19 @@ class WaxPage(QWidget):
     def _fill_jobs_table_from_task(self, task_obj):
         """Заполняет таблицу нарядов строками выбранного задания."""
         lines = config.BRIDGE.get_task_lines(getattr(task_obj, "Номер", ""))
-        if not hasattr(self, "tbl_task_lines"):
-            log("[UI] Таблица для строк задания не инициализирована")
+        if not hasattr(self, "tbl_3d") or not hasattr(self, "tbl_form"):
+            log("[UI] Таблицы для строк задания не инициализированы")
             return
 
-        self.tbl_task_lines.setRowCount(len(lines))
-        for r, row in enumerate(lines):
+        self.tbl_3d.setRowCount(0)
+        self.tbl_form.setRowCount(0)
+
+        for row in lines:
+            is_3d = "д" in str(row.get("article", "")).lower()
+            table = self.tbl_3d if is_3d else self.tbl_form
+
+            r = table.rowCount()
+            table.insertRow(r)
             values = [
                 row.get("nomen", ""),
                 row.get("article", ""),
@@ -449,8 +475,10 @@ class WaxPage(QWidget):
                 f"{row['weight']:.{config.WEIGHT_DECIMALS}f}" if row.get("weight") not in ("", None) else "",
             ]
             for c, v in enumerate(values):
-                self.tbl_task_lines.setItem(r, c, QTableWidgetItem(str(v)))
-        self.tbl_task_lines.resizeColumnsToContents()
+                table.setItem(r, c, QTableWidgetItem(str(v)))
+
+        self.tbl_3d.resizeColumnsToContents()
+        self.tbl_form.resizeColumnsToContents()
         log(f"[UI] Загрузка строк задания: {len(lines)}")
 
     def _on_wax_job_double_click(self, item, column):
