@@ -72,6 +72,25 @@ QListWidget QScrollBar:vertical{width:0px;background:transparent;}
 QListWidget:hover QScrollBar:vertical{width:8px;}
 """
 
+# Style for login dialog
+LOGIN_DIALOG_CSS = """
+QDialog{background:#1f2937;}
+QLabel#title{color:#e5e7eb;font-size:18px;font-weight:600;}
+QLabel{color:#e5e7eb;font-size:14px;}
+QLineEdit,QComboBox{background:#374151;color:#e5e7eb;border:1px solid #4b5563;
+                    border-radius:6px;padding:4px;}
+QPushButton{background:#3b82f6;color:#ffffff;border:none;padding:6px 12px;
+            border-radius:4px;}
+QPushButton:hover{background:#2563eb;}
+"""
+
+# Список логинов сотрудников для выпадающего меню
+EMPLOYEE_LOGINS = [
+    "Администратор",
+    "Иванов",
+    "Петров",
+]
+
 # Style for tree widgets used on the wax page
 CSS_TREE = """
 QTreeWidget{
