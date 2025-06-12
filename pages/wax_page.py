@@ -138,9 +138,20 @@ class WaxPage(QWidget):
         ])
         for i, r in enumerate(rows):
             for j, k in enumerate([
-                "Номенклатура", "Размер", "Проба", "Цвет", "Количество", "Вес", "Партия", "Номер ёлки", "Состав набора"
+                "Номенклатура",
+                "Размер",
+                "Проба",
+                "Цвет",
+                "Количество",
+                "Вес",
+                "Партия",
+                "Номер ёлки",
+                "Состав набора",
             ]):
-                tbl.setItem(i, j, QTableWidgetItem(str(r.get(k, ""))))
+                val = r.get(k, "")
+                if k == "Вес" and val != "":
+                    val = f"{val:.{config.WEIGHT_DECIMALS}f}"
+                tbl.setItem(i, j, QTableWidgetItem(str(val)))
 
         tbl.resizeColumnsToContents()
         layout.addWidget(tbl)
@@ -303,12 +314,26 @@ class WaxPage(QWidget):
         layout = QVBoxLayout(dlg)
 
         tree = QTreeWidget()
-        tree.setHeaderLabels(["Номенклатура", "Размер", "Проба", "Цвет", "Кол-во", "Вес"])
+        tree.setHeaderLabels([
+            "Номенклатура",
+            "Размер",
+            "Проба",
+            "Цвет",
+            "Кол-во",
+            "Вес",
+        ])
         for row in lines:
-            QTreeWidgetItem(tree, [
-                row["nomen"], str(row["size"]), str(row["sample"]),
-                str(row["color"]), str(row["qty"]), str(row["weight"])
-            ])
+            QTreeWidgetItem(
+                tree,
+                [
+                    row["nomen"],
+                    str(row["size"]),
+                    str(row["sample"]),
+                    str(row["color"]),
+                    str(row["qty"]),
+                    f"{row['weight']:.{config.WEIGHT_DECIMALS}f}",
+                ],
+            )
         layout.addWidget(tree)
         dlg.resize(700, 400)
         dlg.exec_()
