@@ -208,9 +208,9 @@ class ProductionTaskEditForm(QWidget):
         except Exception:
             pass
 
-        self.c_section.setCurrentText(safe_str(getattr(task_obj, "ПроизводственныйУчасток", "")))
-        self.c_op.setCurrentText(safe_str(getattr(task_obj, "ТехОперация", "")))
-        self.c_center.setCurrentText(safe_str(getattr(task_obj, "РабочийЦентр", getpass.getuser())))
+        self._set_combo_value(self.c_section, safe_str(getattr(task_obj, "ПроизводственныйУчасток", "")))
+        self._set_combo_value(self.c_op, safe_str(getattr(task_obj, "ТехОперация", "")))
+        self._set_combo_value(self.c_center, safe_str(getattr(task_obj, "РабочийЦентр", getpass.getuser())))
 
         base = getattr(task_obj, "ДокументОснование", None)
         if base and hasattr(base, "Номер"):
@@ -281,6 +281,16 @@ class ProductionTaskEditForm(QWidget):
     def _cell_text(self, row, col):
         item = self.tbl.item(row, col)
         return item.text().strip() if item else ""
+
+    def _set_combo_value(self, combo: QComboBox, text: str) -> None:
+        """Устанавливает значение в выпадающем списке по тексту."""
+        idx = combo.findText(text)
+        if idx >= 0:
+            combo.setCurrentIndex(idx)
+        else:
+            if text:
+                combo.addItem(text)
+                combo.setCurrentIndex(combo.count() - 1)
 
     def save_task(self):
         if not self._order_ref:
