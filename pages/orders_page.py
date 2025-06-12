@@ -410,11 +410,11 @@ class OrdersPage(QWidget):
                 date = self._orders[i]["date"]
                 if mark:
                     bridge.mark_order_for_deletion(number, date)
-                else:
-                    bridge.unmark_order_deletion(number, date)
                     config.BRIDGE.mark_order_for_deletion(number)
                 else:
+                    bridge.unmark_order_deletion(number, date)
                     config.BRIDGE.unmark_order_deletion(number)
+
         self._load_orders()
 
     def _show_order(self, row, col):
