@@ -24,7 +24,7 @@ class LoginDialog(QDialog):
 
         form = QFormLayout()
         self.c_user = QComboBox(); self.c_user.setEditable(True)
-        self.c_user.addItems(config.EMPLOYEE_LOGINS)
+        self.c_user.addItems(config.load_employee_logins())
         self.ed_pass = QLineEdit(); self.ed_pass.setEchoMode(QLineEdit.Password)
         form.addRow("Пользователь", self.c_user)
         form.addRow("Пароль", self.ed_pass)
