@@ -6,7 +6,8 @@ from PyQt5.QtCore    import Qt
 from PyQt5.QtGui     import QFont
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTreeWidget, QTreeWidgetItem,
-    QHeaderView, QPushButton, QMessageBox, QTabWidget, QInputDialog
+    QHeaderView, QPushButton, QMessageBox, QTabWidget, QInputDialog,
+    QComboBox, QFormLayout
 )
 from logic.production_docs import (
     WAX_JOBS_POOL,
@@ -125,6 +126,24 @@ class WaxPage(QWidget):
         self.tabs_jobs = QTabWidget()
         j_main.addWidget(self.tabs_jobs, 1)
 
+        tab_jobs_new = QWidget(); j_new = QVBoxLayout(tab_jobs_new)
+        lbl_new = QLabel("Создание нарядов")
+        lbl_new.setFont(QFont("Arial", 16, QFont.Bold))
+        j_new.addWidget(lbl_new)
+
+        form = QFormLayout()
+        self.combo_3d_master = QComboBox(); self.combo_3d_master.setEditable(True)
+        self.combo_3d_master.addItems(config.EMPLOYEE_LOGINS)
+        self.combo_resin_master = QComboBox(); self.combo_resin_master.setEditable(True)
+        self.combo_resin_master.addItems(config.EMPLOYEE_LOGINS)
+        form.addRow("3D мастер", self.combo_3d_master)
+        form.addRow("Мастер резины", self.combo_resin_master)
+        j_new.addLayout(form)
+
+        btn_create_jobs = QPushButton("Создать наряды")
+        btn_create_jobs.clicked.connect(self._create_wax_jobs)
+        j_new.addWidget(btn_create_jobs, alignment=Qt.AlignLeft)
+
         tab_jobs_list = QWidget(); j1 = QVBoxLayout(tab_jobs_list)
         lbl_jobs = QLabel("Наряды (восковые изделия)")
         lbl_jobs.setFont(QFont("Arial", 16, QFont.Bold))
@@ -144,6 +163,7 @@ class WaxPage(QWidget):
         btn_jobs_refresh.clicked.connect(self._fill_jobs_tree)
         j1.addLayout(btn_bar_jobs)
 
+        self.tabs_jobs.addTab(tab_jobs_new, "Создание")
         self.tabs_jobs.addTab(tab_jobs_list, "Наряды (восковые изделия)")
         self.tabs.addTab(self.tab_jobs, "Наряды восковых изделий по методам")
 
