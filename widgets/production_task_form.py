@@ -220,8 +220,12 @@ class ProductionTaskEditForm(QWidget):
         if base:
             try:
                 base_obj = base.GetObject() if hasattr(base, "GetObject") else base
+
                 order_number = str(getattr(base_obj, "Номер", ""))
                 self.order_line.setText(order_number)
+
+                self.order_line.setText(str(getattr(base_obj, "Номер", "")))
+
                 self._order_ref = base
             except Exception as e:  # noqa: PIE786
                 log(f"❌ Ошибка чтения осн. документа: {e}")
