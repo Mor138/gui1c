@@ -1154,6 +1154,71 @@ class COM1CBridge:
                 log(f"[create_job] ❌ Ошибка для {method}: {e}")
         return result
 
+    def create_wax_jobs_from_task(self, task_ref, master_3d: str, master_form: str) -> list[str]:
+        """Создаёт два наряда из одного задания по артикулу."""
+        mapping = {"3D печать": master_3d, "Пресс-форма": master_form}
+        result: list[str] = []
+
+        try:
+            if isinstance(task_ref, str):
+                task = self.connection.GetObject(task_ref)
+            elif hasattr(task_ref, "Продукция"):
+                task = task_ref
+            elif hasattr(task_ref, "GetObject"):
+                task = task_ref.GetObject()
+            else:
+                log("[create_wax_jobs_from_task] ❌ Неверный тип ссылки")
+                return []
+        except Exception as exc:
+            log(f"[create_wax_jobs_from_task] ❌ Ошибка доступа к заданию: {exc}")
+            return []
+
+        organization = getattr(task, "Организация", None)
+        wh = getattr(task, "Склад", None)
+
+        rows_by_method = {"3D печать": [], "Пресс-форма": []}
+        for row in task.Продукция:
+            art = safe_str(getattr(row.Номенклатура, "Артикул", "")).lower()
+            method = "3D печать" if "д" in art or "d" in art else "Пресс-форма"
+            rows_by_method[method].append(row)
+
+        for method, rows in rows_by_method.items():
+            if not rows:
+                continue
+            try:
+                job = self.documents.НарядВосковыеИзделия.CreateDocument()
+                job.Дата = datetime.now()
+                if organization:
+                    job.Организация = organization
+                if wh:
+                    job.Склад = wh
+                job.ПроизводственныйУчасток = task.ПроизводственныйУчасток
+                job.ЗаданиеНаПроизводство = task
+                job.ТехОперация = self.get_ref("ТехОперации", "3D" if method == "3D печать" else "Пресс-форма")
+                master_name = mapping.get(method)
+                job.Сотрудник = self.get_ref("ФизическиеЛица", master_name)
+                job.Комментарий = f"Создан автоматически для {method}"
+                for r in rows:
+                    row = job.Товары.Add()
+                    row.Номенклатура = r.Номенклатура
+                    row.Количество = r.Количество
+                    row.Размер = r.Размер
+                    row.ВариантИзготовления = r.ВариантИзготовления
+                    row.Проба = r.Проба
+                    row.ЦветМеталла = r.ЦветМеталла
+                    if hasattr(r, "ХарактеристикаВставок"):
+                        row.ХарактеристикаВставок = r.ХарактеристикаВставок
+                    row.Заказ = r.Заказ
+                    row.КонечнаяПродукция = r.КонечнаяПродукция
+                    if hasattr(r, "Вес"):
+                        row.Вес = r.Вес
+                job.Write()
+                result.append(str(job.Номер))
+                log(f"[create_wax_jobs_from_task] ✅ Создан наряд {method}: №{job.Номер}")
+            except Exception as exc:
+                log(f"[create_wax_jobs_from_task] ❌ Ошибка для {method}: {exc}")
+        return result
+
     def _find_task_by_number(self, number: str):
         doc_manager = getattr(self.connection.Documents, "ЗаданиеНаПроизводство", None)
         if doc_manager is None:

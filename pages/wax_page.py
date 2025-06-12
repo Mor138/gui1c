@@ -458,9 +458,10 @@ class WaxPage(QWidget):
             return
 
         print("[DEBUG] last_created_task_ref =", self.last_created_task_ref)
-        result = config.BRIDGE.create_multiple_wax_jobs_from_task(
+        result = config.BRIDGE.create_wax_jobs_from_task(
             self.last_created_task_ref,
-            {"3D печать": master_3d, "Пресс-форма": master_resin}
+            master_3d,
+            master_resin,
         )
 
         if result:
@@ -484,8 +485,12 @@ class WaxPage(QWidget):
 
             return
         try:
-            count = config.BRIDGE.create_multiple_wax_jobs_from_task(task_num)
-            QMessageBox.information(self, "Готово", f"Создано {count} нарядов")
+            count = config.BRIDGE.create_wax_jobs_from_task(
+                task_num,
+                self.combo_3d_master.currentText().strip(),
+                self.combo_resin_master.currentText().strip(),
+            )
+            QMessageBox.information(self, "Готово", f"Создано {len(count)} нарядов")
             self.refresh()
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", str(e))
