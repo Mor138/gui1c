@@ -1130,7 +1130,11 @@ class COM1CBridge:
 
         for method, rows in rows_by_method.items():
             try:
-                job = self.documents.НарядВосковыеИзделия.CreateDocument()
+                job_ref = self.documents.НарядВосковыеИзделия.CreateDocument()
+                job = job_ref.GetObject() if hasattr(job_ref, "GetObject") else job_ref
+                if not hasattr(job, "Товары"):
+                    log("[create_job] ❌ Объект наряда не содержит табличной части 'Товары'")
+                    continue
                 job.Дата = datetime.now()
 
                 if organization:
@@ -1140,7 +1144,11 @@ class COM1CBridge:
                     job.Склад = wh
                 job.ПроизводственныйУчасток = task.ПроизводственныйУчасток
                 job.ЗаданиеНаПроизводство = task
-                job.ТехОперация = self.get_ref("ТехОперации", "3D" if method == "3D печать" else "Пресс-форма")
+                operation_name = "3D печать" if method == "3D печать" else "Пресс-форма"
+                operation_ref = self.get_ref("ТехОперации", operation_name)
+                if not operation_ref:
+                    raise ValueError(f"Операция '{operation_name}' не найдена в справочнике 'ТехОперации'")
+                job.ТехОперация = operation_ref
 
                 master_name = method_to_employee.get(method)
                 job.Сотрудник = self.get_ref("ФизическиеЛица", master_name)
@@ -1200,7 +1208,11 @@ class COM1CBridge:
             if not rows:
                 continue
             try:
-                job = self.documents.НарядВосковыеИзделия.CreateDocument()
+                job_ref = self.documents.НарядВосковыеИзделия.CreateDocument()
+                job = job_ref.GetObject() if hasattr(job_ref, "GetObject") else job_ref
+                if not hasattr(job, "Товары"):
+                    log("[create_wax_jobs_from_task] ❌ Объект наряда не содержит табличной части 'Товары'")
+                    continue
                 job.Дата = datetime.now()
                 if organization:
                     job.Организация = organization
@@ -1208,7 +1220,11 @@ class COM1CBridge:
                     job.Склад = wh
                 job.ПроизводственныйУчасток = task.ПроизводственныйУчасток
                 job.ЗаданиеНаПроизводство = task
-                job.ТехОперация = self.get_ref("ТехОперации", "3D" if method == "3D печать" else "Пресс-форма")
+                operation_name = "3D печать" if method == "3D печать" else "Пресс-форма"
+                operation_ref = self.get_ref("ТехОперации", operation_name)
+                if not operation_ref:
+                    raise ValueError(f"Операция '{operation_name}' не найдена в справочнике 'ТехОперации'")
+                job.ТехОперация = operation_ref
                 master_name = mapping.get(method)
                 job.Сотрудник = self.get_ref("ФизическиеЛица", master_name)
                 job.Комментарий = f"Создан автоматически для {method}"
