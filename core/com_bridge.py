@@ -117,8 +117,8 @@ class COM1CBridge:
         except Exception as e:
             return "<err>"    
         
-    def print_order_preview_pdf(self, number: str) -> bool:
-        obj = self._find_document_by_number("ЗаказВПроизводство", number)
+    def print_order_preview_pdf(self, number: str, date: str | None = None) -> bool:
+        obj = self._find_document_by_number("ЗаказВПроизводство", number, date)
         if not obj:
             log(f"[Печать] Заказ №{number} не найден")
             return False
@@ -139,17 +139,22 @@ class COM1CBridge:
             log(f"❌ Ошибка при формировании PDF: {e}")
             return False     
 
-    def _find_document_by_number(self, doc_name: str, number: str):
+    def _find_document_by_number(self, doc_name: str, number: str, date: str | None = None):
         doc = getattr(self.documents, doc_name, None)
         if not doc:
             log(f"[ERROR] Документ '{doc_name}' не найден")
             return None
         selection = doc.Select()
+        found = None
         while selection.Next():
             obj = selection.GetObject()
             if str(obj.Number).strip() == number.strip():
-                return obj
-        return None
+                if date:
+                    if str(obj.Date)[:10] == str(date)[:10]:
+                        return obj
+                elif not found or obj.Date > found.Date:
+                    found = obj
+        return found
         
     def _find_doc(self, doc_name: str, num: str):
         """Находит документ по имени и номеру"""
@@ -165,8 +170,8 @@ class COM1CBridge:
                 return doc
         raise Exception(f"Документ '{doc_name}' с номером {num} не найден")    
 
-    def undo_posting(self, number: str) -> bool:
-        obj = self._find_document_by_number("ЗаказВПроизводство", number)
+    def undo_posting(self, number: str, date: str | None = None) -> bool:
+        obj = self._find_document_by_number("ЗаказВПроизводство", number, date)
         if not obj:
             log(f"[UndoPosting] Документ №{number} не найден")
             return False
@@ -179,8 +184,8 @@ class COM1CBridge:
             log(f"❌ UndoPosting error: {e}")
             return False
 
-    def delete_order_by_number(self, number: str) -> bool:
-        obj = self._find_document_by_number("ЗаказВПроизводство", number)
+    def delete_order_by_number(self, number: str, date: str | None = None) -> bool:
+        obj = self._find_document_by_number("ЗаказВПроизводство", number, date)
         if not obj:
             log(f"[Удаление] Заказ №{number} не найден")
             return False
@@ -195,8 +200,8 @@ class COM1CBridge:
             log(f"❌ Ошибка при удалении: {e}")
             return False
 
-    def post_order(self, number: str) -> bool:
-        obj = self._find_document_by_number("ЗаказВПроизводство", number)
+    def post_order(self, number: str, date: str | None = None) -> bool:
+        obj = self._find_document_by_number("ЗаказВПроизводство", number, date)
         if not obj:
             log(f"[Проведение] Заказ №{number} не найден")
             return False
@@ -214,8 +219,8 @@ class COM1CBridge:
             return False
             
 
-    def mark_order_for_deletion(self, number: str) -> bool:
-        obj = self._find_document_by_number("ЗаказВПроизводство", number)
+    def mark_order_for_deletion(self, number: str, date: str | None = None) -> bool:
+        obj = self._find_document_by_number("ЗаказВПроизводство", number, date)
         if not obj:
             log(f"[Пометка] Документ №{number} не найден")
             return False
@@ -236,8 +241,8 @@ class COM1CBridge:
             log(f"❌ Ошибка при установке пометки: {e}")
             return False
             
-    def unmark_order_deletion(self, number: str) -> bool:
-        obj = self._find_document_by_number("ЗаказВПроизводство", number)
+    def unmark_order_deletion(self, number: str, date: str | None = None) -> bool:
+        obj = self._find_document_by_number("ЗаказВПроизводство", number, date)
         if not obj:
             log(f"[Снятие пометки] Документ №{number} не найден")
             return False
@@ -429,8 +434,8 @@ class COM1CBridge:
         log(f"[{catalog_name}] Не найден: {description}")
         return None        
 
-    def update_order(self, number: str, fields: dict, items: list) -> bool:
-        obj = self._find_document_by_number("ЗаказВПроизводство", number)
+    def update_order(self, number: str, fields: dict, items: list, date: str | None = None) -> bool:
+        obj = self._find_document_by_number("ЗаказВПроизводство", number, date)
         if not obj:
             log(f"[Обновление] Заказ №{number} не найден")
             return False
@@ -566,21 +571,22 @@ class COM1CBridge:
             log(f"❌ Ошибка при записи документа: {e}")
             return f"Ошибка: {e}"
             
-    def get_doc_object_by_number(self, doc_type: str, number: str):
+    def get_doc_object_by_number(self, doc_type: str, number: str, date: str | None = None):
         try:
             catalog = getattr(self.connection.Documents, doc_type)
             selection = catalog.Select()
             while selection.Next():
                 doc = selection.GetObject()
                 if str(doc.Number).strip() == str(number).strip():
-                    log(f"[get_doc_object_by_number] ✅ Найден объект документа {doc_type} №{number}")
-                    return doc
+                    if date is None or str(doc.Date)[:10] == str(date)[:10]:
+                        log(f"[get_doc_object_by_number] ✅ Найден объект документа {doc_type} №{number}")
+                        return doc
             log(f"[get_doc_object_by_number] ❌ Документ {doc_type} №{number} не найден")
         except Exception as e:
             log(f"[get_doc_object_by_number] ❌ Ошибка: {e}")
         return None
 
-    def get_doc_ref(self, doc_name: str, number: str):
+    def get_doc_ref(self, doc_name: str, number: str, date: str | None = None):
         """Возвращает ссылку на документ по номеру."""
         docs = getattr(self.connection.Documents, doc_name, None)
         if docs is None:
@@ -591,8 +597,9 @@ class COM1CBridge:
         while selection.Next():
             doc = selection.GetObject()
             if str(doc.Number).strip() == str(number).strip():
-                log(f"[get_doc_ref] ✅ Найден документ {doc_name} №{number}")
-                return doc.Ref
+                if date is None or str(doc.Date)[:10] == str(date)[:10]:
+                    log(f"[get_doc_ref] ✅ Найден документ {doc_name} №{number}")
+                    return doc.Ref
 
         log(f"[get_doc_ref] ❌ Документ {doc_name} №{number} не найден")
         return None
@@ -964,8 +971,8 @@ class COM1CBridge:
         return rows   
            
         
-    def get_order_lines(self, doc_number: str) -> list[dict]:
-        doc = self._find_document_by_number("ЗаказВПроизводство", doc_number)
+    def get_order_lines(self, doc_number: str, date: str | None = None) -> list[dict]:
+        doc = self._find_document_by_number("ЗаказВПроизводство", doc_number, date)
         if not doc:
             log(f"❌ Заказ №{doc_number} не найден")
             return []
@@ -999,6 +1006,7 @@ class COM1CBridge:
                 for row in doc.Продукция:
                     result.append({
                         "nomen": self.safe(row, "Номенклатура"),
+                        "article": safe_str(getattr(row.Номенклатура, "Артикул", "")),
                         "size": self.safe(row, "Размер"),
                         "sample": self.safe(row, "Проба"),
                         "color": self.safe(row, "ЦветМеталла"),

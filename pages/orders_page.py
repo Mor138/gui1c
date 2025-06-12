@@ -50,6 +50,8 @@ class OrdersPage(QWidget):
         self._load_orders()
         self._edit_mode = False
         self._current_number = ""
+        self._current_date = ""
+        self._current_ref = None
         self._select_callback = None
 
     def set_selection_callback(self, callback=None):
@@ -89,7 +91,7 @@ class OrdersPage(QWidget):
                 "ЕдиницаИзмерения": "шт"
             })
 
-        success = bridge.update_order(self._current_number, fields, items)
+        success = bridge.update_order(self._current_number, fields, items, self._current_date)
         if success:
             QMessageBox.information(self, "Готово", f"Заказ №{self._current_number} обновлён.")
             self._load_orders()
@@ -188,7 +190,8 @@ class OrdersPage(QWidget):
             QMessageBox.warning(self, "Ошибка", "Выберите заказ для печати")
             return
         number = self.tbl_orders.item(selected, 1).text().strip().replace("⚪", "")
-        success = bridge.print_order_preview_pdf(number)
+        date = self._orders[selected]["date"]
+        success = bridge.print_order_preview_pdf(number, date)
         if not success:
             QMessageBox.critical(self, "Ошибка", f"Не удалось сформировать предпросмотр для заказа №{number}")   
 
@@ -270,6 +273,8 @@ class OrdersPage(QWidget):
         self.tabs.setCurrentIndex(0)
         self._edit_mode = False
         self._current_number = ""
+        self._current_date = ""
+        self._current_ref = None
         self.btn_update.setVisible(False)  # ← скрыть кнопку "Обновить"
 
     def _post(self):
@@ -353,7 +358,7 @@ class OrdersPage(QWidget):
     def _mass_post(self):
         for i, o in enumerate(self._orders):
             if self.tbl_orders.item(i, 0).checkState() == Qt.Checked:
-                bridge.post_order(o["num"])
+                bridge.post_order(o["num"], o["date"])
         self._load_orders()
 
     def _send_to_wax(self):
@@ -384,29 +389,29 @@ class OrdersPage(QWidget):
 
         process_new_order(order_json)
         if callable(self.on_send_to_wax):
-            self.on_send_to_wax(number)
+            self.on_send_to_wax(order)
 
     def _delete_selected_order(self):
         selected = [i for i in range(self.tbl_orders.rowCount())
                     if self.tbl_orders.item(i, 0).checkState() == Qt.Checked]
         for i in selected:
-            bridge.delete_order_by_number(self._orders[i]["num"])
+            bridge.delete_order_by_number(self._orders[i]["num"], self._orders[i]["date"])
         self._load_orders()
 
     def _mark_deleted(self, mark=True):
         for i in range(self.tbl_orders.rowCount()):
             if self.tbl_orders.item(i, 0).checkState() == Qt.Checked:
                 number = self._orders[i]["num"]
+                date = self._orders[i]["date"]
                 if mark:
-                    bridge.mark_order_for_deletion(number)
+                    bridge.mark_order_for_deletion(number, date)
                 else:
-                    bridge.unmark_order_deletion(number)
+                    bridge.unmark_order_deletion(number, date)
         self._load_orders()
 
     def _show_order(self, row, col):
         if self._select_callback:
-            order_number = self.tbl_orders.item(row, 1).text().strip().replace("⚪", "")
-            self._select_callback(order_number)
+            self._select_callback(self._orders[row])
             self._select_callback = None
             main_win = self.window()
             if hasattr(main_win, "menu") and hasattr(main_win, "page_idx"):
@@ -426,6 +431,8 @@ class OrdersPage(QWidget):
         self.ed_num.setText(o["num"])
         date = QDate.fromString(o["date"].split()[0], "yyyy-MM-dd")
         self.d_date.setDate(date)
+        self._current_date = o["date"]
+        self._current_ref = o.get("Ref")
 
         # Устанавливаем поля верхней формы
         self.c_org.setCurrentText(o["org"])
