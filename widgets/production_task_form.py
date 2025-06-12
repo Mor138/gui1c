@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import QDate, pyqtSignal
-from core.com_bridge import safe_str
+from core.com_bridge import safe_str, log
 import getpass
 
 
@@ -213,9 +213,13 @@ class ProductionTaskEditForm(QWidget):
         self._set_combo_value(self.c_center, safe_str(getattr(task_obj, "РабочийЦентр", getpass.getuser())))
 
         base = getattr(task_obj, "ДокументОснование", None)
-        if base and hasattr(base, "Номер"):
-            self.order_line.setText(str(base.Номер))
-            self._order_ref = base
+        if base:
+            try:
+                base_obj = base.GetObject() if hasattr(base, "GetObject") else base
+                self.order_line.setText(str(getattr(base_obj, "Номер", "")))
+                self._order_ref = base
+            except Exception as e:  # noqa: PIE786
+                log(f"❌ Ошибка чтения осн. документа: {e}")
 
         self.tbl.setRowCount(0)
         lines = self.bridge.get_task_lines(str(getattr(task_obj, "Номер", "")))
