@@ -48,6 +48,8 @@ class WaxPage(QWidget):
     def refresh(self):
         """Обновляет данные текущей вкладки."""
         self._fill_tasks_tree()
+        self._fill_jobs_tree()
+        self._fill_parties_tree()
 
     # ------------------------------------------------------------------
     def _ui(self):
@@ -117,8 +119,37 @@ class WaxPage(QWidget):
         self.tabs_tasks.addTab(tab_tasks_list, "Задания")
         self.tabs.addTab(self.tab_tasks, "Задания на производство")
 
+        # ----- Tab: Наряды восковых изделий по методам -----
+        self.tab_jobs = QWidget()
+        j_main = QVBoxLayout(self.tab_jobs)
+        self.tabs_jobs = QTabWidget()
+        j_main.addWidget(self.tabs_jobs, 1)
+
+        tab_jobs_list = QWidget(); j1 = QVBoxLayout(tab_jobs_list)
+        lbl_jobs = QLabel("Наряды (восковые изделия)")
+        lbl_jobs.setFont(QFont("Arial", 16, QFont.Bold))
+        j1.addWidget(lbl_jobs)
+
+        self.tree_jobs = QTreeWidget()
+        self.tree_jobs.setHeaderLabels([
+            "Наряд", "Метод", "Кол-во", "Вес", "Статус", "Док."
+        ])
+        self.tree_jobs.header().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.tree_jobs.setStyleSheet(CSS_TREE)
+        j1.addWidget(self.tree_jobs, 1)
+
+        btn_bar_jobs = QHBoxLayout()
+        btn_jobs_refresh = QPushButton("🔄 Обновить")
+        btn_bar_jobs.addWidget(btn_jobs_refresh)
+        btn_jobs_refresh.clicked.connect(self._fill_jobs_tree)
+        j1.addLayout(btn_bar_jobs)
+
+        self.tabs_jobs.addTab(tab_jobs_list, "Наряды (восковые изделия)")
+        self.tabs.addTab(self.tab_jobs, "Наряды восковых изделий по методам")
+
         # подключения сигналов
         self.tree_tasks.itemDoubleClicked.connect(self._on_task_double_click)
+        self.tree_jobs.itemDoubleClicked.connect(self._on_wax_job_double_click)
 
     def _show_wax_job_detail(self, item):
         from PyQt5.QtWidgets import QDialog, QTableWidget, QTableWidgetItem, QVBoxLayout
