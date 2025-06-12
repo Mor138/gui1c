@@ -138,9 +138,20 @@ class WaxPage(QWidget):
         ])
         for i, r in enumerate(rows):
             for j, k in enumerate([
-                "Номенклатура", "Размер", "Проба", "Цвет", "Количество", "Вес", "Партия", "Номер ёлки", "Состав набора"
+                "Номенклатура",
+                "Размер",
+                "Проба",
+                "Цвет",
+                "Количество",
+                "Вес",
+                "Партия",
+                "Номер ёлки",
+                "Состав набора",
             ]):
-                tbl.setItem(i, j, QTableWidgetItem(str(r.get(k, ""))))
+                val = r.get(k, "")
+                if k == "Вес" and val != "":
+                    val = f"{val:.{config.WEIGHT_DECIMALS}f}"
+                tbl.setItem(i, j, QTableWidgetItem(str(val)))
 
         tbl.resizeColumnsToContents()
         layout.addWidget(tbl)
@@ -303,12 +314,26 @@ class WaxPage(QWidget):
         layout = QVBoxLayout(dlg)
 
         tree = QTreeWidget()
-        tree.setHeaderLabels(["Номенклатура", "Размер", "Проба", "Цвет", "Кол-во", "Вес"])
+        tree.setHeaderLabels([
+            "Номенклатура",
+            "Размер",
+            "Проба",
+            "Цвет",
+            "Кол-во",
+            "Вес",
+        ])
         for row in lines:
-            QTreeWidgetItem(tree, [
-                row["nomen"], str(row["size"]), str(row["sample"]),
-                str(row["color"]), str(row["qty"]), str(row["weight"])
-            ])
+            QTreeWidgetItem(
+                tree,
+                [
+                    row["nomen"],
+                    str(row["size"]),
+                    str(row["sample"]),
+                    str(row["color"]),
+                    str(row["qty"]),
+                    f"{row['weight']:.{config.WEIGHT_DECIMALS}f}",
+                ],
+            )
         layout.addWidget(tree)
         dlg.resize(700, 400)
         dlg.exec_()
@@ -437,7 +462,7 @@ class WaxPage(QWidget):
                 f"{method_label} ({wax_code})",
                 method_label,
                 str(total_qty),
-                f"{total_weight:.3f}",
+                f"{total_weight:.{config.WEIGHT_DECIMALS}f}",
                 j0.get("status", ""),
                 '✅' if j0.get('sync_doc_num') else ''
             ])
@@ -449,7 +474,7 @@ class WaxPage(QWidget):
                     r["articles"],
                     "",
                     str(r["qty"]),
-                    f"{r.get('weight', 0.0):.3f}",
+                    f"{r.get('weight', 0.0):.{config.WEIGHT_DECIMALS}f}",
                     "", ""
                 ])
 
@@ -464,7 +489,7 @@ class WaxPage(QWidget):
             for b in pack["docs"].get("batches", []):
                 root = QTreeWidgetItem(self.tree_part, [
                     f"Партия {b['batch_barcode']}  ({b['metal']} {b['hallmark']} {b['color']})",
-                    str(b["qty"]), f"{b['total_w']:.3f}"
+                    str(b["qty"]), f"{b['total_w']:.{config.WEIGHT_DECIMALS}f}"
                 ])
                 root.setExpanded(True)
 
@@ -479,6 +504,6 @@ class WaxPage(QWidget):
                 for (art, size), d in agg.items():
                     QTreeWidgetItem(root, [
                         f"{art}  (р-р {size})",
-                        str(d["qty"]), f"{d['weight']:.3f}"
+                        str(d["qty"]), f"{d['weight']:.{config.WEIGHT_DECIMALS}f}"
                     ])
 

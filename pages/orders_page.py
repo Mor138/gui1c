@@ -212,7 +212,9 @@ class OrdersPage(QWidget):
         size.setSingleStep(0.5)     # шаг изменения
         size.setValue(16.0)
         qty = QSpinBox(); qty.setRange(1, 999); qty.setValue(1)
-        wgt = QDoubleSpinBox(); wgt.setDecimals(3); wgt.setMaximum(9999)
+        wgt = QDoubleSpinBox()
+        wgt.setDecimals(config.WEIGHT_DECIMALS)
+        wgt.setMaximum(9999)
         comment = QLineEdit()
         self.tbl.setCellWidget(r, 6, comment)
 
@@ -229,7 +231,7 @@ class OrdersPage(QWidget):
             name.setText(card.get("name", ""))
             if card.get("size"):
                 size.setValue(float(card["size"]))
-            wgt.setValue(round(card.get("w", 0) * qty.value(), 3))
+            wgt.setValue(round(card.get("w", 0) * qty.value(), config.WEIGHT_DECIMALS))
 
             # 🟡 добавляем недостающую строку
             article = art.currentText()
@@ -352,7 +354,7 @@ class OrdersPage(QWidget):
             status = "🟢" if o.get("posted") else ("❌" if o.get("deleted") else "⚪")
             vals = [
                 f"{status} {o['num']}", o["date"], o.get("prod_status", ""),
-                o.get("qty", 0), f"{o.get('weight', 0):.3f}",
+                o.get("qty", 0), f"{o.get('weight', 0):.{config.WEIGHT_DECIMALS}f}",
                 o.get("org", ""), o.get("contragent", ""), o.get("contract", ""), o.get("comment", "")
             ]
             for i, v in enumerate(vals):

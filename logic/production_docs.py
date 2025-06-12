@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from catalogs import NOMENCLATURE                      # метод 3d / rubber
 from core.logger import logger
+import config
 
 from .state import ORDERS_POOL, WAX_JOBS_POOL  # централизованное хранилище
 
@@ -52,7 +53,7 @@ def group_by_keys(items: list[dict], keys: tuple[str]):
             batch_barcode = code,
             **{k:v for k,v in zip(keys,key)},
             qty     = len(grp),
-            total_w = round(sum(i["weight"] for i in grp),3)
+            total_w = round(sum(i["weight"] for i in grp), config.WEIGHT_DECIMALS)
         ))
         mapping[code] = [i["item_barcode"] for i in grp]
     return batches, mapping

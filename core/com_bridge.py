@@ -11,6 +11,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 
 from .logger import logger
+import config
 
 # ---------------------------
 # Маппинг описаний в системные имена перечисления
@@ -97,7 +98,7 @@ class COM1CBridge:
                         "sample": self.safe(row, "Проба"),
                         "color": self.safe(row, "ЦветМеталла"),
                         "qty": row.Количество,
-                        "weight": row.Вес if hasattr(row, "Вес") else "",
+                        "weight": round(float(row.Вес), config.WEIGHT_DECIMALS) if hasattr(row, "Вес") else "",
                     })
                 break
         return result    
@@ -931,7 +932,7 @@ class COM1CBridge:
                 "hallmark": hallmark,
                 "color": color,
                 "qty": data["qty"],
-                "total_w": round(data["total_w"], 3)
+                "total_w": round(data["total_w"], config.WEIGHT_DECIMALS)
             })
         return result      
             
@@ -963,7 +964,7 @@ class COM1CBridge:
                 "Проба": self.safe(r, "Проба"),
                 "Цвет": self.safe(r, "ЦветМеталла"),
                 "Количество": r.Количество,
-                "Вес": r.Вес,
+                "Вес": round(float(r.Вес), config.WEIGHT_DECIMALS),
                 "Партия": self.safe(r, "Партия"),
                 "Номер ёлки": r.НомерЕлки if hasattr(r, "НомерЕлки") else "",
                 "Состав набора": r.СоставНабора if hasattr(r, "СоставНабора") else ""
