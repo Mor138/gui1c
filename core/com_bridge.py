@@ -849,7 +849,8 @@ class COM1CBridge:
                     log(f"[create_production_task] ⚠ Не удалось установить склад: {e}")
 
             doc.ПроизводственныйУчасток = self.get_ref("ПроизводственныеУчастки", "задание на производство")
-            doc.ТехОперация = self.get_ref("ТехОперации", "работа с восковыми изделиями")
+            operation = rows[0].get("operation", "работа с восковыми изделиями")
+            doc.ТехОперация = self.get_ref("ТехОперации", operation)
             employee_name = rows[0].get("employee", "Администратор")
             doc.РабочийЦентр = self.get_ref("ФизическиеЛица", employee_name)
             doc.Ответственный = self.get_ref("Пользователи", "Администратор")
@@ -885,7 +886,7 @@ class COM1CBridge:
                     z = doc.ЗаданияНаВыполнениеТехОперации.Add()
                     z.Вес = float(row.get("weight", 0) or 0)
                     z.Заказ = base_doc_ref
-                    z.ТехОперация = self.get_ref("ТехОперации", "работа с восковыми изделиями")
+                    z.ТехОперация = self.get_ref("ТехОперации", row.get("operation", operation))
                     z.РабочийЦентр = self.get_ref("ФизическиеЛица", employee_name)
                     z.Номенклатура = self.get_ref("Номенклатура", row.get("name", ""))
                     z.ВариантИзготовления = self.get_ref("ВариантыИзготовленияНоменклатуры", row.get("method", ""))
