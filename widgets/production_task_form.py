@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import QDate, pyqtSignal
-from core.com_bridge import safe_str
+from core.com_bridge import safe_str, log
 import getpass
 
 
@@ -208,14 +208,23 @@ class ProductionTaskEditForm(QWidget):
         except Exception:
             pass
 
-        self._set_combo_value(self.c_section, safe_str(getattr(task_obj, "ПроизводственныйУчасток", "")))
-        self._set_combo_value(self.c_op, safe_str(getattr(task_obj, "ТехОперация", "")))
-        self._set_combo_value(self.c_center, safe_str(getattr(task_obj, "РабочийЦентр", getpass.getuser())))
+        # --- преобразуем COM-поля правильно ---
+        def to_str(val):
+            return safe_str(val.Description) if hasattr(val, "Description") else safe_str(val)
+
+        self._set_combo_value(self.c_section, to_str(getattr(task_obj, "ПроизводственныйУчасток", "")))
+        self._set_combo_value(self.c_op, to_str(getattr(task_obj, "ТехОперация", "")))
+        self._set_combo_value(self.c_center, to_str(getattr(task_obj, "РабочийЦентр", getpass.getuser())))
 
         base = getattr(task_obj, "ДокументОснование", None)
-        if base and hasattr(base, "Номер"):
-            self.order_line.setText(str(base.Номер))
-            self._order_ref = base
+        if base:
+            try:
+                base_obj = base.GetObject() if hasattr(base, "GetObject") else base
+                order_number = str(getattr(base_obj, "Номер", ""))
+                self.order_line.setText(order_number)
+                self._order_ref = base
+            except Exception as e:  # noqa: PIE786
+                log(f"❌ Ошибка чтения осн. документа: {e}")
 
         self.tbl.setRowCount(0)
         lines = self.bridge.get_task_lines(str(getattr(task_obj, "Номер", "")))
