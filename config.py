@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from core.logger import logger  # инициализация логирования
 from core.com_bridge import COM1CBridge
+from core import config_parser
 
 # Base directory of the project
 BASE_DIR = Path(__file__).resolve().parent
@@ -85,11 +86,17 @@ QPushButton:hover{background:#2563eb;}
 """
 
 # Список логинов сотрудников для выпадающего меню
-EMPLOYEE_LOGINS = [
-    "Администратор",
-    "Иванов",
-    "Петров",
-]
+def load_employee_logins() -> list[str]:
+    """Загружает логины сотрудников из дампа конфигурации."""
+    try:
+        users = config_parser.get_catalog_items("Пользователи")
+        return users or ["Администратор"]
+    except Exception as exc:  # безопасность на случай проблем парсинга
+        logger.error("Не удалось загрузить логины сотрудников: %s", exc)
+        return ["Администратор"]
+
+
+EMPLOYEE_LOGINS = load_employee_logins()
 
 # Style for tree widgets used on the wax page
 CSS_TREE = """
