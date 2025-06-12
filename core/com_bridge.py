@@ -730,7 +730,11 @@ class COM1CBridge:
         while docs.Next():
             obj = docs.GetObject()
 
+<<<<<<< HEAD
             rows = getattr(obj, "ТоварыВыдано", [])
+=======
+            rows = getattr(obj, "Выдано", [])
+>>>>>>> 5adb4f7c6957d5c8bdeab014e6c4a13c5749e8fc
             weight = 0.0
             qty = 0
             for r in rows:
@@ -739,12 +743,25 @@ class COM1CBridge:
 
             result.append({
                 "Номер": str(obj.Номер),
-                "Метод": safe_str(obj.ТехОперация.Description),
                 "Дата": obj.Дата.strftime("%d.%m.%Y"),
+<<<<<<< HEAD
                 "Сотрудник": safe_str(obj.Сотрудник.Description),
                 "Вес": weight,
                 "Кол-во": qty,
                 "Проведен": obj.Проведен,
+=======
+                "Закрыт": "✅" if getattr(obj, "Проведен", False) else "—",
+                "Сотрудник": safe_str(obj.Сотрудник),
+                "ТехОперация": safe_str(obj.ТехОперация),
+                "Комментарий": safe_str(obj.Комментарий),
+                "Склад": safe_str(obj.Склад),
+                "ПроизводственныйУчасток": safe_str(obj.ПроизводственныйУчасток),
+                "Организация": safe_str(obj.Организация),
+                "Задание": safe_str(getattr(obj, "ЗаданиеНаПроизводство", "")) or "—",
+                "Ответственный": safe_str(obj.Ответственный),
+                "Вес": round(weight, 2),
+                "Кол-во": qty,
+>>>>>>> 5adb4f7c6957d5c8bdeab014e6c4a13c5749e8fc
             })
         return result
         
