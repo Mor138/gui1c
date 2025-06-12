@@ -13,7 +13,8 @@ from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt, QDate
 from logic.production_docs import process_new_order
 from core.com_bridge import log
-from config import BRIDGE as bridge, ORDERS_COLS
+import config
+from config import ORDERS_COLS
 
 def parse_variant(variant: str) -> tuple[str, str, str]:
     """Разбирает строку варианта на металл, пробу и цвет.
@@ -40,12 +41,12 @@ class OrdersPage(QWidget):
     def __init__(self, on_send_to_wax=None):
         super().__init__()
         self.on_send_to_wax = on_send_to_wax
-        self.articles = bridge.get_articles()
-        self.organizations = bridge.list_catalog_items("Организации")
-        self.counterparties = bridge.list_catalog_items("Контрагенты")
-        self.contracts = bridge.list_catalog_items("ДоговорыКонтрагентов")
-        self.warehouses = bridge.list_catalog_items("Склады")
-        self.production_statuses = bridge.PRODUCTION_STATUSES
+        self.articles = config.BRIDGE.get_articles()
+        self.organizations = config.BRIDGE.list_catalog_items("Организации")
+        self.counterparties = config.BRIDGE.list_catalog_items("Контрагенты")
+        self.contracts = config.BRIDGE.list_catalog_items("ДоговорыКонтрагентов")
+        self.warehouses = config.BRIDGE.list_catalog_items("Склады")
+        self.production_statuses = config.BRIDGE.PRODUCTION_STATUSES
         self._ui()
         self._load_orders()
         self._edit_mode = False
@@ -89,7 +90,7 @@ class OrdersPage(QWidget):
                 "ЕдиницаИзмерения": "шт"
             })
 
-        success = bridge.update_order(self._current_number, fields, items)
+        success = config.BRIDGE.update_order(self._current_number, fields, items)
         if success:
             QMessageBox.information(self, "Готово", f"Заказ №{self._current_number} обновлён.")
             self._load_orders()
@@ -113,7 +114,7 @@ class OrdersPage(QWidget):
         form = QFormLayout()
         self.comment_input = QLineEdit()
         form.addRow("Комментарий к заказу:", self.comment_input)
-        self.ed_num = QLabel(bridge.get_next_order_number())
+        self.ed_num = QLabel(config.BRIDGE.get_next_order_number())
         self.d_date = QDateEdit(datetime.now()); self.d_date.setCalendarPopup(True)
         self.c_org = QComboBox(); self.c_org.addItems([x["Description"] for x in self.organizations])
         self.c_contr = QComboBox(); self.c_contr.addItems([x["Description"] for x in self.counterparties])
@@ -188,7 +189,7 @@ class OrdersPage(QWidget):
             QMessageBox.warning(self, "Ошибка", "Выберите заказ для печати")
             return
         number = self.tbl_orders.item(selected, 1).text().strip().replace("⚪", "")
-        success = bridge.print_order_preview_pdf(number)
+        success = config.BRIDGE.print_order_preview_pdf(number)
         if not success:
             QMessageBox.critical(self, "Ошибка", f"Не удалось сформировать предпросмотр для заказа №{number}")   
 
@@ -229,7 +230,7 @@ class OrdersPage(QWidget):
             article = art.currentText()
             prev = variant.currentText()
             variant.clear()
-            variants = bridge.get_variants_by_article(article)
+            variants = config.BRIDGE.get_variants_by_article(article)
             variant.addItems(variants)
             if prev in variants:
                 variant.setCurrentText(prev)
@@ -261,7 +262,7 @@ class OrdersPage(QWidget):
             self.tbl.removeRow(r - 1)
 
     def _new_order(self):
-        self.ed_num.setText(bridge.get_next_order_number())
+        self.ed_num.setText(config.BRIDGE.get_next_order_number())
         self.tbl.setRowCount(0)
         self._add_row()
         # Сбрасываем дату и комментарий при создании нового заказа
@@ -300,7 +301,7 @@ class OrdersPage(QWidget):
             })
 
         # ⏩ Сначала создаём документ в 1С
-        number = bridge.create_order(fields, items)
+        number = config.BRIDGE.create_order(fields, items)
 
         # Потом подготавливаем JSON
         order_json_rows = []
@@ -335,7 +336,7 @@ class OrdersPage(QWidget):
 
     def _load_orders(self):
         self.tbl_orders.setRowCount(0)
-        self._orders = bridge.list_orders()
+        self._orders = config.BRIDGE.list_orders()
         for o in self._orders:
             r = self.tbl_orders.rowCount()
             self.tbl_orders.insertRow(r)
@@ -353,7 +354,7 @@ class OrdersPage(QWidget):
     def _mass_post(self):
         for i, o in enumerate(self._orders):
             if self.tbl_orders.item(i, 0).checkState() == Qt.Checked:
-                bridge.post_order(o["num"])
+                config.BRIDGE.post_order(o["num"])
         self._load_orders()
 
     def _send_to_wax(self):
@@ -390,7 +391,7 @@ class OrdersPage(QWidget):
         selected = [i for i in range(self.tbl_orders.rowCount())
                     if self.tbl_orders.item(i, 0).checkState() == Qt.Checked]
         for i in selected:
-            bridge.delete_order_by_number(self._orders[i]["num"])
+            config.BRIDGE.delete_order_by_number(self._orders[i]["num"])
         self._load_orders()
 
     def _mark_deleted(self, mark=True):
@@ -398,9 +399,9 @@ class OrdersPage(QWidget):
             if self.tbl_orders.item(i, 0).checkState() == Qt.Checked:
                 number = self._orders[i]["num"]
                 if mark:
-                    bridge.mark_order_for_deletion(number)
+                    config.BRIDGE.mark_order_for_deletion(number)
                 else:
-                    bridge.unmark_order_deletion(number)
+                    config.BRIDGE.unmark_order_deletion(number)
         self._load_orders()
 
     def _show_order(self, row, col):

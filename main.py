@@ -16,7 +16,6 @@ sys.path.append(str(base_dir / "core"))
 sys.path.append(str(base_dir / "logic"))
 
 from config import (
-    BRIDGE as bridge,
     APP_NAME as APP,
     APP_VERSION as VER,
     MENU_ITEMS,
@@ -25,11 +24,13 @@ from config import (
     HEADER_CSS,
     SIDEBAR_CSS,
 )
+import config
+from widgets import LoginDialog
 from PyQt5.QtCore    import Qt
 from PyQt5.QtGui     import QFont, QCursor
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QListWidget, QStackedWidget,
-    QVBoxLayout, QHBoxLayout, QToolButton
+    QVBoxLayout, QHBoxLayout, QToolButton, QDialog
 )
 
 # Страницы
@@ -101,7 +102,7 @@ class Main(QMainWindow):
             elif key == "wax":
                 page = WaxPage()
             elif key == "catalogs":
-                page = CatalogsPage(bridge)  # ← вот это обязательно!
+                page = CatalogsPage(config.BRIDGE)  # ← вот это обязательно!
             else:
                 page = StubPage(title.strip())
             self.pages.addWidget(page)
@@ -123,4 +124,13 @@ class Main(QMainWindow):
 if __name__ == "__main__":
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
     app = QApplication(sys.argv); app.setStyle("Fusion")
-    win = Main(); win.show(); sys.exit(app.exec_())
+
+    dlg = LoginDialog()
+    if dlg.exec_() != QDialog.Accepted:
+        sys.exit()
+    user, password = dlg.get_credentials()
+    config.init_bridge(user, password)
+
+    win = Main()
+    win.show()
+    sys.exit(app.exec_())

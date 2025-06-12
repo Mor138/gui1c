@@ -9,8 +9,17 @@ BASE_DIR = Path(__file__).resolve().parent
 # Path to 1C database
 ONEC_PATH = os.getenv("ONEC_PATH", "C:/Users/Mor/Desktop/1C/proiz")
 
-# Global COM bridge instance
-BRIDGE = COM1CBridge(ONEC_PATH)
+# Глобальный экземпляр COM‑моста
+BRIDGE = None
+
+
+def init_bridge(user: str, password: str, base_path: str | None = None):
+    """Инициализирует подключение к 1С с указанными учётными данными."""
+    global BRIDGE
+    if base_path is None:
+        base_path = ONEC_PATH
+    BRIDGE = COM1CBridge(base_path, usr=user, pwd=password)
+    return BRIDGE
 
 # Application
 APP_NAME = "Jewelry MES (shell-only)"

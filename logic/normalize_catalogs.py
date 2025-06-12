@@ -5,7 +5,7 @@
 
 
 from collections import defaultdict
-from config import BRIDGE as bridge
+import config
 
 _NORMALIZED = None
 
@@ -17,7 +17,7 @@ def load_normalized():
 
     normalized = {"Камни": [], "Вставки": [], "Изделия": []}
 
-    nomenclature = bridge.list_catalog_items("Номенклатура", 10000)
+    nomenclature = config.BRIDGE.list_catalog_items("Номенклатура", 10000)
     for item in nomenclature:
         name = item.get("Наименование", "")
         insert = item.get("Вставка", "")
