@@ -155,8 +155,18 @@ class WaxPage(QWidget):
         self.btn_select_task.clicked.connect(self.select_task_for_wax_jobs)
         j_new.addWidget(self.btn_select_task, alignment=Qt.AlignLeft)
 
+
+        self.lbl_task_number = QLabel("Задание: № —")
+        self.lbl_task_date = QLabel("Дата: —")
+
+        info_layout = QHBoxLayout()
+        info_layout.addWidget(self.lbl_task_number)
+        info_layout.addWidget(self.lbl_task_date)
+        j_new.addLayout(info_layout)
+
         self.lbl_task_info = QLabel("Задание не выбрано")
         j_new.addWidget(self.lbl_task_info, alignment=Qt.AlignLeft)
+
 
         self.tbl_task_lines = QTableWidget(0, 7)
         self.tbl_task_lines.setHorizontalHeaderLabels([
@@ -401,12 +411,22 @@ class WaxPage(QWidget):
         self.last_created_task_ref = task_obj
         self._fill_jobs_table_from_task(task_obj)
 
+
+        if hasattr(self, "lbl_task_number") and hasattr(self, "lbl_task_date"):
+            self.lbl_task_number.setText(f"Задание: № {task_obj.Номер}")
+            try:
+                d = task_obj.Дата.strftime("%d.%m.%Y")
+            except Exception:
+                d = ""
+            self.lbl_task_date.setText(f"Дата: {d}")
+
         if hasattr(self, "lbl_task_info"):
             try:
                 d = str(task_obj.Дата)[:10]
             except Exception:
                 d = ""
             self.lbl_task_info.setText(f"Задание №{task_obj.Номер} от {d}")
+
 
         log(f"[UI] ✅ Загружены данные задания №{task_obj.Номер}")
 
