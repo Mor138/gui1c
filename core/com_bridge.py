@@ -1214,8 +1214,15 @@ class COM1CBridge:
                 job_ref = self.documents.НарядВосковыеИзделия.CreateDocument()
                 job = job_ref.GetObject() if hasattr(job_ref, "GetObject") else job_ref
 
+
                 if not hasattr(job, "ТоварыВыдано"):
                     log("[create_wax_jobs_from_task] ❌ Наряд не содержит табличной части 'ТоварыВыдано'")
+
+                log(f"[DEBUG] Список атрибутов объекта наряда ({method}): {dir(job)}")
+
+                if not hasattr(job, "Изделия"):
+                    log("[create_wax_jobs_from_task] ❌ Объект наряда не содержит табличной части 'Изделия'")
+
                     continue
 
                 job.Дата = datetime.now()
