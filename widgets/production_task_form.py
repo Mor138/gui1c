@@ -288,6 +288,7 @@ class ProductionTaskEditForm(QWidget):
                 "color": self._cell_text(r, 11),
                 "insert": self._cell_text(r, 12),
                 "employee": self.c_center.currentText(),
+                "operation": self.c_op.currentText(),
             })
         return rows
 
