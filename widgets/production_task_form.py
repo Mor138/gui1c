@@ -7,6 +7,7 @@ from PyQt5.QtGui import QFont
 from PyQt5.QtCore import QDate, pyqtSignal
 from core.com_bridge import safe_str, log
 import getpass
+import config
 
 
 class ProductionTaskEditForm(QWidget):
@@ -184,7 +185,14 @@ class ProductionTaskEditForm(QWidget):
             self.tbl.item(r, 6).setText(line.get("variant", ""))
             self.tbl.item(r, 7).setText(str(line.get("size", "")))
             self.tbl.item(r, 8).setText(str(line.get("qty", "")))
-            self.tbl.item(r, 9).setText(str(line.get("w", "")))
+            w = line.get("w", "")
+            if w != "":
+                try:
+                    w = float(w)
+                    w = f"{w:.{config.WEIGHT_DECIMALS}f}"
+                except Exception:
+                    w = str(w)
+            self.tbl.item(r, 9).setText(str(w))
             self.tbl.item(r, 10).setText("")
             self.tbl.item(r, 11).setText("")
             self.tbl.item(r, 12).setText("")
@@ -244,7 +252,14 @@ class ProductionTaskEditForm(QWidget):
             self.tbl.item(r, 6).setText(line.get("method", ""))
             self.tbl.item(r, 7).setText(str(line.get("size", "")))
             self.tbl.item(r, 8).setText(str(line.get("qty", "")))
-            self.tbl.item(r, 9).setText(str(line.get("weight", "")))
+            w = line.get("weight", "")
+            if w != "":
+                try:
+                    w = float(w)
+                    w = f"{w:.{config.WEIGHT_DECIMALS}f}"
+                except Exception:
+                    w = str(w)
+            self.tbl.item(r, 9).setText(str(w))
             self.tbl.item(r, 10).setText(line.get("sample", ""))
             self.tbl.item(r, 11).setText(line.get("color", ""))
             self.tbl.item(r, 12).setText("")
@@ -268,7 +283,14 @@ class ProductionTaskEditForm(QWidget):
             self.tbl.item(r, 6).setText(line.get("method", ""))
             self.tbl.item(r, 7).setText(str(line.get("size", "")))
             self.tbl.item(r, 8).setText(str(line.get("qty", "")))
-            self.tbl.item(r, 9).setText(str(line.get("weight", "")))
+            w = line.get("weight", "")
+            if w != "":
+                try:
+                    w = float(w)
+                    w = f"{w:.{config.WEIGHT_DECIMALS}f}"
+                except Exception:
+                    w = str(w)
+            self.tbl.item(r, 9).setText(str(w))
             self.tbl.item(r, 10).setText(line.get("assay", ""))
             self.tbl.item(r, 11).setText(line.get("color", ""))
             self.tbl.item(r, 12).setText(line.get("insert", ""))
