@@ -120,6 +120,30 @@ def load_employee_logins() -> list[str]:
 EMPLOYEE_LOGINS = load_employee_logins()
 
 
+# ------------------------------------------------------------------
+# Список сотрудников из справочника "ФизическиеЛица"
+def load_employees(limit: int = 200) -> list[str]:
+    """Возвращает ФИО сотрудников через COM с резервным чтением."""
+    try:
+        bridge = BRIDGE or COM1CBridge(ONEC_PATH, usr="Администратор", pwd="")
+        items = bridge.list_catalog_items("ФизическиеЛица", limit)
+        names = [it.get("Description", "") for it in items if it.get("Description")]
+        if names:
+            return names
+    except Exception as exc:  # pragma: no cover - защита от падения COM
+        logger.error("Не удалось получить сотрудников через COM: %s", exc)
+
+    try:
+        names = config_parser.get_catalog_items("ФизическиеЛица")
+        return names
+    except Exception as exc:
+        logger.error("Не удалось загрузить сотрудников из XML: %s", exc)
+        return []
+
+
+EMPLOYEES = load_employees()
+
+
 # Style for tree widgets used on the wax page
 CSS_TREE = """
 QTreeWidget{

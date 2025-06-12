@@ -26,6 +26,7 @@ class WaxPage(QWidget):
         super().__init__()
         self.last_created_task_ref = None
         self.jobs_page = None
+        self._task_select_callback = None
         self._ui()
         self.refresh()
 
@@ -45,6 +46,13 @@ class WaxPage(QWidget):
                     orders_page.set_selection_callback(callback)
                     if hasattr(orders_page, "tabs"):
                         orders_page.tabs.setCurrentIndex(1)
+
+    def select_task_for_wax_jobs(self):
+        """Переключается на список заданий для выбора."""
+        self._task_select_callback = self.load_task_data
+        self.tabs.setCurrentWidget(self.tab_tasks)
+        if hasattr(self, "tabs_tasks"):
+            self.tabs_tasks.setCurrentIndex(1)
 
     def refresh(self):
         """Обновляет данные текущей вкладки."""
@@ -99,6 +107,7 @@ class WaxPage(QWidget):
         btn_mark = QPushButton("🏷 Пометить")
         btn_unmark = QPushButton("🚫 Снять пометку")
         btn_delete = QPushButton("🗑 Удалить")
+        btn_to_work = QPushButton("📤 В работу")
 
         btn_bar.addWidget(btn_refresh)
         btn_bar.addWidget(btn_post)
@@ -106,6 +115,7 @@ class WaxPage(QWidget):
         btn_bar.addWidget(btn_mark)
         btn_bar.addWidget(btn_unmark)
         btn_bar.addWidget(btn_delete)
+        btn_bar.addWidget(btn_to_work)
 
         btn_refresh.clicked.connect(self._fill_tasks_tree)
         btn_post.clicked.connect(self._post_selected_tasks)
@@ -113,6 +123,7 @@ class WaxPage(QWidget):
         btn_mark.clicked.connect(self._mark_selected_tasks)
         btn_unmark.clicked.connect(self._unmark_selected_tasks)
         btn_delete.clicked.connect(self._delete_selected_tasks)
+        btn_to_work.clicked.connect(self._send_task_to_work)
 
         t1.addLayout(btn_bar)
 
@@ -133,12 +144,25 @@ class WaxPage(QWidget):
 
         form = QFormLayout()
         self.combo_3d_master = QComboBox(); self.combo_3d_master.setEditable(True)
-        self.combo_3d_master.addItems(config.EMPLOYEE_LOGINS)
-        self.combo_resin_master = QComboBox(); self.combo_resin_master.setEditable(True)
-        self.combo_resin_master.addItems(config.EMPLOYEE_LOGINS)
-        form.addRow("3D мастер", self.combo_3d_master)
-        form.addRow("Мастер резины", self.combo_resin_master)
+        self.combo_3d_master.addItems(config.EMPLOYEES)
+        self.combo_form_master = QComboBox(); self.combo_form_master.setEditable(True)
+        self.combo_form_master.addItems(config.EMPLOYEES)
+        form.addRow("3D печать", self.combo_3d_master)
+        form.addRow("Пресс-форма", self.combo_form_master)
         j_new.addLayout(form)
+
+        self.btn_select_task = QPushButton("Выбрать задание")
+        self.btn_select_task.clicked.connect(self.select_task_for_wax_jobs)
+        j_new.addWidget(self.btn_select_task, alignment=Qt.AlignLeft)
+
+        self.tbl_task_lines = QTableWidget(0, 7)
+        self.tbl_task_lines.setHorizontalHeaderLabels([
+            "Номенклатура", "Артикул", "Размер", "Проба", "Цвет",
+            "Кол-во", "Вес"
+        ])
+        self.tbl_task_lines.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.tbl_task_lines.verticalHeader().setVisible(False)
+        j_new.addWidget(self.tbl_task_lines, 1)
 
         btn_create_jobs = QPushButton("Создать наряды")
         btn_create_jobs.clicked.connect(self._create_wax_jobs)
@@ -270,7 +294,24 @@ class WaxPage(QWidget):
         for num in self._get_checked_tasks():
             print(f"[DEBUG] Проведение: {num}")
             config.BRIDGE.delete_task(num)
-        self._fill_tasks_tree() 
+        self._fill_tasks_tree()
+
+    def _send_task_to_work(self):
+        """Переносит выбранное задание на вкладку создания нарядов."""
+        item = self.tree_tasks.currentItem()
+        if not item:
+            QMessageBox.warning(self, "Ошибка", "Выберите задание")
+            return
+        num = item.text(1).strip() if item.columnCount() > 1 else item.text(0).strip()
+        if not num:
+            return
+        task_obj = config.BRIDGE._find_task_by_number(num)
+        if hasattr(task_obj, "GetObject"):
+            task_obj = task_obj.GetObject()
+        self.load_task_data(task_obj)
+        self.tabs.setCurrentWidget(self.tab_jobs)
+        if hasattr(self, "tabs_jobs"):
+            self.tabs_jobs.setCurrentIndex(0)
 
     def populate_jobs_tree(self, doc_num: str):
         self.tree_jobs.clear()
@@ -335,11 +376,18 @@ class WaxPage(QWidget):
         if hasattr(task_obj, "GetObject"):
             task_obj = task_obj.GetObject()
         self.last_created_task_ref = task_obj
-
-        self.tabs.setCurrentIndex(0)
-        if hasattr(self, "tabs_tasks"):
-            self.tabs_tasks.setCurrentIndex(0)
-        self.task_form.load_task_object(task_obj)
+        if self._task_select_callback:
+            cb = self._task_select_callback
+            self._task_select_callback = None
+            cb(task_obj)
+            self.tabs.setCurrentWidget(self.tab_jobs)
+            if hasattr(self, "tabs_jobs"):
+                self.tabs_jobs.setCurrentIndex(0)
+        else:
+            self.tabs.setCurrentIndex(0)
+            if hasattr(self, "tabs_tasks"):
+                self.tabs_tasks.setCurrentIndex(0)
+            self.task_form.load_task_object(task_obj)
         log(f"[UI] Выбрано задание №{num}.")
 
     def load_task_data(self, task_obj):
@@ -354,6 +402,24 @@ class WaxPage(QWidget):
     def _fill_jobs_table_from_task(self, task_obj):
         """Заполняет таблицу нарядов строками выбранного задания."""
         lines = config.BRIDGE.get_task_lines(getattr(task_obj, "Номер", ""))
+        if not hasattr(self, "tbl_task_lines"):
+            log("[UI] Таблица для строк задания не инициализирована")
+            return
+
+        self.tbl_task_lines.setRowCount(len(lines))
+        for r, row in enumerate(lines):
+            values = [
+                row.get("nomen", ""),
+                row.get("article", ""),
+                row.get("size", ""),
+                row.get("sample", ""),
+                row.get("color", ""),
+                row.get("qty", ""),
+                f"{row['weight']:.{config.WEIGHT_DECIMALS}f}" if row.get("weight") not in ("", None) else "",
+            ]
+            for c, v in enumerate(values):
+                self.tbl_task_lines.setItem(r, c, QTableWidgetItem(str(v)))
+        self.tbl_task_lines.resizeColumnsToContents()
         log(f"[UI] Загрузка строк задания: {len(lines)}")
 
     def _on_wax_job_double_click(self, item, column):
@@ -448,12 +514,12 @@ class WaxPage(QWidget):
         # Проверка ORDERS_POOL мешала создавать наряды для уже существующих
         # заданий, поэтому её убрали.
 
-        if not hasattr(self, "combo_3d_master") or not hasattr(self, "combo_resin_master"):
+        if not hasattr(self, "combo_3d_master") or not hasattr(self, "combo_form_master"):
             QMessageBox.warning(self, "Ошибка", "Создание нарядов отключено")
             return
 
         master_3d = self.combo_3d_master.currentText().strip()
-        master_resin = self.combo_resin_master.currentText().strip()
+        master_resin = self.combo_form_master.currentText().strip()
 
         if not master_3d or not master_resin:
             QMessageBox.warning(self, "Ошибка", "Выберите мастеров для обоих методов.")
@@ -496,7 +562,7 @@ class WaxPage(QWidget):
             count = config.BRIDGE.create_wax_jobs_from_task(
                 task_num,
                 self.combo_3d_master.currentText().strip(),
-                self.combo_resin_master.currentText().strip(),
+                self.combo_form_master.currentText().strip(),
             )
             QMessageBox.information(self, "Готово", f"Создано {len(count)} нарядов")
             self.refresh()
