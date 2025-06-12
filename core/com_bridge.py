@@ -724,25 +724,19 @@ class COM1CBridge:
         
 
     def list_wax_jobs(self) -> list[dict]:
+        """Возвращает список нарядов на восковые изделия из 1С."""
         result = []
-        doc_manager = getattr(self.connection.Documents, "НарядВосковыеИзделия", None)
-        if doc_manager is None:
-            return result
-
-        selection = doc_manager.Select()
-        while selection.Next():
-            doc = selection.GetObject()
+        docs = self.connection.Documents.НарядВосковыеИзделия.Select()
+        while docs.Next():
+            obj = docs.GetObject()
             result.append({
-                "ref": str(doc.Ref),
-                "num": str(doc.Number),
-                "date": str(doc.Date.strftime("%d.%m.%Y")),
-                "status": self.safe(doc, "Статус"),
-                "employee": self.safe(doc, "Сотрудник"),
-                "organization": self.safe(doc, "Организация"),
-                "warehouse": self.safe(doc, "Склад"),
-                "section": self.safe(doc, "ПроизводственныйУчасток"),
-                "tech_op": self.safe(doc, "ТехОперация"),
-                "based_on": self.safe(getattr(doc, "ДокументОснование", None), "Number")
+                "Номер": str(obj.Номер),
+                "Метод": safe_str(obj.ТехОперация.Description),
+                "Дата": obj.Дата.strftime("%d.%m.%Y"),
+                "Сотрудник": safe_str(obj.Сотрудник.Description),
+                "Вес": sum([getattr(r, "Вес", 0) for r in obj.Товары]),
+                "Кол-во": sum([getattr(r, "Количество", 0) for r in obj.Товары]),
+                "Проведен": obj.Проведен,
             })
         return result
         
