@@ -1132,9 +1132,6 @@ class COM1CBridge:
             try:
                 job_ref = self.documents.НарядВосковыеИзделия.CreateDocument()
                 job = job_ref.GetObject() if hasattr(job_ref, "GetObject") else job_ref
-                if not hasattr(job, "Товары"):
-                    log("[create_job] ❌ Объект наряда не содержит табличной части 'Товары'")
-                    continue
                 job.Дата = datetime.now()
 
                 if organization:
@@ -1155,7 +1152,7 @@ class COM1CBridge:
                 job.Комментарий = f"Создан автоматически для {method}"
 
                 for r in rows:
-                    row = job.Товары.Add()
+                    row = job.Изделия.Add()
                     row.Номенклатура = r.Номенклатура
                     row.Количество = r.Количество
                     row.Размер = r.Размер
@@ -1210,9 +1207,6 @@ class COM1CBridge:
             try:
                 job_ref = self.documents.НарядВосковыеИзделия.CreateDocument()
                 job = job_ref.GetObject() if hasattr(job_ref, "GetObject") else job_ref
-                if not hasattr(job, "Товары"):
-                    log("[create_wax_jobs_from_task] ❌ Объект наряда не содержит табличной части 'Товары'")
-                    continue
                 job.Дата = datetime.now()
                 if organization:
                     job.Организация = organization
@@ -1229,7 +1223,7 @@ class COM1CBridge:
                 job.Сотрудник = self.get_ref("ФизическиеЛица", master_name)
                 job.Комментарий = f"Создан автоматически для {method}"
                 for r in rows:
-                    row = job.Товары.Add()
+                    row = job.Изделия.Add()
                     row.Номенклатура = r.Номенклатура
                     row.Количество = r.Количество
                     row.Размер = r.Размер
