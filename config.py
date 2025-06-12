@@ -123,3 +123,6 @@ QTreeView::item:nth-child(odd):!selected { background:#ffffff; }
 
 # Columns for the orders table
 ORDERS_COLS = ["Артикул", "Наим.", "Вариант", "Размер", "Кол-во", "Вес, г", "Примечание"]
+
+# Число знаков после запятой при отображении веса
+WEIGHT_DECIMALS = 3
