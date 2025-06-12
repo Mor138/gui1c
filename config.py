@@ -87,6 +87,27 @@ QPushButton:hover{background:#2563eb;}
 
 # Список логинов сотрудников для выпадающего меню
 def load_employee_logins() -> list[str]:
+
+    """Возвращает список логинов сотрудников через COM с резервным чтением."""
+    fallback = ["Администратор"]
+
+    try:
+        bridge = BRIDGE or COM1CBridge(ONEC_PATH, usr="Администратор", pwd="")
+        items = bridge.list_catalog_items("Пользователи", 1000)
+        logins = [it.get("Description", "") for it in items if it.get("Description")]
+        if logins:
+            return logins
+    except Exception as exc:
+        logger.error("Не удалось получить логины через COM: %s", exc)
+
+    try:
+        users = config_parser.get_catalog_items("Пользователи")
+        return users or fallback
+    except Exception as exc:
+        logger.error("Не удалось загрузить логины из XML: %s", exc)
+        return fallback
+
+
     """Загружает логины сотрудников из дампа конфигурации."""
     try:
         users = config_parser.get_catalog_items("Пользователи")
@@ -97,6 +118,7 @@ def load_employee_logins() -> list[str]:
 
 
 EMPLOYEE_LOGINS = load_employee_logins()
+
 
 # Style for tree widgets used on the wax page
 CSS_TREE = """
