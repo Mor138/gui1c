@@ -16,7 +16,8 @@ from logic.production_docs import (
 )
 from pages.orders_page import parse_variant
 from core.com_bridge import log
-from config import BRIDGE as bridge, CSS_TREE
+import config
+from config import CSS_TREE
 from widgets.production_task_form import ProductionTaskEditForm
 
 class WaxPage(QWidget):
@@ -68,9 +69,9 @@ class WaxPage(QWidget):
 
         # --- sub-tab: создание задания ---
         tab_task_new = QWidget(); t_new = QVBoxLayout(tab_task_new)
-        self.task_form = ProductionTaskEditForm(bridge)
+        self.task_form = ProductionTaskEditForm(config.BRIDGE)
         self.task_form.task_saved.connect(
-            lambda ref: setattr(self, "last_created_task_ref", bridge.get_object_from_ref(ref) if ref else None)
+            lambda ref: setattr(self, "last_created_task_ref", config.BRIDGE.get_object_from_ref(ref) if ref else None)
         )
         t_new.addWidget(self.task_form)
 
@@ -122,7 +123,7 @@ class WaxPage(QWidget):
     def _show_wax_job_detail(self, item):
         from PyQt5.QtWidgets import QDialog, QTableWidget, QTableWidgetItem, QVBoxLayout
         num = item.text(0)
-        rows = bridge.get_wax_job_rows(num)
+        rows = config.BRIDGE.get_wax_job_rows(num)
 
         dlg = QDialog(self)
         dlg.setWindowTitle(f"Строки наряда {num}")
@@ -172,31 +173,31 @@ class WaxPage(QWidget):
     def _post_selected_tasks(self):
         for num in self._get_checked_tasks():
             print(f"[DEBUG] Проведение: {num}")
-            bridge.post_task(num)
+            config.BRIDGE.post_task(num)
         self._fill_tasks_tree()
 
     def _unpost_selected_tasks(self):
         for num in self._get_checked_tasks():
             print(f"[DEBUG] Проведение: {num}")
-            bridge.undo_post_task(num)
+            config.BRIDGE.undo_post_task(num)
         self._fill_tasks_tree()
 
     def _mark_selected_tasks(self):
         for num in self._get_checked_tasks():
             print(f"[DEBUG] Проведение: {num}")
-            bridge.mark_task_for_deletion(num)
+            config.BRIDGE.mark_task_for_deletion(num)
         self._fill_tasks_tree()
 
     def _unmark_selected_tasks(self):
         for num in self._get_checked_tasks():
             print(f"[DEBUG] Проведение: {num}")
-            bridge.unmark_task_deletion(num)
+            config.BRIDGE.unmark_task_deletion(num)
         self._fill_tasks_tree()
 
     def _delete_selected_tasks(self):
         for num in self._get_checked_tasks():
             print(f"[DEBUG] Проведение: {num}")
-            bridge.delete_task(num)
+            config.BRIDGE.delete_task(num)
         self._fill_tasks_tree() 
 
     def populate_jobs_tree(self, doc_num: str):
@@ -205,7 +206,7 @@ class WaxPage(QWidget):
 
         try:
             # Попытка как наряд
-            rows = bridge.get_wax_job_rows(doc_num)
+            rows = config.BRIDGE.get_wax_job_rows(doc_num)
             if rows:
                 log(f"[populate_jobs_tree] Найдены строки наряда №{doc_num}: {len(rows)}")
                 self.refresh()
@@ -215,15 +216,15 @@ class WaxPage(QWidget):
 
         try:
             # Попытка как задание на производство
-            task = bridge._find_task_by_number(doc_num)
+            task = config.BRIDGE._find_task_by_number(doc_num)
             if task and getattr(task, "ДокументОснование", None):
                 base_ref = getattr(task, "ДокументОснование")
-                base_obj = bridge.get_object_from_ref(base_ref)
+                base_obj = config.BRIDGE.get_object_from_ref(base_ref)
                 order_num = base_obj.Номер
                 log(f"[populate_jobs_tree] Задание связано с заказом №{order_num}")
 
                 # Загружаем строки заказа и формируем данные как для нового заказа
-                order_lines = bridge.get_order_lines(order_num)
+                order_lines = config.BRIDGE.get_order_lines(order_num)
                 order_json_rows = []
                 for r in order_lines:
                     metal, hallmark, color = parse_variant(r.get("method", ""))
@@ -258,7 +259,7 @@ class WaxPage(QWidget):
         if not num:
             return
 
-        task_obj = bridge._find_task_by_number(num)
+        task_obj = config.BRIDGE._find_task_by_number(num)
         if hasattr(task_obj, "GetObject"):
             task_obj = task_obj.GetObject()
         self.last_created_task_ref = task_obj
@@ -280,7 +281,7 @@ class WaxPage(QWidget):
 
     def _fill_jobs_table_from_task(self, task_obj):
         """Заполняет таблицу нарядов строками выбранного задания."""
-        lines = bridge.get_task_lines(getattr(task_obj, "Номер", ""))
+        lines = config.BRIDGE.get_task_lines(getattr(task_obj, "Номер", ""))
         log(f"[UI] Загрузка строк задания: {len(lines)}")
 
     def _on_wax_job_double_click(self, item, column):
@@ -290,7 +291,7 @@ class WaxPage(QWidget):
         if not num:
             return
 
-        lines = bridge.get_wax_job_lines(num)
+        lines = config.BRIDGE.get_wax_job_lines(num)
         if not lines:
             QMessageBox.information(self, "Нет данных", f"В наряде {num} нет строк")
             return
@@ -314,7 +315,7 @@ class WaxPage(QWidget):
 
     def _fill_tasks_tree(self):
         self.tree_tasks.clear()
-        for t in bridge.list_tasks():
+        for t in config.BRIDGE.list_tasks():
             status = ""
             if t.get("posted"):
                 status = "✅"
@@ -343,7 +344,7 @@ class WaxPage(QWidget):
         if not hasattr(self, "tree_acts"):
             return
         self.tree_acts.clear()
-        for t in bridge.list_wax_jobs():
+        for t in config.BRIDGE.list_wax_jobs():
             QTreeWidgetItem(self.tree_acts, [
                 t.get("num", ""),
                 t.get("date", ""),
@@ -381,7 +382,7 @@ class WaxPage(QWidget):
             return
 
         print("[DEBUG] last_created_task_ref =", self.last_created_task_ref)
-        result = bridge.create_multiple_wax_jobs_from_task(
+        result = config.BRIDGE.create_multiple_wax_jobs_from_task(
             self.last_created_task_ref,
             {"3D печать": master_3d, "Пресс-форма": master_resin}
         )
@@ -407,7 +408,7 @@ class WaxPage(QWidget):
 
             return
         try:
-            count = bridge.create_multiple_wax_jobs_from_task(task_num)
+            count = config.BRIDGE.create_multiple_wax_jobs_from_task(task_num)
             QMessageBox.information(self, "Готово", f"Создано {count} нарядов")
             self.refresh()
         except Exception as e:
