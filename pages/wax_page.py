@@ -151,7 +151,17 @@ class WaxPage(QWidget):
 
         self.tree_jobs = QTreeWidget()
         self.tree_jobs.setHeaderLabels([
-            "Наряд", "Метод", "Кол-во", "Вес", "Статус", "Док."
+            "Номер",
+            "Дата",
+            "Закрыт",
+            "Сотрудник",
+            "Тех. операция",
+            "Комментарий",
+            "Склад",
+            "Участок",
+            "Организация",
+            "Задание",
+            "Ответственный",
         ])
         self.tree_jobs.header().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.tree_jobs.setStyleSheet(CSS_TREE)
@@ -503,11 +513,17 @@ class WaxPage(QWidget):
         jobs = config.BRIDGE.list_wax_jobs()
         for job in jobs:
             item = QTreeWidgetItem([
-                f"{job['Номер']} ({job['Метод']})",
-                job["Метод"],
-                str(job["Кол-во"]),
-                f"{job['Вес']:.2f} г",
-                "✅ Проведен" if job["Проведен"] else "⏳ Черновик",
+                job["Номер"],
+                job["Дата"],
+                job["Закрыт"],
+                job["Сотрудник"],
+                job["ТехОперация"],
+                job["Комментарий"],
+                job["Склад"],
+                job["ПроизводственныйУчасток"],
+                job["Организация"],
+                job["Задание"],
+                job["Ответственный"],
             ])
             self.tree_jobs.addTopLevelItem(item)
 

@@ -730,27 +730,27 @@ class COM1CBridge:
         while docs.Next():
             obj = docs.GetObject()
 
-            rows = getattr(obj, "Товары", [])
+            rows = getattr(obj, "Выдано", [])
             weight = 0.0
             qty = 0
             for r in rows:
                 weight += getattr(r, "Вес", 0)
                 qty += getattr(r, "Количество", 0)
 
-
             result.append({
                 "Номер": str(obj.Номер),
-                "Метод": safe_str(obj.ТехОперация.Description),
                 "Дата": obj.Дата.strftime("%d.%m.%Y"),
-                "Сотрудник": safe_str(obj.Сотрудник.Description),
-
-                "Вес": weight,
+                "Закрыт": "✅" if getattr(obj, "Проведен", False) else "—",
+                "Сотрудник": safe_str(obj.Сотрудник),
+                "ТехОперация": safe_str(obj.ТехОперация),
+                "Комментарий": safe_str(obj.Комментарий),
+                "Склад": safe_str(obj.Склад),
+                "ПроизводственныйУчасток": safe_str(obj.ПроизводственныйУчасток),
+                "Организация": safe_str(obj.Организация),
+                "Задание": safe_str(getattr(obj, "ЗаданиеНаПроизводство", "")) or "—",
+                "Ответственный": safe_str(obj.Ответственный),
+                "Вес": round(weight, 2),
                 "Кол-во": qty,
-
-                "Вес": sum([getattr(r, "Вес", 0) for r in obj.Товары]),
-                "Кол-во": sum([getattr(r, "Количество", 0) for r in obj.Товары]),
-
-                "Проведен": obj.Проведен,
             })
         return result
         
