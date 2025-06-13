@@ -1186,6 +1186,7 @@ class COM1CBridge:
         mapping = {"3D печать": master_3d, "Пресс-форма": master_form}
         result: list[str] = []
 
+        # Получаем объект и ссылку задания
         try:
             if isinstance(task_ref, str):
                 task = self.connection.GetObject(task_ref)
@@ -1196,12 +1197,15 @@ class COM1CBridge:
             else:
                 log("[create_wax_jobs_from_task] ❌ Неверный тип ссылки")
                 return []
+            task_ref_link = task.Ref
         except Exception as exc:
             log(f"[create_wax_jobs_from_task] ❌ Ошибка доступа к заданию: {exc}")
             return []
 
         organization = getattr(task, "Организация", None)
         wh = getattr(task, "Склад", None)
+        section = getattr(task, "ПроизводственныйУчасток", None)
+        responsible = getattr(task, "Ответственный", None)
 
         rows_by_method = {"3D печать": [], "Пресс-форма": []}
         for row in task.Продукция:
@@ -1213,48 +1217,42 @@ class COM1CBridge:
             if not rows:
                 continue
             try:
-                job_ref = self.documents.НарядВосковыеИзделия.CreateDocument()
-                job = job_ref.GetObject() if hasattr(job_ref, "GetObject") else job_ref
+                job = self.documents.НарядВосковыеИзделия.CreateDocument()
 
-
-                if not hasattr(job, "ТоварыВыдано"):
-                    log("[create_wax_jobs_from_task] ❌ Наряд не содержит табличной части 'ТоварыВыдано'")
-                    continue
-
-                log(f"[DEBUG] Список атрибутов объекта наряда ({method}): {dir(job)}")
-
-
+                # Заполнение шапки наряда
                 job.Дата = datetime.now()
-                if organization:
-                    job.Организация = organization
-                if wh:
-                    job.Склад = wh
-                job.ПроизводственныйУчасток = task.ПроизводственныйУчасток
-                job.ЗаданиеНаПроизводство = task
-                operation_name = "3D печать" if method == "3D печать" else "Пресс-форма"
-                operation_ref = self.get_ref("ТехОперации", operation_name)
-                if not operation_ref:
-                    raise ValueError(f"Операция '{operation_name}' не найдена в справочнике 'ТехОперации'")
-                job.ТехОперация = operation_ref
-                master_name = mapping.get(method)
-                job.Сотрудник = self.get_ref("ФизическиеЛица", master_name)
+                job.ДокументОснование = task_ref_link
+                job.ЗаданиеНаПроизводство = task_ref_link
+                if hasattr(organization, "Ref"):
+                    job.Организация = organization.Ref
+                if hasattr(wh, "Ref"):
+                    job.Склад = wh.Ref
+                if section:
+                    job.ПроизводственныйУчасток = section
+                if responsible:
+                    job.Ответственный = responsible
+                job.ТехОперация = self.get_ref("ТехОперации", method)
+                job.Сотрудник = self.get_ref("ФизическиеЛица", mapping.get(method, ""))
                 job.Комментарий = f"Создан автоматически для {method}"
+
+                # Получаем элемент перечисления "Номенклатура"
+                enum_norm = self.get_enum_by_description("ВидыНорматива", "Номенклатура")
+
+                # Заполнение табличной части вручную
                 for r in rows:
                     row = job.ТоварыВыдано.Add()
                     row.Номенклатура = r.Номенклатура
                     row.Количество = r.Количество
                     row.Размер = r.Размер
-                    if hasattr(row, "ВариантИзготовления"):
-                        row.ВариантИзготовления = r.ВариантИзготовления
                     row.Проба = r.Проба
                     row.ЦветМеталла = r.ЦветМеталла
                     if hasattr(r, "ХарактеристикаВставок"):
                         row.ХарактеристикаВставок = r.ХарактеристикаВставок
-                    if hasattr(row, "Заказ"):
-                        row.Заказ = r.Заказ
-                    row.КонечнаяПродукция = r.КонечнаяПродукция
                     if hasattr(r, "Вес"):
                         row.Вес = r.Вес
+                    if enum_norm:
+                        row.ВидНорматива = enum_norm
+
                 job.Write()
                 result.append(str(job.Номер))
                 log(f"[create_wax_jobs_from_task] ✅ Создан наряд {method}: №{job.Номер}")
