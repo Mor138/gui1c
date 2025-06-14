@@ -520,7 +520,10 @@ class WaxPage(QWidget):
             cb(task_obj)
             self.tabs.setCurrentWidget(self.tab_jobs)
             if hasattr(self, "tabs_jobs"):
-                self.tabs_jobs.setCurrentIndex(0)
+                if cb == self.load_close_task_data:
+                    self.tabs_jobs.setCurrentIndex(1)
+                else:
+                    self.tabs_jobs.setCurrentIndex(0)
         else:
             self.tabs.setCurrentIndex(0)
             if hasattr(self, "tabs_tasks"):
@@ -624,6 +627,7 @@ class WaxPage(QWidget):
                 table.insertRow(r)
                 chk = QTableWidgetItem()
                 chk.setCheckState(Qt.Checked)
+                chk.setData(Qt.UserRole, str(ref))
                 table.setItem(r, 0, chk)
                 values = [
                     r_data.get("nomen", ""),
@@ -851,11 +855,21 @@ class WaxPage(QWidget):
             ])
 
     def _on_close_jobs(self):
-        if not getattr(self, "close_job_refs", None):
+        tables = [self.tbl_close_3d, self.tbl_close_form]
+        job_refs: set[str] = set()
+        for tbl in tables:
+            for row in range(tbl.rowCount()):
+                item = tbl.item(row, 0)
+                if item and item.checkState() == Qt.Checked:
+                    ref = item.data(Qt.UserRole)
+                    if ref:
+                        job_refs.add(str(ref))
+
+        if not job_refs:
             QMessageBox.warning(self, "Ошибка", "Нет выбранных нарядов")
             return
 
-        result = config.BRIDGE.close_wax_jobs(self.close_job_refs)
+        result = config.BRIDGE.close_wax_jobs(list(job_refs))
         if result:
             QMessageBox.information(
                 self,

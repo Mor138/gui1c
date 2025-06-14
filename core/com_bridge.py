@@ -776,7 +776,8 @@ class COM1CBridge:
         docs = self.connection.Documents.НарядВосковыеИзделия.Select()
         while docs.Next():
             obj = docs.GetObject()
-            if getattr(obj, "ЗаданиеНаПроизводство", None) == task_ref:
+            task_val = getattr(obj, "ЗаданиеНаПроизводство", None)
+            if task_val is not None and str(task_val) == str(task_ref):
                 found.append(str(obj.Ref))
         log(f"[find_wax_jobs_by_task] найдено {len(found)} нарядов")
         return found
@@ -1155,7 +1156,10 @@ class COM1CBridge:
 
     def get_object_from_ref(self, ref):
         try:
-            obj = ref.GetObject()
+            if hasattr(ref, "GetObject"):
+                obj = ref.GetObject()
+            else:
+                obj = self.connection.GetObject(ref)
             log(f"[get_object_from_ref] ✅ Получен объект из ссылки")
             return obj
         except Exception as e:
