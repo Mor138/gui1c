@@ -770,24 +770,24 @@ class COM1CBridge:
             })
         return result
 
-    def find_wax_jobs_by_task(self, task_ref) -> list[str]:
+    def find_wax_jobs_by_task(self, task_ref) -> list:
         """Возвращает ссылки нарядов, созданных по заданию."""
-        found: list[str] = []
+        found: list = []
         docs = self.connection.Documents.НарядВосковыеИзделия.Select()
         while docs.Next():
             obj = docs.GetObject()
             task_val = getattr(obj, "ЗаданиеНаПроизводство", None)
             if task_val is not None and str(task_val) == str(task_ref):
-                found.append(str(obj.Ref))
+                found.append(obj.Ref)
         log(f"[find_wax_jobs_by_task] найдено {len(found)} нарядов")
         return found
 
-    def close_wax_jobs(self, job_refs: list[str]) -> list[str]:
+    def close_wax_jobs(self, job_refs: list) -> list[str]:
         """Закрывает наряды по списку ссылок."""
         closed: list[str] = []
         for ref in job_refs:
             try:
-                doc = self.connection.GetObject(ref)
+                doc = self.get_object_from_ref(ref)
                 try:
                     doc.ТоварыПринято.ЗаполнитьПоВыданному()
                 except Exception as exc:
