@@ -184,7 +184,11 @@ class WaxBridge:
         while docs.Next():
             obj = docs.GetObject()
             task_val = getattr(obj, "ЗаданиеНаПроизводство", None)
-            if task_val is not None and str(task_val) == str(task_ref):
+            try:
+                match = task_val == task_ref
+            except Exception:
+                match = str(task_val) == str(task_ref)
+            if task_val is not None and match:
                 found.append(obj.Ref)
         log(f"[find_wax_jobs_by_task] найдено {len(found)} нарядов")
         return found
