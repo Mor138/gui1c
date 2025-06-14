@@ -504,22 +504,13 @@ class COM1CBridge:
         for k, v in fields.items():
             try:
                 log(f"  -> {k} = {v}")
-                if k in catalog_fields_map:
-                    ref = self.get_ref(catalog_fields_map[k], v)
-                    log(f"[ref] {k}: {v} => {ref}")
-                    if ref:
-                        setattr(doc, k, ref)
-                        log(f"    Установлено: {k} (Ref: {ref})")
-                    else:
-                        log(f"    ❌ {k} '{v}' не найден.")
-                    continue
 
                 if k == "ВидСтатусПродукции":
                     # Если передано внутреннее имя — преобразуем в описание
-                    reverse_map = {v: k for k, v in PRODUCTION_STATUS_MAP.items()}
+                    reverse_map = {val: key for key, val in PRODUCTION_STATUS_MAP.items()}
                     if v in reverse_map:
                         v = reverse_map[v]
-                    
+
                     ref = self.get_ref("ВидыСтатусыПродукции", v)
                     log(f"[ref] {k}: {v} => {ref}")
                     if ref:
