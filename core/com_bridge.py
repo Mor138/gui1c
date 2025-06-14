@@ -1156,7 +1156,10 @@ class COM1CBridge:
 
     def get_object_from_ref(self, ref):
         try:
-            obj = ref.GetObject()
+            if hasattr(ref, "GetObject"):
+                obj = ref.GetObject()
+            else:
+                obj = self.connection.GetObject(ref)
             log(f"[get_object_from_ref] ✅ Получен объект из ссылки")
             return obj
         except Exception as e:
