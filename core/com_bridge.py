@@ -1088,97 +1088,65 @@ class COM1CBridge:
             log(f"[get_object_from_ref] ❌ Ошибка получения объекта по ссылке: {e}")
             return None
     # ------------------------------------------------------------------
-    def create_multiple_wax_jobs_from_task(self, task_ref, method_to_employee: dict) -> list[str]:
-        """Создаёт по заданию два наряда: для 3D и для резины."""
-        result = []
+    def create_wax_jobs_from_task(self, task_ref, master_3d: str, master_form: str) -> list[str]:
+        """Создаёт два наряда из одного задания по артикулу."""
+        from datetime import datetime
 
-        log(f"[create_jobs] type(task_ref) = {type(task_ref)}")
-        log(
-            f"[create_jobs] hasattr 'Организация': {hasattr(task_ref, 'Организация')} "
-            f"hasattr 'Organization': {hasattr(task_ref, 'Organization')}"
-        )
+        mapping = {"3D печать": master_3d, "Пресс-форма": master_form}
+        result: list[str] = []
 
         try:
-            organization = getattr(task_ref, "Организация", None)
-            log(f"[create_jobs] Организация задания: {safe_str(organization)}")
-        except Exception as e:
-            log(f"❌ Ошибка получения Организации из задания: {e}")
-            return []
-
-        try:
-            if isinstance(task_ref, str):                     # передали строку-Ref
+            if isinstance(task_ref, str):
                 task = self.connection.GetObject(task_ref)
-
-            elif hasattr(task_ref, "Продукция"):             # уже полноценный объект
+            elif hasattr(task_ref, "Продукция"):
                 task = task_ref
-
-            elif hasattr(task_ref, "GetObject"):             # DocumentRef → поднимаем
+            elif hasattr(task_ref, "GetObject"):
                 task = task_ref.GetObject()
-
             else:
-                log("[create_jobs] ❌ Неизвестный тип ссылки на задание")
+                log("[create_wax_jobs_from_task] ❌ Неверный тип ссылки")
                 return []
-        except Exception as e:
-            log(f"[create_jobs] ❌ Ошибка получения объекта задания: {e}")
+        except Exception as exc:
+            log(f"[create_wax_jobs_from_task] ❌ Ошибка доступа к заданию: {exc}")
             return []
 
-        rows_by_method = defaultdict(list)
-        for row in task.Продукция:
-            name = safe_str(row.Номенклатура).lower()
-            method = "3D печать" if "д" in name or "d" in name else "Резина"
-            rows_by_method[method].append(row)
+        # Достаём реквизиты из задания
+        org = getattr(task, "Организация", None)
+        wh = getattr(task, "Склад", None)
+        responsible = getattr(task, "Ответственный", None)
 
-        for method, rows in rows_by_method.items():
+        for method_name, master_name in mapping.items():
             try:
-                job_ref = self.documents.НарядВосковыеИзделия.CreateDocument()
-                job = job_ref.GetObject() if hasattr(job_ref, "GetObject") else job_ref
+                doc = self.documents.НарядВосковыеИзделия.CreateDocument()
+                doc.Дата = datetime.now()
+                doc.ДокументОснование = task
+                doc.Технология = self.get_ref_by_description("МетодыВосковки", method_name)
+                doc.Мастер = self.get_ref_by_description("Сотрудники", master_name)
 
-
-                if not hasattr(job, "ТоварыВыдано"):
-                    log("[create_job] ❌ Наряд не содержит табличной части 'ТоварыВыдано'")
-                    continue
-
-                job.Дата = datetime.now()
-
-                if organization:
-                    job.Организация = organization
-                wh = getattr(task, "Склад", None)
+                # Установка основных полей
+                if org:
+                    try:
+                        doc.Организация = org if hasattr(org, "UUID") else org.Ref
+                    except Exception as e:
+                        log(f"[wax_job] ⚠ Не удалось установить Организация: {e}")
                 if wh:
-                    job.Склад = wh
-                job.ПроизводственныйУчасток = task.ПроизводственныйУчасток
-                job.ЗаданиеНаПроизводство = task
-                operation_name = "3D печать" if method == "3D печать" else "Пресс-форма"
-                operation_ref = self.get_ref("ТехОперации", operation_name)
-                if not operation_ref:
-                    raise ValueError(f"Операция '{operation_name}' не найдена в справочнике 'ТехОперации'")
-                job.ТехОперация = operation_ref
+                    try:
+                        doc.Склад = wh if hasattr(wh, "UUID") else wh.Ref
+                    except Exception as e:
+                        log(f"[wax_job] ⚠ Не удалось установить Склад: {e}")
+                if responsible:
+                    try:
+                        doc.Ответственный = responsible if hasattr(responsible, "UUID") else responsible.Ref
+                    except Exception as e:
+                        log(f"[wax_job] ⚠ Не удалось установить Ответственный: {e}")
 
-                master_name = method_to_employee.get(method)
-                job.Сотрудник = self.get_ref("ФизическиеЛица", master_name)
-                job.Комментарий = f"Создан автоматически для {method}"
+                doc.Write()
+                doc.Провести()
+                result.append(str(doc.Номер))
+                log(f"[create_job] ✅ Создан наряд для {method_name}: №{doc.Номер}")
 
-                for r in rows:
-                    row = job.ТоварыВыдано.Add()
-                    row.Номенклатура = r.Номенклатура
-                    row.Количество = r.Количество
-                    row.Размер = r.Размер
-                    if hasattr(row, "ВариантИзготовления"):
-                        row.ВариантИзготовления = r.ВариантИзготовления
-                    row.Проба = r.Проба
-                    row.ЦветМеталла = r.ЦветМеталла
-                    if hasattr(r, "ХарактеристикаВставок"):
-                        row.ХарактеристикаВставок = r.ХарактеристикаВставок
-                    if hasattr(row, "Заказ"):
-                        row.Заказ = r.Заказ
-                    row.КонечнаяПродукция = r.КонечнаяПродукция
-                    if hasattr(r, "Вес"):
-                        row.Вес = r.Вес
+            except Exception as err:
+                log(f"[create_job] ❌ Ошибка для {method_name}: {err}")
 
-                job.Write()
-                result.append(str(job.Номер))
-                log(f"[create_job] ✅ Наряд для {method} создан: №{job.Номер}")
-            except Exception as e:
-                log(f"[create_job] ❌ Ошибка для {method}: {e}")
         return result
 
     def create_wax_jobs_from_task(self, task_ref, master_3d: str, master_form: str) -> list[str]:
