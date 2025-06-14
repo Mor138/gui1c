@@ -1280,6 +1280,20 @@ class COM1CBridge:
                     for row in job.ТоварыВыдано:
                         row.ВидНорматива = enum_norm
 
+                # ---- Автоматическая подстановка вида норматива
+                for row in job.ТоварыВыдано:
+                    nomenclature = getattr(row, "Номенклатура", None)
+                    if nomenclature is not None:
+                        type_enum = self.get_object_property(nomenclature, "ТипНоменклатуры")
+                        type_name = safe_str(type_enum)
+                        type_name = self.get_object_property(nomenclature, "ТипНоменклатуры")
+                        enum = self.get_enum_by_description(
+                            "ВидыНормативовНоменклатуры",
+                            "Номенклатура" if type_name == "Продукция" else "Комплектующее",
+                        )
+                        if enum:
+                            row.ВидНорматива = enum
+
                 job.Write()
                 result.append(str(job.Номер))
                 log(f"[create_wax_jobs_from_task] ✅ Создан наряд {method}: №{job.Номер}")
