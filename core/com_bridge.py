@@ -1202,17 +1202,22 @@ class COM1CBridge:
             log(f"[create_wax_jobs_from_task] ❌ Ошибка доступа к заданию: {exc}")
             return []
 
-        # Попытка получить данные из связанного заказа
+        # Получаем данные для шапки наряда
+        org = getattr(task, "Организация", None)
+        wh = getattr(task, "Склад", None)
+        responsible = getattr(task, "Ответственный", None)
+
+        # Попытка получить значения из связанного заказа, если их нет в задании
         doc_base = getattr(task, "ДокументОснование", None)
-        org, wh, responsible = None, None, None
         if doc_base and hasattr(doc_base, "GetObject"):
             try:
                 order_obj = doc_base.GetObject()
-                org = getattr(order_obj, "Организация", None)
-                wh = getattr(order_obj, "Склад", None)
-                responsible = getattr(order_obj, "Ответственный", None)
+                org = org or getattr(order_obj, "Организация", None)
+                wh = wh or getattr(order_obj, "Склад", None)
+                responsible = responsible or getattr(order_obj, "Ответственный", None)
             except Exception as e:
                 log(f"[create_wax_jobs_from_task] ⚠ Не удалось получить данные из заказа: {e}")
+
         section = getattr(task, "ПроизводственныйУчасток", None)
 
         rows_by_method = {"3D печать": [], "Пресс-форма": []}
