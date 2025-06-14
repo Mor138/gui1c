@@ -213,6 +213,27 @@ class WaxPage(QWidget):
         btn_create_jobs.clicked.connect(self._create_wax_jobs)
         j_new.addWidget(btn_create_jobs, alignment=Qt.AlignLeft)
 
+        # ---- Панель управления нарядами (создание)
+        bar_new_jobs = QHBoxLayout()
+        self.btn_job_save = QPushButton("💾 Записать")
+        self.btn_job_post = QPushButton("✅ Провести")
+        self.btn_job_row_add = QPushButton("Строка +")
+        self.btn_job_row_del = QPushButton("Строка -")
+        self.btn_job_row_copy = QPushButton("Копировать строку")
+        self.btn_job_new = QPushButton("Новый наряд")
+
+        for b in [
+            self.btn_job_save,
+            self.btn_job_post,
+            self.btn_job_row_add,
+            self.btn_job_row_del,
+            self.btn_job_row_copy,
+            self.btn_job_new,
+        ]:
+            bar_new_jobs.addWidget(b)
+            b.clicked.connect(self._not_implemented)
+        j_new.addLayout(bar_new_jobs)
+
         tab_jobs_list = QWidget(); j1 = QVBoxLayout(tab_jobs_list)
         lbl_jobs = QLabel("Наряды (восковые изделия)")
         lbl_jobs.setFont(QFont("Arial", 16, QFont.Bold))
@@ -238,8 +259,32 @@ class WaxPage(QWidget):
 
         btn_bar_jobs = QHBoxLayout()
         btn_jobs_refresh = QPushButton("🔄 Обновить")
-        btn_bar_jobs.addWidget(btn_jobs_refresh)
+        btn_jobs_post = QPushButton("✅ Провести отмеченные")
+        btn_jobs_unpost = QPushButton("↩️ Отменить проведение")
+        btn_jobs_mark = QPushButton("✏️ Пометить")
+        btn_jobs_unmark = QPushButton("🚫 Снять пометку")
+        btn_jobs_delete = QPushButton("🗑 Удалить")
+        btn_jobs_to_work = QPushButton("🧑‍🔧 В работу")
+
+        for b in [
+            btn_jobs_refresh,
+            btn_jobs_post,
+            btn_jobs_unpost,
+            btn_jobs_mark,
+            btn_jobs_unmark,
+            btn_jobs_delete,
+            btn_jobs_to_work,
+        ]:
+            btn_bar_jobs.addWidget(b)
+
         btn_jobs_refresh.clicked.connect(self._fill_jobs_tree)
+        btn_jobs_post.clicked.connect(self._not_implemented)
+        btn_jobs_unpost.clicked.connect(self._not_implemented)
+        btn_jobs_mark.clicked.connect(self._not_implemented)
+        btn_jobs_unmark.clicked.connect(self._not_implemented)
+        btn_jobs_delete.clicked.connect(self._not_implemented)
+        btn_jobs_to_work.clicked.connect(self._not_implemented)
+
         j1.addLayout(btn_bar_jobs)
 
         self.tabs_jobs.addTab(tab_jobs_new, "Создание")
@@ -704,4 +749,8 @@ class WaxPage(QWidget):
                         f"{art}  (р-р {size})",
                         str(d["qty"]), f"{d['weight']:.{config.WEIGHT_DECIMALS}f}"
                     ])
+
+    # ------------------------------------------------------------------
+    def _not_implemented(self):
+        QMessageBox.information(self, "Информация", "Функционал в разработке")
 
