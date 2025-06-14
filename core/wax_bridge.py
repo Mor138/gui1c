@@ -185,16 +185,20 @@ class WaxBridge:
         if hasattr(task_ref, "Ref"):
             task_ref = task_ref.Ref
 
-        # сравниваем ссылки по строковому представлению
+        # сравниваем ссылки по строковому представлению; дополнительно
+        # проверяем поле "ДокументОснование" на случай ручного создания наряда
         task_ref = str(task_ref)
 
         docs = self.bridge.connection.Documents.НарядВосковыеИзделия.Select()
         while docs.Next():
             obj = docs.GetObject()
-            job_task = getattr(obj, "ЗаданиеНаПроизводство", None)
-            job_task_str = str(getattr(job_task, "Ref", job_task))
+            base_task = (
+                getattr(obj, "ЗаданиеНаПроизводство", None)
+                or getattr(obj, "ДокументОснование", None)
+            )
+            base_task_str = str(getattr(base_task, "Ref", base_task))
 
-            if job_task is not None and job_task_str == task_ref:
+            if base_task is not None and base_task_str == task_ref:
                 found.append(obj.Ref)
 
         log(f"[find_wax_jobs_by_task] найдено {len(found)} нарядов")
