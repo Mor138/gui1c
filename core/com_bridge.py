@@ -1118,7 +1118,7 @@ class COM1CBridge:
             return None
     # ------------------------------------------------------------------
 
-    def create_wax_jobs_from_task(self, task_ref, master_3d: str, master_form: str) -> list[str]:
+    def create_wax_jobs_from_task(self, task_ref, master_3d: str, master_form: str, warehouse: str | None = None) -> list[str]:
         """Создаёт два наряда из одного задания по артикулу."""
         mapping = {"3D печать": master_3d, "Пресс-форма": master_form}
         result: list[str] = []
@@ -1161,6 +1161,8 @@ class COM1CBridge:
                 )
 
         section = getattr(task, "ПроизводственныйУчасток", None)
+        if warehouse:
+            wh = self.get_ref_by_description("Склады", warehouse) or wh
 
         rows_by_method = {"3D печать": [], "Пресс-форма": []}
         for row in task.Продукция:

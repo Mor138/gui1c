@@ -45,7 +45,6 @@ class OrdersPage(QWidget):
         self.organizations = config.BRIDGE.list_catalog_items("Организации")
         self.counterparties = config.BRIDGE.list_catalog_items("Контрагенты")
         self.contracts = config.BRIDGE.list_catalog_items("ДоговорыКонтрагентов")
-        self.warehouses = config.BRIDGE.list_catalog_items("Склады")
         self.production_statuses = config.BRIDGE.PRODUCTION_STATUSES
         self._ui()
         self._load_orders()
@@ -70,7 +69,6 @@ class OrdersPage(QWidget):
             "Организация": self.c_org.currentText(),
             "Контрагент": self.c_contr.currentText(),
             "ДоговорКонтрагента": self.c_ctr.currentText(),
-            "Склад": self.c_wh.currentText(),
             "Ответственный": "Администратор",
             "Комментарий": self.comment_input.text().strip(),
             "Дата": pywintypes.Time(self.d_date.date().toPyDate()),
@@ -121,13 +119,12 @@ class OrdersPage(QWidget):
         self.c_org = QComboBox(); self.c_org.addItems([x["Description"] for x in self.organizations])
         self.c_contr = QComboBox(); self.c_contr.addItems([x["Description"] for x in self.counterparties])
         self.c_ctr = QComboBox(); self.c_ctr.addItems([x["Description"] for x in self.contracts])
-        self.c_wh = QComboBox(); self.c_wh.addItems([x["Description"] for x in self.warehouses])
         self.status_combo = QComboBox(); self.status_combo.addItems(self.production_statuses)
 
         for label, widget in [
             ("Номер", self.ed_num), ("Дата", self.d_date),
             ("Организация", self.c_org), ("Контрагент", self.c_contr),
-            ("Договор", self.c_ctr), ("Склад", self.c_wh),
+            ("Договор", self.c_ctr),
             ("Вид продукции", self.status_combo)
         ]:
             form.addRow(label, widget)
@@ -285,7 +282,6 @@ class OrdersPage(QWidget):
             "Организация": self.c_org.currentText(),
             "Контрагент": self.c_contr.currentText(),
             "ДоговорКонтрагента": self.c_ctr.currentText(),
-            "Склад": self.c_wh.currentText(),
             "Ответственный": "Администратор",
             "Комментарий": self.comment_input.text().strip(),
             "Дата": pywintypes.Time(self.d_date.date().toPyDate()),
