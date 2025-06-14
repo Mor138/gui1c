@@ -191,13 +191,14 @@ class WaxBridge:
         if hasattr(docs, "Count"):
             log(f"[find_wax_jobs_by_task] всего найдено {docs.Count()} нарядов")
 
+        # Не получаем объект, сравниваем ссылки в выборке
         while docs.Next():
-            job = docs.GetObject()
-            if not job or not hasattr(job, "ЗаданиеНаПроизводство"):
-                continue
             try:
-                if str(job.ЗаданиеНаПроизводство) == task_ref:
-                    result.append(job.Ref)
+                job_task_ref = getattr(docs, "ЗаданиеНаПроизводство", None)
+                if job_task_ref is None:
+                    continue
+                if str(job_task_ref) == task_ref:
+                    result.append(docs.Ref)
             except Exception as e:
                 log(f"[find_wax_jobs_by_task] ❌ Ошибка: {e}")
 
