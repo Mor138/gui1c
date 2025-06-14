@@ -1054,6 +1054,30 @@ class COM1CBridge:
             doc.ПроизводственныйУчасток = getattr(task, "ПроизводственныйУчасток", None)
             doc.Ответственный = getattr(task, "РабочийЦентр", None)
 
+            # Организация и склад могут отсутствовать в самом задании, поэтому
+            # пробуем получить их из документа-основания.
+            org = getattr(task, "Организация", None)
+            wh = getattr(task, "Склад", None)
+            if (org is None or wh is None) and getattr(task, "ДокументОснование", None):
+                try:
+                    base = task.ДокументОснование.GetObject()
+                    org = org or getattr(base, "Организация", None)
+                    wh = wh or getattr(base, "Склад", None)
+                except Exception as exc:
+                    log(f"[create_wax_job_from_task] ⚠ Не удалось получить данные из основания: {exc}")
+
+            if org is not None:
+                try:
+                    doc.Организация = org if hasattr(org, "Ref") else org
+                except Exception as exc:
+                    log(f"[create_wax_job_from_task] ⚠ Не удалось установить организацию: {exc}")
+
+            if wh is not None:
+                try:
+                    doc.Склад = wh if hasattr(wh, "Ref") else wh
+                except Exception as exc:
+                    log(f"[create_wax_job_from_task] ⚠ Не удалось установить склад: {exc}")
+
             for row in task.Продукция:
                 r = doc.ТоварыВыдано.Add()
                 r.Номенклатура = row.Номенклатура
