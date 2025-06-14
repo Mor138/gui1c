@@ -774,7 +774,6 @@ class COM1CBridge:
         """Возвращает ссылки нарядов, созданных по выбранному заданию."""
         found: list = []
 
-        # приведение ссылки задания к однотипному виду
         if hasattr(task_ref, "Ref"):
             task_ref = task_ref.Ref
 
@@ -791,12 +790,6 @@ class COM1CBridge:
                 match = str(job_task) == str(task_ref)
 
             if job_task is not None and match:
-            task_val = getattr(obj, "ЗаданиеНаПроизводство", None)
-            try:
-                match = task_val == task_ref
-            except Exception:
-                match = str(task_val) == str(task_ref)
-            if task_val is not None and match:
                 found.append(obj.Ref)
 
         log(f"[find_wax_jobs_by_task] найдено {len(found)} нарядов")
