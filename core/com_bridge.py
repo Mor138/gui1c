@@ -316,7 +316,15 @@ class COM1CBridge:
         if description is None:
             return None
 
-        desc = str(description).strip().lower()
+        desc = str(description).strip()
+        # Попытка прямого доступа по имени атрибута
+        try:
+            if hasattr(enum, desc):
+                return getattr(enum, desc)
+        except Exception:
+            pass
+
+        low_desc = desc.lower()
         try:
             for attr in dir(enum):
                 if attr.startswith("_"):
@@ -336,7 +344,7 @@ class COM1CBridge:
                 except Exception:
                     pres = str(val)
 
-                if pres.strip().lower() == desc or attr.lower() == desc:
+                if pres.strip().lower() == low_desc or attr.lower() == low_desc:
                     return val
         except Exception as e:
             log(f"[Enum] Ошибка поиска {description} в {enum_name}: {e}")
@@ -1230,6 +1238,8 @@ class COM1CBridge:
                 for row in job.ТоварыВыдано:
                     nomenclature = getattr(row, "Номенклатура", None)
                     if nomenclature is not None:
+                        type_enum = self.get_object_property(nomenclature, "ТипНоменклатуры")
+                        type_name = safe_str(type_enum)
                         type_name = self.get_object_property(nomenclature, "ТипНоменклатуры")
                         enum = self.get_enum_by_description(
                             "ВидыНормативовНоменклатуры",
