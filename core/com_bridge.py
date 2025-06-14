@@ -1078,7 +1078,7 @@ class COM1CBridge:
     def get_wax_job_lines_by_ref(self, ref):
         """Возвращает табличную часть 'ТоварыВыдано' по ссылке на наряд"""
         try:
-            doc = self.connection.GetObject(ref)
+            doc = self.get_object_from_ref(ref)
             result = []
             for row in doc.ТоварыВыдано:
                 result.append({
