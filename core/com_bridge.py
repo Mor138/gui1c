@@ -1116,6 +1116,17 @@ class COM1CBridge:
         except Exception as e:
             log(f"[get_object_from_ref] ❌ Ошибка получения объекта по ссылке: {e}")
             return None
+
+    def get_object_property(self, obj, prop_name: str):
+        """Возвращает значение свойства 1С-объекта."""
+        try:
+            target = obj
+            if hasattr(target, "GetObject"):
+                target = target.GetObject()
+            return getattr(target, prop_name, None)
+        except Exception as e:
+            log(f"[get_object_property] Ошибка получения {prop_name}: {e}")
+            return None
     # ------------------------------------------------------------------
 
     def create_wax_jobs_from_task(self, task_ref, master_3d: str, master_form: str, warehouse: str | None = None) -> list[str]:
@@ -1202,11 +1213,6 @@ class COM1CBridge:
                 job.Сотрудник = self.get_ref("ФизическиеЛица", mapping.get(method, ""))
                 job.Комментарий = f"Создан автоматически для {method}"
 
-                # Получаем элемент перечисления "Номенклатура" из списка видов нормативов
-                enum_norm = self.get_enum_by_description(
-                    "ВидыНормативовНоменклатуры", "Номенклатура"
-                )
-
                 # Заполнение табличной части вручную
                 for r in rows:
                     row = job.ТоварыВыдано.Add()
@@ -1219,8 +1225,18 @@ class COM1CBridge:
                         row.ХарактеристикаВставок = r.ХарактеристикаВставок
                     if hasattr(r, "Вес"):
                         row.Вес = r.Вес
-                    if enum_norm:
-                        row.ВидНорматива = enum_norm
+
+                # ---- Автоматическая подстановка вида норматива
+                for row in job.ТоварыВыдано:
+                    nomenclature = getattr(row, "Номенклатура", None)
+                    if nomenclature is not None:
+                        type_name = self.get_object_property(nomenclature, "ТипНоменклатуры")
+                        enum = self.get_enum_by_description(
+                            "ВидыНормативовНоменклатуры",
+                            "Номенклатура" if type_name == "Продукция" else "Комплектующее",
+                        )
+                        if enum:
+                            row.ВидНорматива = enum
 
                 job.Write()
                 result.append(str(job.Номер))
