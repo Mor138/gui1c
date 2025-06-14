@@ -771,30 +771,34 @@ class COM1CBridge:
         return result
 
     def find_wax_jobs_by_task(self, task_ref) -> list:
-        """Возвращает ссылки нарядов, созданных по выбранному заданию."""
-        found: list = []
+        """Возвращает ссылки нарядов для выбранного задания."""
+        result: list = []
 
-        # строковое сравнение обеспечивает корректность даже для разных типов
-        # ссылок COM. Для надёжности также проверяем поле "ДокументОснование".
         try:
-            task_ref = str(getattr(task_ref, "Ref", task_ref))
+            task_ref = getattr(task_ref, "Ref", task_ref)
         except Exception:
-            task_ref = str(task_ref)
+            pass
+        task_ref = str(task_ref)
 
         docs = self.connection.Documents.НарядВосковыеИзделия.Select()
+        if hasattr(docs, "Count"):
+            log(f"[find_wax_jobs_by_task] всего найдено {docs.Count()} нарядов")
+
         while docs.Next():
-            obj = docs.GetObject()
-            base_task = (
-                getattr(obj, "ЗаданиеНаПроизводство", None)
-                or getattr(obj, "ДокументОснование", None)
-            )
-            base_task_str = str(getattr(base_task, "Ref", base_task))
+            job = docs.GetObject()
+            if not job or not hasattr(job, "ЗаданиеНаПроизводство"):
+                continue
+            try:
+                if str(job.ЗаданиеНаПроизводство) == task_ref:
+                    result.append(job.Ref)
+            except Exception as e:
+                log(f"[find_wax_jobs_by_task] ❌ Ошибка: {e}")
 
-            if base_task is not None and base_task_str == task_ref:
-                found.append(obj.Ref)
-
-        log(f"[find_wax_jobs_by_task] найдено {len(found)} нарядов")
-        return found
+        log(
+            f"[find_wax_jobs_by_task] найдено {len(result)} "
+            f"нарядов для задания {task_ref}"
+        )
+        return result
 
     def close_wax_jobs(self, job_refs: list) -> list[str]:
         """Закрывает наряды по списку ссылок."""
