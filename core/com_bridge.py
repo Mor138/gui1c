@@ -795,6 +795,38 @@ class COM1CBridge:
                 "Кол-во": qty,
             })
         return result
+
+    def find_wax_jobs_by_task(self, task_ref) -> list[str]:
+        """Возвращает ссылки нарядов, созданных по заданию."""
+        found: list[str] = []
+        docs = self.connection.Documents.НарядВосковыеИзделия.Select()
+        while docs.Next():
+            obj = docs.GetObject()
+            if getattr(obj, "ЗаданиеНаПроизводство", None) == task_ref:
+                found.append(str(obj.Ref))
+        log(f"[find_wax_jobs_by_task] найдено {len(found)} нарядов")
+        return found
+
+    def close_wax_jobs(self, job_refs: list[str]) -> list[str]:
+        """Закрывает наряды по списку ссылок."""
+        closed: list[str] = []
+        for ref in job_refs:
+            try:
+                doc = self.connection.GetObject(ref)
+                try:
+                    doc.ТоварыПринято.ЗаполнитьПоВыданному()
+                except Exception as exc:
+                    log(f"[close_wax_jobs] ⚠ Заполнение: {exc}")
+                try:
+                    doc.Закрыт = True
+                except Exception:
+                    pass
+                doc.Провести()
+                closed.append(str(doc.Номер))
+                log(f"[close_wax_jobs] ✅ {doc.Номер}")
+            except Exception as e:
+                log(f"[close_wax_jobs] ❌ {e}")
+        return closed
         
     def get_ref_by_description(self, catalog_name: str, description: str):
         """Возвращает ссылку на элемент каталога по описанию с кешированием."""
