@@ -1240,6 +1240,7 @@ class COM1CBridge:
                     if nomenclature is not None:
                         type_enum = self.get_object_property(nomenclature, "ТипНоменклатуры")
                         type_name = safe_str(type_enum)
+                        type_name = self.get_object_property(nomenclature, "ТипНоменклатуры")
                         enum = self.get_enum_by_description(
                             "ВидыНормативовНоменклатуры",
                             "Номенклатура" if type_name == "Продукция" else "Комплектующее",
