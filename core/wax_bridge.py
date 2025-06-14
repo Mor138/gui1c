@@ -178,22 +178,22 @@ class WaxBridge:
             })
         return result
 
-    def find_wax_jobs_by_task(self, task_ref) -> list[str]:
-        found: list[str] = []
+    def find_wax_jobs_by_task(self, task_ref) -> list:
+        found: list = []
         docs = self.bridge.connection.Documents.НарядВосковыеИзделия.Select()
         while docs.Next():
             obj = docs.GetObject()
             task_val = getattr(obj, "ЗаданиеНаПроизводство", None)
             if task_val is not None and str(task_val) == str(task_ref):
-                found.append(str(obj.Ref))
+                found.append(obj.Ref)
         log(f"[find_wax_jobs_by_task] найдено {len(found)} нарядов")
         return found
 
-    def close_wax_jobs(self, job_refs: list[str]) -> list[str]:
+    def close_wax_jobs(self, job_refs: list) -> list[str]:
         closed: list[str] = []
         for ref in job_refs:
             try:
-                doc = self.bridge.connection.GetObject(ref)
+                doc = self.bridge.get_object_from_ref(ref)
                 try:
                     doc.ТоварыПринято.ЗаполнитьПоВыданному()
                 except Exception as exc:
