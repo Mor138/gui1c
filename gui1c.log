@@ -1266,3 +1266,202 @@
 2025-06-14 19:19:35,533 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: 'str' object has no attribute 'GetObject'
 2025-06-14 19:19:35,533 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: 'str' object has no attribute 'GetObject'
 2025-06-14 19:19:35,535 [INFO] [UI] Выбрано задание №00000000011.
+2025-06-14 19:24:14,924 [INFO] [find_wax_jobs_by_task] найдено 96 нарядов
+2025-06-14 19:24:14,925 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,925 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,925 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,925 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,925 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,925 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,925 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,925 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,926 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,926 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,926 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,926 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,927 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,927 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,927 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,927 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,927 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,927 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,927 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,927 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,927 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,927 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,927 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,927 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,927 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,927 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,928 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,928 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,928 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,928 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,928 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,928 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,928 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,928 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,929 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,929 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,929 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,929 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,929 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,929 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,929 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,929 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,930 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,930 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,930 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,930 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,930 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,930 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,930 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,931 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,931 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,931 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,931 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,931 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,931 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,931 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,932 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,932 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,932 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,932 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,932 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,932 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,932 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,932 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,932 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,933 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,933 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,933 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,933 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,934 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,934 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,934 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,934 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,934 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,934 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,934 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,934 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,935 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,935 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,935 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,935 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,935 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,935 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,936 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,936 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,936 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,936 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,936 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,936 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,936 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,937 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,937 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,937 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,937 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,937 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,937 [ERROR] [get_object_from_ref] ❌ Ошибка получения объекта по ссылке: Connect.GetObject
+2025-06-14 19:24:14,939 [INFO] [UI] Выбрано задание №00000000011.
+2025-06-14 19:30:38,124 [INFO] [find_wax_jobs_by_task] найдено 96 нарядов
+2025-06-14 19:30:38,126 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:38,160 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:38,176 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:38,192 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:38,266 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:38,285 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:38,361 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:38,399 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:38,460 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:38,533 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:38,609 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:38,689 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:38,735 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:38,828 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:38,890 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:38,934 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:39,036 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:39,117 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:39,262 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:39,428 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:39,527 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:39,621 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:39,639 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:39,679 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:39,697 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:39,744 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:39,787 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:39,826 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:39,862 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:39,906 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:39,969 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:40,016 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:40,057 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:40,134 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:40,204 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:40,310 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:40,423 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:40,506 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:40,578 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:40,619 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:40,663 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:40,840 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:40,947 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:41,080 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:41,197 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:41,332 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:41,534 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:41,549 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:41,584 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:41,602 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:41,646 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:41,683 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:41,718 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:41,761 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:41,802 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:41,864 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:41,910 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:41,947 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:42,025 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:42,092 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:42,208 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:42,322 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:42,407 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:42,478 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:42,517 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:42,559 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:42,705 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:42,810 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:42,936 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:43,052 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:43,184 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:43,365 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:43,497 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:43,628 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:43,759 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:43,891 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:44,027 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:44,170 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:44,309 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:44,448 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:44,585 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:44,722 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:44,862 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:44,999 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:45,137 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:45,275 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:45,415 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:45,566 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:45,719 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:45,860 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:46,006 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:46,149 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:46,291 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:46,434 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:46,581 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:46,723 [INFO] [get_object_from_ref] ✅ Получен объект из ссылки
+2025-06-14 19:30:46,909 [INFO] [UI] Выбрано задание №00000000011.
+2025-06-14 19:31:13,727 [INFO] [UI] Загрузка строк задания: 2
+2025-06-14 19:31:13,728 [INFO] [UI] ✅ Загружены данные задания №00000000011
+2025-06-14 19:31:13,730 [INFO] [UI] Выбрано задание №00000000011.
