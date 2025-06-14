@@ -520,7 +520,10 @@ class WaxPage(QWidget):
             cb(task_obj)
             self.tabs.setCurrentWidget(self.tab_jobs)
             if hasattr(self, "tabs_jobs"):
-                self.tabs_jobs.setCurrentIndex(0)
+                if cb == self.load_close_task_data:
+                    self.tabs_jobs.setCurrentIndex(1)
+                else:
+                    self.tabs_jobs.setCurrentIndex(0)
         else:
             self.tabs.setCurrentIndex(0)
             if hasattr(self, "tabs_tasks"):
