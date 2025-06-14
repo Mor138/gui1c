@@ -182,34 +182,18 @@ class WaxBridge:
         """Возвращает наряды, связанные с указанным заданием."""
         result: list = []
 
-        task_ref = str(task_ref)
-
+        task_ref_str = str(task_ref)
         jobs = self.bridge.list_documents("НарядВосковыеИзделия")
+
         for job in jobs:
             try:
-                if hasattr(job, "ЗаданиеНаПроизводство"):
-                    job_task_ref = str(job.ЗаданиеНаПроизводство)
-                    if job_task_ref == task_ref:
-                        result.append(job.Ref)
-        docs = self.bridge.connection.Documents.НарядВосковыеИзделия.Select()
-        if hasattr(docs, "Count"):
-            log(f"[find_wax_jobs_by_task] всего найдено {docs.Count()} нарядов")
-
-        # Не получаем объект, сравниваем ссылки в выборке
-        while docs.Next():
-            try:
-                job_task_ref = getattr(docs, "ЗаданиеНаПроизводство", None)
-                if job_task_ref is None:
-                    continue
-                if str(job_task_ref) == task_ref:
-                    result.append(docs.Ref)
+                job_task_ref = getattr(job, "ЗаданиеНаПроизводство", None)
+                if job_task_ref and str(job_task_ref) == task_ref_str:
+                    result.append(job.Ref)
             except Exception as e:
                 log(f"[find_wax_jobs_by_task] ❌ Ошибка: {e}")
 
-        log(
-            f"[find_wax_jobs_by_task] найдено {len(result)} "
-            f"нарядов для задания {task_ref}"
-        )
+        log(f"[find_wax_jobs_by_task] ✅ найдено {len(result)} нарядов для задания {task_ref_str}")
         return result
 
     def close_wax_jobs(self, job_refs: list) -> list[str]:
