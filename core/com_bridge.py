@@ -774,22 +774,20 @@ class COM1CBridge:
         """Возвращает ссылки нарядов, созданных по выбранному заданию."""
         found: list = []
 
-        if hasattr(task_ref, "Ref"):
-            task_ref = task_ref.Ref
+        # сравнение по строковому представлению обеспечивает корректность
+        # даже при разных типах ссылок COM
+        try:
+            task_ref = str(getattr(task_ref, "Ref", task_ref))
+        except Exception:
+            task_ref = str(task_ref)
 
         docs = self.connection.Documents.НарядВосковыеИзделия.Select()
         while docs.Next():
             obj = docs.GetObject()
             job_task = getattr(obj, "ЗаданиеНаПроизводство", None)
-            if hasattr(job_task, "Ref"):
-                job_task = job_task.Ref
+            job_task_str = str(getattr(job_task, "Ref", job_task))
 
-            try:
-                match = job_task == task_ref
-            except Exception:
-                match = str(job_task) == str(task_ref)
-
-            if job_task is not None and match:
+            if job_task is not None and job_task_str == task_ref:
                 found.append(obj.Ref)
 
         log(f"[find_wax_jobs_by_task] найдено {len(found)} нарядов")
