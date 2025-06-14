@@ -504,8 +504,14 @@ class COM1CBridge:
         for k, v in fields.items():
             try:
                 log(f"  -> {k} = {v}")
-                if k == "Склад":
-                    log("    ⚠ Поле 'Склад' не устанавливается вручную. Пропускаем.")
+                if k in catalog_fields_map:
+                    ref = self.get_ref(catalog_fields_map[k], v)
+                    log(f"[ref] {k}: {v} => {ref}")
+                    if ref:
+                        setattr(doc, k, ref)
+                        log(f"    Установлено: {k} (Ref: {ref})")
+                    else:
+                        log(f"    ❌ {k} '{v}' не найден.")
                     continue
 
                 if k == "ВидСтатусПродукции":
