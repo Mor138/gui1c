@@ -12,8 +12,6 @@ from datetime import datetime, timedelta
 
 from .logger import logger
 import config
-from .orders_bridge import OrdersBridge
-from .wax_bridge import WaxBridge
 
 # ---------------------------
 # Маппинг описаний в системные имена перечисления
@@ -56,8 +54,11 @@ def log(msg: str) -> None:
         logger.warning(text)
     else:
         logger.info(text)
-    
-   
+
+
+
+from .orders_bridge import OrdersBridge
+from .wax_bridge import WaxBridge
 
 class COM1CBridge:
     PRODUCTION_STATUSES = [
