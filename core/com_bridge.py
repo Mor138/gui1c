@@ -1054,6 +1054,36 @@ class COM1CBridge:
             doc.ПроизводственныйУчасток = getattr(task, "ПроизводственныйУчасток", None)
             doc.Ответственный = getattr(task, "РабочийЦентр", None)
 
+            # Организация и склад могут отсутствовать в самом задании.
+            # В этом случае берём их из заказа в производство, на основании
+            # которого создано задание.
+            org = getattr(task, "Организация", None)
+            wh = getattr(task, "Склад", None)
+            order_ref = (
+                getattr(task, "ЗаказВПроизводство", None)
+                or getattr(task, "ДокументОснование", None)
+            )
+            if (org is None or wh is None) and order_ref and hasattr(order_ref, "GetObject"):
+                try:
+                    order_obj = order_ref.GetObject()
+                    org = org or getattr(order_obj, "Организация", None)
+                    wh = wh or getattr(order_obj, "Склад", None)
+                except Exception as exc:
+                    log(
+                        f"[create_wax_job_from_task] ⚠ Не удалось получить данные из заказа: {exc}"
+                    )
+
+            if org is not None:
+                try:
+                    doc.Организация = org
+                except Exception as exc:
+                    log(
+                        f"[create_wax_job_from_task] ⚠ Не удалось установить организацию: {exc}"
+                    )
+
+            if wh is not None:
+                try:
+                    doc.Склад = wh
             # Организация и склад могут отсутствовать в самом задании, поэтому
             # пробуем получить их из документа-основания.
             org = getattr(task, "Организация", None)
@@ -1112,66 +1142,6 @@ class COM1CBridge:
             log(f"[get_object_from_ref] ❌ Ошибка получения объекта по ссылке: {e}")
             return None
     # ------------------------------------------------------------------
-    def create_wax_jobs_from_task(self, task_ref, master_3d: str, master_form: str) -> list[str]:
-        """Создаёт два наряда из одного задания по артикулу."""
-        from datetime import datetime
-
-        mapping = {"3D печать": master_3d, "Пресс-форма": master_form}
-        result: list[str] = []
-
-        try:
-            if isinstance(task_ref, str):
-                task = self.connection.GetObject(task_ref)
-            elif hasattr(task_ref, "Продукция"):
-                task = task_ref
-            elif hasattr(task_ref, "GetObject"):
-                task = task_ref.GetObject()
-            else:
-                log("[create_wax_jobs_from_task] ❌ Неверный тип ссылки")
-                return []
-        except Exception as exc:
-            log(f"[create_wax_jobs_from_task] ❌ Ошибка доступа к заданию: {exc}")
-            return []
-
-        # Достаём реквизиты из задания
-        org = getattr(task, "Организация", None)
-        wh = getattr(task, "Склад", None)
-        responsible = getattr(task, "Ответственный", None)
-
-        for method_name, master_name in mapping.items():
-            try:
-                doc = self.documents.НарядВосковыеИзделия.CreateDocument()
-                doc.Дата = datetime.now()
-                doc.ДокументОснование = task
-                doc.Технология = self.get_ref_by_description("МетодыВосковки", method_name)
-                doc.Мастер = self.get_ref_by_description("Сотрудники", master_name)
-
-                # Установка основных полей
-                if org:
-                    try:
-                        doc.Организация = org if hasattr(org, "UUID") else org.Ref
-                    except Exception as e:
-                        log(f"[wax_job] ⚠ Не удалось установить Организация: {e}")
-                if wh:
-                    try:
-                        doc.Склад = wh if hasattr(wh, "UUID") else wh.Ref
-                    except Exception as e:
-                        log(f"[wax_job] ⚠ Не удалось установить Склад: {e}")
-                if responsible:
-                    try:
-                        doc.Ответственный = responsible if hasattr(responsible, "UUID") else responsible.Ref
-                    except Exception as e:
-                        log(f"[wax_job] ⚠ Не удалось установить Ответственный: {e}")
-
-                doc.Write()
-                doc.Провести()
-                result.append(str(doc.Номер))
-                log(f"[create_job] ✅ Создан наряд для {method_name}: №{doc.Номер}")
-
-            except Exception as err:
-                log(f"[create_job] ❌ Ошибка для {method_name}: {err}")
-
-        return result
 
     def create_wax_jobs_from_task(self, task_ref, master_3d: str, master_form: str) -> list[str]:
         """Создаёт два наряда из одного задания по артикулу."""
@@ -1200,15 +1170,20 @@ class COM1CBridge:
         responsible = getattr(task, "Ответственный", None)
 
         # Попытка получить значения из связанного заказа, если их нет в задании
-        doc_base = getattr(task, "ДокументОснование", None)
-        if doc_base and hasattr(doc_base, "GetObject"):
+        order_ref = (
+            getattr(task, "ЗаказВПроизводство", None)
+            or getattr(task, "ДокументОснование", None)
+        )
+        if (org is None or wh is None) and order_ref and hasattr(order_ref, "GetObject"):
             try:
-                order_obj = doc_base.GetObject()
+                order_obj = order_ref.GetObject()
                 org = org or getattr(order_obj, "Организация", None)
                 wh = wh or getattr(order_obj, "Склад", None)
                 responsible = responsible or getattr(order_obj, "Ответственный", None)
             except Exception as e:
-                log(f"[create_wax_jobs_from_task] ⚠ Не удалось получить данные из заказа: {e}")
+                log(
+                    f"[create_wax_jobs_from_task] ⚠ Не удалось получить данные из заказа: {e}"
+                )
 
         section = getattr(task, "ПроизводственныйУчасток", None)
 
@@ -1228,10 +1203,20 @@ class COM1CBridge:
                 job.Дата = datetime.now()
                 job.ДокументОснование = task_ref_link
                 job.ЗаданиеНаПроизводство = task_ref_link
-                if hasattr(org, "Ref"):
-                    job.Организация = org.Ref
-                if hasattr(wh, "Ref"):
-                    job.Склад = wh.Ref
+                if org is not None:
+                    try:
+                        job.Организация = org
+                    except Exception as exc:
+                        log(
+                            f"[create_wax_jobs_from_task] ⚠ Не удалось установить организацию: {exc}"
+                        )
+                if wh is not None:
+                    try:
+                        job.Склад = wh
+                    except Exception as exc:
+                        log(
+                            f"[create_wax_jobs_from_task] ⚠ Не удалось установить склад: {exc}"
+                        )
                 if section:
                     job.ПроизводственныйУчасток = section
                 if responsible:
