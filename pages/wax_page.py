@@ -621,7 +621,7 @@ class WaxPage(QWidget):
             self.close_job_refs.append(str(ref))
             method = str(getattr(job_obj, "ТехОперация", "")).lower()
             is_3d = "3" in method or "д" in method
-            rows = config.BRIDGE.get_wax_job_lines(str(job_obj.Номер))
+            rows = config.BRIDGE.get_wax_job_lines_by_ref(job_obj.Ref)
             table = self.tbl_close_3d if is_3d else self.tbl_close_form
             for r_data in rows:
                 r = table.rowCount()
