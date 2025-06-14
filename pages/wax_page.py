@@ -584,7 +584,8 @@ class WaxPage(QWidget):
         self.tbl_form.setRowCount(0)
 
         for row in lines:
-            is_3d = "д" in str(row.get("article", "")).lower()
+            art = str(row.get("article", "")).lower()
+            is_3d = "д" in art or "d" in art
             table = self.tbl_3d if is_3d else self.tbl_form
 
             r = table.rowCount()
@@ -620,7 +621,12 @@ class WaxPage(QWidget):
                 continue
             self.close_job_refs.append(str(ref))
             method = str(getattr(job_obj, "ТехОперация", "")).lower()
-            is_3d = "3" in method or "д" in method
+            is_3d = (
+                "3d" in method
+                or "3-д" in method
+                or "3д" in method
+                or ("3" in method and "п" not in method)
+            )
             rows = config.BRIDGE.get_wax_job_lines_by_ref(job_obj.Ref)
             table = self.tbl_close_3d if is_3d else self.tbl_close_form
             for r_data in rows:
