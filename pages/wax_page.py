@@ -620,15 +620,13 @@ class WaxPage(QWidget):
             if not job_obj:
                 continue
             self.close_job_refs.append(str(ref))
-            method = str(getattr(job_obj, "ТехОперация", "")).lower()
-            is_3d = (
-                "3d" in method
-                or "3-д" in method
-                or "3д" in method
-                or ("3" in method and "п" not in method)
-            )
-            rows = config.BRIDGE.get_wax_job_lines_by_ref(job_obj.Ref)
+            method_obj = getattr(job_obj, "ТехОперация", None)
+            method = str(
+                method_obj.Description if hasattr(method_obj, "Description") else method_obj
+            ).lower()
+            is_3d = "3d" in method or "3-д" in method or "3д" in method
             table = self.tbl_close_3d if is_3d else self.tbl_close_form
+            rows = config.BRIDGE.get_wax_job_lines_by_ref(job_obj.Ref)
             for r_data in rows:
                 r = table.rowCount()
                 table.insertRow(r)
