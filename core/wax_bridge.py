@@ -182,22 +182,15 @@ class WaxBridge:
         """Возвращает наряды, связанные с указанным заданием."""
         result: list = []
 
-        if hasattr(task_ref, "Ref"):
-            task_ref = task_ref.Ref
-
         task_ref = str(task_ref)
 
-        docs = self.bridge.connection.Documents.НарядВосковыеИзделия.Select()
-        if hasattr(docs, "Count"):
-            log(f"[find_wax_jobs_by_task] всего найдено {docs.Count()} нарядов")
-
-        while docs.Next():
-            job = docs.GetObject()
-            if not job or not hasattr(job, "ЗаданиеНаПроизводство"):
-                continue
+        jobs = self.bridge.list_documents("НарядВосковыеИзделия")
+        for job in jobs:
             try:
-                if str(job.ЗаданиеНаПроизводство) == task_ref:
-                    result.append(job.Ref)
+                if hasattr(job, "ЗаданиеНаПроизводство"):
+                    job_task_ref = str(job.ЗаданиеНаПроизводство)
+                    if job_task_ref == task_ref:
+                        result.append(job.Ref)
             except Exception as e:
                 log(f"[find_wax_jobs_by_task] ❌ Ошибка: {e}")
 
