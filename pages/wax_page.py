@@ -26,6 +26,7 @@ class WaxPage(QWidget):
         super().__init__()
         self.last_created_task_ref = None
         self.jobs_page = None
+        self.close_job_refs = []
         self._task_select_callback = None
         self.warehouses = config.BRIDGE.list_catalog_items("Склады")
         self.norm_types = (
@@ -55,6 +56,13 @@ class WaxPage(QWidget):
     def select_task_for_wax_jobs(self):
         """Переключается на список заданий для выбора."""
         self._task_select_callback = self.load_task_data
+        self.tabs.setCurrentWidget(self.tab_tasks)
+        if hasattr(self, "tabs_tasks"):
+            self.tabs_tasks.setCurrentIndex(1)
+
+    def select_task_for_wax_close(self):
+        """Выбор задания для закрытия нарядов."""
+        self._task_select_callback = self.load_close_task_data
         self.tabs.setCurrentWidget(self.tab_tasks)
         if hasattr(self, "tabs_tasks"):
             self.tabs_tasks.setCurrentIndex(1)
@@ -234,6 +242,45 @@ class WaxPage(QWidget):
             b.clicked.connect(self._not_implemented)
         j_new.addLayout(bar_new_jobs)
 
+        # --- sub-tab: закрытие нарядов ---
+        tab_jobs_close = QWidget(); c_layout = QVBoxLayout(tab_jobs_close)
+        self.btn_close_select_task = QPushButton("Выбрать задание")
+        self.btn_close_select_task.clicked.connect(self.select_task_for_wax_close)
+        c_layout.addWidget(self.btn_close_select_task, alignment=Qt.AlignLeft)
+
+        self.lbl_close_info = QLabel("Задание не выбрано")
+        c_layout.addWidget(self.lbl_close_info, alignment=Qt.AlignLeft)
+
+        close_tables = QHBoxLayout()
+
+        group_c3d = QGroupBox("3D печать")
+        vc3d = QVBoxLayout(group_c3d)
+        self.tbl_close_3d = QTableWidget(0, 7)
+        self.tbl_close_3d.setHorizontalHeaderLabels([
+            "✓", "Номенклатура", "Размер", "Проба", "Цвет", "Кол-во", "Вес"
+        ])
+        self.tbl_close_3d.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.tbl_close_3d.verticalHeader().setVisible(False)
+        vc3d.addWidget(self.tbl_close_3d)
+
+        group_cform = QGroupBox("Пресс-форма")
+        vcform = QVBoxLayout(group_cform)
+        self.tbl_close_form = QTableWidget(0, 7)
+        self.tbl_close_form.setHorizontalHeaderLabels([
+            "✓", "Номенклатура", "Размер", "Проба", "Цвет", "Кол-во", "Вес"
+        ])
+        self.tbl_close_form.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.tbl_close_form.verticalHeader().setVisible(False)
+        vcform.addWidget(self.tbl_close_form)
+
+        close_tables.addWidget(group_c3d)
+        close_tables.addWidget(group_cform)
+        c_layout.addLayout(close_tables, 1)
+
+        self.btn_close_jobs = QPushButton("Закрыть наряды")
+        self.btn_close_jobs.clicked.connect(self._on_close_jobs)
+        c_layout.addWidget(self.btn_close_jobs, alignment=Qt.AlignLeft)
+
         tab_jobs_list = QWidget(); j1 = QVBoxLayout(tab_jobs_list)
         lbl_jobs = QLabel("Наряды (восковые изделия)")
         lbl_jobs.setFont(QFont("Arial", 16, QFont.Bold))
@@ -288,6 +335,7 @@ class WaxPage(QWidget):
         j1.addLayout(btn_bar_jobs)
 
         self.tabs_jobs.addTab(tab_jobs_new, "Создание")
+        self.tabs_jobs.addTab(tab_jobs_close, "Закрытие")
         self.tabs_jobs.addTab(tab_jobs_list, "Наряды (восковые изделия)")
         self.tabs.addTab(self.tab_jobs, "Наряды восковых изделий по методам")
 
@@ -507,6 +555,21 @@ class WaxPage(QWidget):
 
         log(f"[UI] ✅ Загружены данные задания №{task_obj.Номер}")
 
+    def load_close_task_data(self, task_obj):
+        if not task_obj:
+            log("[UI] ❌ Нет задания для закрытия.")
+            return
+
+        self.last_created_task_ref = task_obj
+        if hasattr(self, "lbl_close_info"):
+            try:
+                d = str(task_obj.Дата)[:10]
+            except Exception:
+                d = ""
+            self.lbl_close_info.setText(f"Задание №{task_obj.Номер} от {d}")
+
+        self._fill_close_tables_from_task(task_obj)
+
     def _fill_jobs_table_from_task(self, task_obj):
         """Заполняет таблицу нарядов строками выбранного задания."""
         lines = config.BRIDGE.get_task_lines(getattr(task_obj, "Номер", ""))
@@ -538,6 +601,43 @@ class WaxPage(QWidget):
         self.tbl_3d.resizeColumnsToContents()
         self.tbl_form.resizeColumnsToContents()
         log(f"[UI] Загрузка строк задания: {len(lines)}")
+
+    def _fill_close_tables_from_task(self, task_obj):
+        """Заполняет таблицы закрытия строками нарядов по заданию."""
+        if not hasattr(self, "tbl_close_3d"):
+            return
+        self.tbl_close_3d.setRowCount(0)
+        self.tbl_close_form.setRowCount(0)
+        self.close_job_refs = []
+
+        refs = config.BRIDGE.find_wax_jobs_by_task(task_obj.Ref)
+        for ref in refs:
+            job_obj = config.BRIDGE.get_object_from_ref(ref)
+            if not job_obj:
+                continue
+            self.close_job_refs.append(str(ref))
+            method = str(getattr(job_obj, "ТехОперация", ""))
+            rows = config.BRIDGE.get_wax_job_lines(str(job_obj.Номер))
+            table = self.tbl_close_3d if "3D" in method else self.tbl_close_form
+            for r_data in rows:
+                r = table.rowCount()
+                table.insertRow(r)
+                chk = QTableWidgetItem()
+                chk.setCheckState(Qt.Checked)
+                table.setItem(r, 0, chk)
+                values = [
+                    r_data.get("nomen", ""),
+                    r_data.get("size", ""),
+                    r_data.get("sample", ""),
+                    r_data.get("color", ""),
+                    r_data.get("qty", ""),
+                    f"{r_data['weight']:.{config.WEIGHT_DECIMALS}f}" if r_data.get("weight") not in ("", None) else "",
+                ]
+                for c, v in enumerate(values, start=1):
+                    table.setItem(r, c, QTableWidgetItem(str(v)))
+
+        self.tbl_close_3d.resizeColumnsToContents()
+        self.tbl_close_form.resizeColumnsToContents()
 
     def _on_wax_job_double_click(self, item, column):
         num = item.text(0).split()[0].strip()
@@ -744,11 +844,27 @@ class WaxPage(QWidget):
                         agg[k]["qty"] += row["qty"]
                         agg[k]["weight"] += row["weight"]
 
-                for (art, size), d in agg.items():
-                    QTreeWidgetItem(root, [
-                        f"{art}  (р-р {size})",
-                        str(d["qty"]), f"{d['weight']:.{config.WEIGHT_DECIMALS}f}"
-                    ])
+        for (art, size), d in agg.items():
+            QTreeWidgetItem(root, [
+                f"{art}  (р-р {size})",
+                str(d["qty"]), f"{d['weight']:.{config.WEIGHT_DECIMALS}f}"
+            ])
+
+    def _on_close_jobs(self):
+        if not getattr(self, "close_job_refs", None):
+            QMessageBox.warning(self, "Ошибка", "Нет выбранных нарядов")
+            return
+
+        result = config.BRIDGE.close_wax_jobs(self.close_job_refs)
+        if result:
+            QMessageBox.information(
+                self,
+                "Успех",
+                "Закрыты наряды: " + ", ".join(result),
+            )
+            self.refresh()
+        else:
+            QMessageBox.critical(self, "Ошибка", "Не удалось закрыть наряды")
 
     # ------------------------------------------------------------------
     def _not_implemented(self):
