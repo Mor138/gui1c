@@ -1075,6 +1075,25 @@ class COM1CBridge:
                 break
         return result
 
+    def get_wax_job_lines_by_ref(self, ref):
+        """Возвращает табличную часть 'ТоварыВыдано' по ссылке на наряд"""
+        try:
+            doc = self.connection.GetObject(ref)
+            result = []
+            for row in doc.ТоварыВыдано:
+                result.append({
+                    "nomen": self.safe(row, "Номенклатура"),
+                    "size": self.safe(row, "Размер"),
+                    "sample": self.safe(row, "Проба"),
+                    "color": self.safe(row, "ЦветМеталла"),
+                    "qty": row.Количество,
+                    "weight": round(float(row.Вес), config.WEIGHT_DECIMALS) if hasattr(row, "Вес") else "",
+                })
+            return result
+        except Exception as e:
+            log(f"[get_wax_job_lines_by_ref] ❌ Ошибка: {e}")
+            return []
+
     # ------------------------------------------------------------------
     def create_wax_job_from_task(self, task_number: str) -> str:
         """Создаёт 'НарядВосковыеИзделия' на основании задания."""
