@@ -6,18 +6,43 @@ C:.
 │   .gitignore
 │   AGENTS.md
 │   config.py
+│   gui1c.log
 │   main.py
 │   README.md
 │   structured_form_fields.json
 │   Структура.txt
 │
 ├───core
+│   │   admin_bridge.py
+│   │   assembly_bridge.py
+│   │   casting_bridge.py
+│   │   casting_in_bridge.py
 │   │   catalogs.py
+│   │   catalogs_bridge.py
 │   │   com_bridge.py
 │   │   config_parser.py
 │   │   data_bridge.py
 │   │   form_builder.py
+│   │   giis_bridge.py
+│   │   inspection_bridge.py
+│   │   kit_bridge.py
+│   │   logger.py
+│   │   marking_bridge.py
 │   │   models.py
+│   │   orders_bridge.py
+│   │   payroll_bridge.py
+│   │   planning_bridge.py
+│   │   plating_bridge.py
+│   │   polish_bridge.py
+│   │   release_bridge.py
+│   │   routes_bridge.py
+│   │   sanding_bridge.py
+│   │   shipment_bridge.py
+│   │   stats_bridge.py
+│   │   stock_bridge.py
+│   │   stone_set_bridge.py
+│   │   tumbling_bridge.py
+│   │   wax_bridge.py
 │   │   __init__.py
 │   │
 │   └───__pycache__
@@ -25,6 +50,7 @@ C:.
 │           com_bridge.cpython-310.pyc
 │           config_parser.cpython-310.pyc
 │           form_builder.cpython-310.pyc
+│           logger.cpython-310.pyc
 │           models.cpython-310.pyc
 │           __init__.cpython-310.pyc
 │
@@ -32,6 +58,9 @@ C:.
 │       1Cv8.1CD.cfl
 │       ConfigDumpInfo.xml
 │       Configuration.xml
+│
+├───docs
+│       production_task_prompt.md
 │
 ├───form_schemas
 │       orders.json
@@ -94,10 +123,14 @@ C:.
 │   │   charts.py
 │   │   dialogs.py
 │   │   forms.py
+│   │   login_dialog.py
+│   │   production_task_form.py
 │   │   tables.py
 │   │   __init__.py
 │   │
 │   └───__pycache__
+│           login_dialog.cpython-310.pyc
+│           production_task_form.cpython-310.pyc
 │           tables.cpython-310.pyc
 │           __init__.cpython-310.pyc
 │
