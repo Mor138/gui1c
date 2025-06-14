@@ -352,6 +352,37 @@ class COM1CBridge:
         log(f"[{enum_name}] Не найдено значение: {description}")
         return None
 
+    def list_enum_values(self, enum_name: str) -> list[str]:
+        """Возвращает список представлений элементов перечисления."""
+        enum = getattr(self.enums, enum_name, None)
+        if not enum:
+            log(f"Перечисление '{enum_name}' не найдено")
+            return []
+        values: list[str] = []
+        try:
+            for attr in dir(enum):
+                if attr.startswith("_"):
+                    continue
+                try:
+                    val = getattr(enum, attr)
+                except Exception:
+                    continue
+                pres = ""
+                try:
+                    if hasattr(val, "GetPresentation"):
+                        pres = str(val.GetPresentation())
+                    elif hasattr(val, "Presentation"):
+                        pres = str(val.Presentation)
+                    else:
+                        pres = str(val)
+                except Exception:
+                    pres = str(val)
+                if pres:
+                    values.append(pres)
+        except Exception as e:
+            log(f"[list_enum_values] Ошибка чтения {enum_name}: {e}")
+        return values
+
     def get_last_order_number(self):
         doc = getattr(self.documents, "ЗаказВПроизводство", None)
         if not doc:
@@ -1137,7 +1168,14 @@ class COM1CBridge:
             return None
     # ------------------------------------------------------------------
 
-    def create_wax_jobs_from_task(self, task_ref, master_3d: str, master_form: str, warehouse: str | None = None) -> list[str]:
+    def create_wax_jobs_from_task(
+        self,
+        task_ref,
+        master_3d: str,
+        master_form: str,
+        warehouse: str | None = None,
+        norm_type: str = "Номенклатура",
+    ) -> list[str]:
         """Создаёт два наряда из одного задания по артикулу."""
         mapping = {"3D печать": master_3d, "Пресс-форма": master_form}
         result: list[str] = []
@@ -1233,6 +1271,14 @@ class COM1CBridge:
                         row.ХарактеристикаВставок = r.ХарактеристикаВставок
                     if hasattr(r, "Вес"):
                         row.Вес = r.Вес
+
+                # ---- Подстановка вида норматива для всех строк
+                enum_norm = self.get_enum_by_description(
+                    "ВидыНормативовНоменклатуры", norm_type
+                )
+                if enum_norm:
+                    for row in job.ТоварыВыдано:
+                        row.ВидНорматива = enum_norm
 
                 # ---- Автоматическая подстановка вида норматива
                 for row in job.ТоварыВыдано:
