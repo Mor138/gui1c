@@ -614,6 +614,23 @@ class COM1CBridge:
 
         log(f"[get_doc_ref] ❌ Документ {doc_name} №{number} не найден")
         return None
+
+    def list_documents(self, doc_name: str) -> list:
+        """Возвращает список объектов документов указанного типа."""
+        result: list = []
+        docs = getattr(self.connection.Documents, doc_name, None)
+        if docs is None:
+            log(f"[list_documents] Документ '{doc_name}' не найден")
+            return result
+
+        selection = docs.Select()
+        while selection.Next():
+            try:
+                obj = selection.GetObject()
+                result.append(obj)
+            except Exception as e:
+                log(f"[list_documents] ❌ Ошибка: {e}")
+        return result
     # ------------------------------------------------------------------
     def list_orders(self):
         result = []
@@ -774,12 +791,15 @@ class COM1CBridge:
         """Возвращает ссылки нарядов для выбранного задания."""
         result: list = []
 
-        try:
-            task_ref = getattr(task_ref, "Ref", task_ref)
-        except Exception:
-            pass
         task_ref = str(task_ref)
 
+        jobs = self.list_documents("НарядВосковыеИзделия")
+        for job in jobs:
+            try:
+                if hasattr(job, "ЗаданиеНаПроизводство"):
+                    job_task_ref = str(job.ЗаданиеНаПроизводство)
+                    if job_task_ref == str(task_ref):
+                        result.append(job.Ref)
         docs = self.connection.Documents.НарядВосковыеИзделия.Select()
         if hasattr(docs, "Count"):
             log(f"[find_wax_jobs_by_task] всего найдено {docs.Count()} нарядов")
