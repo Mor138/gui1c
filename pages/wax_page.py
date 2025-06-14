@@ -517,18 +517,18 @@ class WaxPage(QWidget):
         if self._task_select_callback:
             cb = self._task_select_callback
             self._task_select_callback = None
-            cb(task_obj)
-            self.tabs.setCurrentWidget(self.tab_jobs)
             if hasattr(self, "tabs_jobs"):
                 if cb == self.load_close_task_data:
                     self.tabs_jobs.setCurrentIndex(1)
                 else:
                     self.tabs_jobs.setCurrentIndex(0)
+            self.tabs.setCurrentWidget(self.tab_jobs)
+            cb(task_obj)
         else:
             self.tabs.setCurrentIndex(0)
             if hasattr(self, "tabs_tasks"):
                 self.tabs_tasks.setCurrentIndex(0)
-            self.task_form.load_task_object(task_obj)
+                self.task_form.load_task_object(task_obj)
         log(f"[UI] Выбрано задание №{num}.")
 
     def load_task_data(self, task_obj):
@@ -619,9 +619,10 @@ class WaxPage(QWidget):
             if not job_obj:
                 continue
             self.close_job_refs.append(str(ref))
-            method = str(getattr(job_obj, "ТехОперация", ""))
+            method = str(getattr(job_obj, "ТехОперация", "")).lower()
+            is_3d = "3" in method or "д" in method
             rows = config.BRIDGE.get_wax_job_lines(str(job_obj.Номер))
-            table = self.tbl_close_3d if "3D" in method else self.tbl_close_form
+            table = self.tbl_close_3d if is_3d else self.tbl_close_form
             for r_data in rows:
                 r = table.rowCount()
                 table.insertRow(r)
