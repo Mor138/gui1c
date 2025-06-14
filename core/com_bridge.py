@@ -800,6 +800,18 @@ class COM1CBridge:
                     job_task_ref = str(job.ЗаданиеНаПроизводство)
                     if job_task_ref == str(task_ref):
                         result.append(job.Ref)
+        docs = self.connection.Documents.НарядВосковыеИзделия.Select()
+        if hasattr(docs, "Count"):
+            log(f"[find_wax_jobs_by_task] всего найдено {docs.Count()} нарядов")
+
+        # Не получаем объект целиком, сравниваем ссылки прямо в выборке
+        while docs.Next():
+            try:
+                job_task_ref = getattr(docs, "ЗаданиеНаПроизводство", None)
+                if job_task_ref is None:
+                    continue
+                if str(job_task_ref) == task_ref:
+                    result.append(docs.Ref)
             except Exception as e:
                 log(f"[find_wax_jobs_by_task] ❌ Ошибка: {e}")
 
