@@ -28,6 +28,10 @@ class WaxPage(QWidget):
         self.jobs_page = None
         self._task_select_callback = None
         self.warehouses = config.BRIDGE.list_catalog_items("Склады")
+        self.norm_types = (
+            config.BRIDGE.list_enum_values("ВидыНормативовНоменклатуры")
+            or ["Номенклатура", "Комплектующее"]
+        )
         self._ui()
         self.refresh()
 
@@ -150,9 +154,14 @@ class WaxPage(QWidget):
         self.combo_form_master.addItems(config.EMPLOYEES)
         self.combo_warehouse = QComboBox(); self.combo_warehouse.setEditable(True)
         self.combo_warehouse.addItems([x["Description"] for x in self.warehouses])
+        self.combo_norm_type = QComboBox(); self.combo_norm_type.setEditable(True)
+        self.combo_norm_type.addItems(self.norm_types)
+        if self.norm_types:
+            self.combo_norm_type.setCurrentIndex(0)
         form.addRow("3D печать", self.combo_3d_master)
         form.addRow("Пресс-форма", self.combo_form_master)
         form.addRow("Склад", self.combo_warehouse)
+        form.addRow("Вид норматива", self.combo_norm_type)
         j_new.addLayout(form)
 
         self.btn_select_task = QPushButton("Выбрать задание")
@@ -599,11 +608,13 @@ class WaxPage(QWidget):
             return
 
         print("[DEBUG] last_created_task_ref =", self.last_created_task_ref)
+        norm_type = self.combo_norm_type.currentText().strip()
         result = config.BRIDGE.create_wax_jobs_from_task(
             self.last_created_task_ref,
             master_3d,
             master_resin,
             warehouse,
+            norm_type,
         )
 
         if result:
@@ -627,12 +638,14 @@ class WaxPage(QWidget):
 
             return
         warehouse = self.combo_warehouse.currentText().strip()
+        norm_type = self.combo_norm_type.currentText().strip()
         try:
             count = config.BRIDGE.create_wax_jobs_from_task(
                 task_num,
                 self.combo_3d_master.currentText().strip(),
                 self.combo_form_master.currentText().strip(),
                 warehouse,
+                norm_type,
             )
             QMessageBox.information(self, "Готово", f"Создано {len(count)} нарядов")
             self.refresh()
