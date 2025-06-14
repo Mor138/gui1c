@@ -1054,60 +1054,38 @@ class COM1CBridge:
             doc.ПроизводственныйУчасток = getattr(task, "ПроизводственныйУчасток", None)
             doc.Ответственный = getattr(task, "РабочийЦентр", None)
 
-            # Организация и склад могут отсутствовать в самом задании.
-            # В этом случае берём их из заказа в производство, на основании
-            # которого создано задание.
-            org = getattr(task, "Организация", None)
-            wh = getattr(task, "Склад", None)
+            # Получаем заказ в производстве — строго через GetObject
             order_ref = (
                 getattr(task, "ЗаказВПроизводство", None)
                 or getattr(task, "ДокументОснование", None)
             )
-            if (org is None or wh is None) and order_ref and hasattr(order_ref, "GetObject"):
+            order_obj = None
+            if order_ref and hasattr(order_ref, "GetObject"):
                 try:
                     order_obj = order_ref.GetObject()
-                    org = org or getattr(order_obj, "Организация", None)
-                    wh = wh or getattr(order_obj, "Склад", None)
+                    log("[create_wax_job_from_task] ✅ Получен заказ-основание")
                 except Exception as exc:
-                    log(
-                        f"[create_wax_job_from_task] ⚠ Не удалось получить данные из заказа: {exc}"
-                    )
+                    log(f"[create_wax_job_from_task] ⚠ Ошибка получения заказа: {exc}")
 
-            if org is not None:
+            # Подстановка организации и склада ТОЛЬКО из заказа
+            if order_obj:
                 try:
-                    doc.Организация = org
-                except Exception as exc:
-                    log(
-                        f"[create_wax_job_from_task] ⚠ Не удалось установить организацию: {exc}"
-                    )
+                    org = getattr(order_obj, "Организация", None)
+                    if org:
+                        doc.Организация = org if hasattr(org, "Ref") else org
+                        log(f"[create_wax_job_from_task] ✅ Установлена организация: {safe_str(org)}")
+                except Exception as e:
+                    log(f"[create_wax_job_from_task] ⚠ Не удалось установить организацию: {e}")
 
-            if wh is not None:
                 try:
-                    doc.Склад = wh
-            # Организация и склад могут отсутствовать в самом задании, поэтому
-            # пробуем получить их из документа-основания.
-            org = getattr(task, "Организация", None)
-            wh = getattr(task, "Склад", None)
-            if (org is None or wh is None) and getattr(task, "ДокументОснование", None):
-                try:
-                    base = task.ДокументОснование.GetObject()
-                    org = org or getattr(base, "Организация", None)
-                    wh = wh or getattr(base, "Склад", None)
-                except Exception as exc:
-                    log(f"[create_wax_job_from_task] ⚠ Не удалось получить данные из основания: {exc}")
+                    wh = getattr(order_obj, "Склад", None)
+                    if wh:
+                        doc.Склад = wh if hasattr(wh, "Ref") else wh
+                        log(f"[create_wax_job_from_task] ✅ Установлен склад: {safe_str(wh)}")
+                except Exception as e:
+                    log(f"[create_wax_job_from_task] ⚠ Не удалось установить склад: {e}")
 
-            if org is not None:
-                try:
-                    doc.Организация = org if hasattr(org, "Ref") else org
-                except Exception as exc:
-                    log(f"[create_wax_job_from_task] ⚠ Не удалось установить организацию: {exc}")
-
-            if wh is not None:
-                try:
-                    doc.Склад = wh if hasattr(wh, "Ref") else wh
-                except Exception as exc:
-                    log(f"[create_wax_job_from_task] ⚠ Не удалось установить склад: {exc}")
-
+            # --- Табличная часть
             for row in task.Продукция:
                 r = doc.ТоварыВыдано.Add()
                 r.Номенклатура = row.Номенклатура
