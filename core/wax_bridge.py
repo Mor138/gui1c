@@ -201,6 +201,9 @@ class WaxBridge:
         for ref in job_refs:
             try:
                 doc = self.bridge.get_object_from_ref(ref)
+                if not doc:
+                    log("[close_wax_jobs] ❌ Не удалось получить документ по ссылке")
+                    continue
                 try:
                     doc.ТоварыПринято.ЗаполнитьПоВыданному()
                 except Exception as exc:
