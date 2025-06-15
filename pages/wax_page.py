@@ -913,26 +913,22 @@ class WaxPage(QWidget):
 
     def _on_close_jobs(self):
         tables = [self.tbl_close_3d, self.tbl_close_form]
-        job_refs: set = set()
+        job_refs = []
         for tbl in tables:
             for row in range(tbl.rowCount()):
                 item = tbl.item(row, 0)
                 if item and item.checkState() == Qt.Checked:
                     ref = item.data(Qt.UserRole)
-                    if ref:
-                        job_refs.add(ref)
+                    if ref and ref not in job_refs:
+                        job_refs.append(ref)
 
         if not job_refs:
             QMessageBox.warning(self, "Ошибка", "Нет выбранных нарядов")
             return
 
-        result = config.BRIDGE.close_wax_jobs(list(job_refs))
+        result = config.BRIDGE.close_wax_jobs(job_refs)
         if result:
-            QMessageBox.information(
-                self,
-                "Успех",
-                "Закрыты наряды: " + ", ".join(result),
-            )
+            QMessageBox.information(self, "Успех", "Закрыты наряды: " + ", ".join(result))
             self.refresh()
         else:
             QMessageBox.critical(self, "Ошибка", "Не удалось закрыть наряды")
