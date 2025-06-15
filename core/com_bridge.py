@@ -807,27 +807,42 @@ class COM1CBridge:
         return result
 
     def close_wax_jobs(self, job_refs: list) -> list[str]:
-        """Закрывает наряды по списку ссылок."""
+        """Закрывает наряды вручную копируя 'Выдано' → 'Принято'."""
         closed: list[str] = []
         for ref in job_refs:
             try:
-                doc = self.get_object_from_ref(ref)
+                doc = ref.GetObject()
                 if not doc:
-                    log("[close_wax_jobs] ❌ Не удалось получить документ по ссылке")
                     continue
-                try:
-                    doc.ТоварыПринято.ЗаполнитьПоВыданному()
-                except Exception as exc:
-                    log(f"[close_wax_jobs] ⚠ Заполнение: {exc}")
-                try:
+
+                # Очищаем старые строки
+                if hasattr(doc, "Принято"):
+                    doc.Принято.Clear()
+
+                # Копируем из Выдано в Принято
+                for r in doc.Выдано:
+                    new_row = doc.Принято.Add()
+                    new_row.Номенклатура = r.Номенклатура
+                    new_row.Размер = r.Размер
+                    new_row.Проба = r.Проба
+                    new_row.ЦветМеталла = r.ЦветМеталла
+                    new_row.Количество = r.Количество
+                    if hasattr(r, "Вес"):
+                        new_row.Вес = r.Вес
+                    if hasattr(r, "ДатаПринятия"):
+                        new_row.ДатаПринятия = r.ДатаПринятия
+
+                log(f"[close_wax_jobs] ✅ Принято заполнено вручную для {doc.Номер}")
+
+                if hasattr(doc, "Закрыт"):
                     doc.Закрыт = True
-                except Exception:
-                    pass
+
                 doc.Провести()
                 closed.append(str(doc.Номер))
-                log(f"[close_wax_jobs] ✅ {doc.Номер}")
+                log(f"[close_wax_jobs] ✅ Проведён: {doc.Номер}")
+
             except Exception as e:
-                log(f"[close_wax_jobs] ❌ {e}")
+                log(f"[close_wax_jobs] ❌ Ошибка при закрытии: {e}")
         return closed
         
     def get_ref_by_description(self, catalog_name: str, description: str):
@@ -1336,19 +1351,6 @@ class COM1CBridge:
                     for row in job.ТоварыВыдано:
                         row.ВидНорматива = enum_norm
 
-                # ---- Автоматическая подстановка вида норматива
-                for row in job.ТоварыВыдано:
-                    nomenclature = getattr(row, "Номенклатура", None)
-                    if nomenclature is not None:
-                        type_enum = self.get_object_property(nomenclature, "ТипНоменклатуры")
-                        type_name = safe_str(type_enum)
-                        type_name = self.get_object_property(nomenclature, "ТипНоменклатуры")
-                        enum = self.get_enum_by_description(
-                            "ВидыНормативовНоменклатуры",
-                            "Номенклатура" if type_name == "Продукция" else "Комплектующее",
-                        )
-                        if enum:
-                            row.ВидНорматива = enum
 
                 job.Write()
                 result.append(str(job.Номер))
