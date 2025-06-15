@@ -182,13 +182,13 @@ class WaxBridge:
         """Возвращает наряды, связанные с указанным заданием."""
         result: list = []
 
-        task_ref_str = str(task_ref)
+        task_ref_str = self.bridge.to_string(task_ref)
         jobs = self.bridge.list_documents("НарядВосковыеИзделия")
 
         for job in jobs:
             try:
                 job_task_ref = getattr(job, "ЗаданиеНаПроизводство", None)
-                if job_task_ref and str(job_task_ref) == task_ref_str:
+                if job_task_ref and self.bridge.to_string(job_task_ref) == task_ref_str:
                     result.append(job.Ref)
             except Exception as e:
                 log(f"[find_wax_jobs_by_task] ❌ Ошибка: {e}")
