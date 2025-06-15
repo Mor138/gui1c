@@ -325,12 +325,12 @@ class WaxPage(QWidget):
             btn_bar_jobs.addWidget(b)
 
         btn_jobs_refresh.clicked.connect(self._fill_jobs_tree)
-        btn_jobs_post.clicked.connect(self._not_implemented)
-        btn_jobs_unpost.clicked.connect(self._not_implemented)
-        btn_jobs_mark.clicked.connect(self._not_implemented)
-        btn_jobs_unmark.clicked.connect(self._not_implemented)
-        btn_jobs_delete.clicked.connect(self._not_implemented)
-        btn_jobs_to_work.clicked.connect(self._not_implemented)
+        btn_jobs_post.clicked.connect(self._post_selected_jobs)
+        btn_jobs_unpost.clicked.connect(self._unpost_selected_jobs)
+        btn_jobs_mark.clicked.connect(self._mark_selected_jobs)
+        btn_jobs_unmark.clicked.connect(self._unmark_selected_jobs)
+        btn_jobs_delete.clicked.connect(self._delete_selected_jobs)
+        btn_jobs_to_work.clicked.connect(self._send_job_to_work)
 
         j1.addLayout(btn_bar_jobs)
 
@@ -433,6 +433,50 @@ class WaxPage(QWidget):
             print(f"[DEBUG] Проведение: {num}")
             config.BRIDGE.delete_task(num)
         self._fill_tasks_tree()
+
+    # ------------------------------------------------------------------
+    def _get_checked_jobs(self):
+        result = []
+        for i in range(self.tree_jobs.topLevelItemCount()):
+            item = self.tree_jobs.topLevelItem(i)
+            if item.checkState(0) == Qt.Checked:
+                result.append(item.text(0))
+        return result
+
+    def _post_selected_jobs(self):
+        for num in self._get_checked_jobs():
+            config.BRIDGE.post_wax_job(num)
+        self._fill_jobs_tree()
+
+    def _unpost_selected_jobs(self):
+        for num in self._get_checked_jobs():
+            config.BRIDGE.undo_post_wax_job(num)
+        self._fill_jobs_tree()
+
+    def _mark_selected_jobs(self):
+        for num in self._get_checked_jobs():
+            config.BRIDGE.mark_wax_job_for_deletion(num)
+        self._fill_jobs_tree()
+
+    def _unmark_selected_jobs(self):
+        for num in self._get_checked_jobs():
+            config.BRIDGE.unmark_wax_job_deletion(num)
+        self._fill_jobs_tree()
+
+    def _delete_selected_jobs(self):
+        for num in self._get_checked_jobs():
+            config.BRIDGE.delete_wax_job(num)
+        self._fill_jobs_tree()
+
+    def _send_job_to_work(self):
+        item = self.tree_jobs.currentItem()
+        if not item:
+            QMessageBox.warning(self, "Ошибка", "Выберите наряд")
+            return
+        num = item.text(0).strip()
+        if not num:
+            return
+        self.populate_jobs_tree(num)
 
     def _send_task_to_work(self):
         """Переносит выбранное задание на вкладку создания нарядов."""
@@ -619,7 +663,7 @@ class WaxPage(QWidget):
             job_obj = config.BRIDGE.get_object_from_ref(ref)
             if not job_obj:
                 continue
-            self.close_job_refs.append(str(ref))
+            self.close_job_refs.append(ref)
             method_obj = getattr(job_obj, "ТехОперация", None)
             method = str(
                 method_obj.Description if hasattr(method_obj, "Description") else method_obj
@@ -632,7 +676,7 @@ class WaxPage(QWidget):
                 table.insertRow(r)
                 chk = QTableWidgetItem()
                 chk.setCheckState(Qt.Checked)
-                chk.setData(Qt.UserRole, str(ref))
+                chk.setData(Qt.UserRole, ref)
                 table.setItem(r, 0, chk)
                 values = [
                     r_data.get("nomen", ""),
@@ -828,6 +872,14 @@ class WaxPage(QWidget):
                 job["Задание"],
                 job["Ответственный"],
             ])
+            item.setCheckState(0, Qt.Unchecked)
+            from PyQt5.QtGui import QBrush, QColor
+            if job.get("ПометкаУдаления"):
+                for i in range(item.columnCount()):
+                    item.setBackground(i, QBrush(QColor("#f87171")))
+            elif job.get("Проведен"):
+                for i in range(item.columnCount()):
+                    item.setBackground(i, QBrush(QColor("#bbf7d0")))
             self.tree_jobs.addTopLevelItem(item)
 
     # —──────────── дерево «Партии» ─────────────
@@ -861,14 +913,14 @@ class WaxPage(QWidget):
 
     def _on_close_jobs(self):
         tables = [self.tbl_close_3d, self.tbl_close_form]
-        job_refs: set[str] = set()
+        job_refs: set = set()
         for tbl in tables:
             for row in range(tbl.rowCount()):
                 item = tbl.item(row, 0)
                 if item and item.checkState() == Qt.Checked:
                     ref = item.data(Qt.UserRole)
                     if ref:
-                        job_refs.add(str(ref))
+                        job_refs.add(ref)
 
         if not job_refs:
             QMessageBox.warning(self, "Ошибка", "Нет выбранных нарядов")

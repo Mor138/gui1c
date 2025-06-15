@@ -121,6 +121,96 @@ class WaxBridge:
             })
         return result
 
+    # -------------------------------------------------------------
+    # Дополнительные операции с нарядами
+    # -------------------------------------------------------------
+
+    def _find_wax_job_by_number(self, number: str):
+        doc_manager = getattr(self.bridge.connection.Documents, "НарядВосковыеИзделия", None)
+        if doc_manager is None:
+            log("❌ Документ 'НарядВосковыеИзделия' не найден")
+            return None
+        selection = doc_manager.Select()
+        while selection.Next():
+            obj = selection.GetObject()
+            if str(obj.Number).strip() == str(number).strip():
+                return obj
+        return None
+
+    def post_wax_job(self, number: str) -> bool:
+        obj = self._find_wax_job_by_number(number)
+        if not obj:
+            log(f"[Проведение] ❌ Наряд №{number} не найден")
+            return False
+        try:
+            obj.Проведен = True
+            obj.Write()
+            log(f"[Проведение] ✅ Наряд №{number} проведён")
+            return True
+        except Exception as e:
+            log(f"❌ Ошибка при проведении наряда №{number}: {e}")
+            return False
+
+    def undo_post_wax_job(self, number: str) -> bool:
+        obj = self._find_wax_job_by_number(number)
+        if not obj:
+            log(f"[Снятие проведения] ❌ Наряд №{number} не найден")
+            return False
+        try:
+            obj.Проведен = False
+            obj.Write()
+            log(f"[Снятие проведения] ✅ Наряд №{number} отменён")
+            return True
+        except Exception as e:
+            log(f"❌ Ошибка при отмене проведения наряда №{number}: {e}")
+            return False
+
+    def mark_wax_job_for_deletion(self, number: str) -> bool:
+        obj = self._find_wax_job_by_number(number)
+        if not obj:
+            log(f"[Пометка удаления] ❌ Наряд №{number} не найден")
+            return False
+        try:
+            obj.DeletionMark = True
+            obj.Write()
+            log(f"[Пометка удаления] ✅ Наряд №{number} помечен на удаление")
+            return True
+        except Exception as e:
+            log(f"❌ Ошибка при пометке наряда №{number}: {e}")
+            return False
+
+    def unmark_wax_job_deletion(self, number: str) -> bool:
+        obj = self._find_wax_job_by_number(number)
+        if not obj:
+            log(f"[Снятие пометки] ❌ Наряд №{number} не найден")
+            return False
+        try:
+            obj.DeletionMark = False
+            obj.Write()
+            log(f"[Снятие пометки] ✅ Наряд №{number} восстановлен")
+            return True
+        except Exception as e:
+            log(f"❌ Ошибка при снятии пометки наряда №{number}: {e}")
+            return False
+
+    def delete_wax_job(self, number: str) -> bool:
+        obj = self._find_wax_job_by_number(number)
+        if not obj:
+            log(f"[Удаление] ❌ Наряд №{number} не найден")
+            return False
+        try:
+            if getattr(obj, "Проведен", False):
+                obj.Проведен = False
+                obj.Write()
+            obj.DeletionMark = True
+            obj.Write()
+            obj.Delete()
+            log(f"[Удаление] ✅ Наряд №{number} удалён")
+            return True
+        except Exception as e:
+            log(f"❌ Ошибка при удалении наряда №{number}: {e}")
+            return False
+
     def get_task_lines(self, doc_num: str) -> list[dict]:
         result = []
         doc_manager = getattr(self.bridge.connection.Documents, "ЗаданиеНаПроизводство", None)
@@ -164,6 +254,7 @@ class WaxBridge:
                 "Вес": weight,
                 "Кол-во": qty,
                 "Проведен": obj.Проведен,
+                "ПометкаУдаления": getattr(obj, "ПометкаУдаления", False),
                 "Закрыт": "✅" if getattr(obj, "Проведен", False) else "—",
                 "Сотрудник": safe_str(obj.Сотрудник),
                 "ТехОперация": safe_str(obj.ТехОперация),
