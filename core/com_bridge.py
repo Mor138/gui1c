@@ -788,20 +788,21 @@ class COM1CBridge:
         return result
 
     def find_wax_jobs_by_task(self, task_ref) -> list:
-        """Возвращает ссылки на наряды, у которых задание соответствует task_ref."""
+        """Возвращает ссылки на наряды, у которых задание соответствует ``task_ref``."""
         result: list = []
 
+        task_str = self.to_string(task_ref)
         jobs = self.list_documents("НарядВосковыеИзделия")
         for job in jobs:
             try:
                 if hasattr(job, "ЗаданиеНаПроизводство"):
-                    job_task_ref = str(job.ЗаданиеНаПроизводство)
-                    if job_task_ref == str(task_ref):
+                    job_task_ref = self.to_string(job.ЗаданиеНаПроизводство)
+                    if job_task_ref == task_str:
                         result.append(job.Ref)
             except Exception as e:
                 log(f"[find_wax_jobs_by_task] ❌ Ошибка: {e}")
 
-        log(f"[find_wax_jobs_by_task] найдено {len(result)} нарядов для задания {task_ref}")
+        log(f"[find_wax_jobs_by_task] найдено {len(result)} нарядов для задания {task_str}")
         return result
 
     def close_wax_jobs(self, job_refs: list) -> list[str]:
