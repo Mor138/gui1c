@@ -1,4 +1,5 @@
 # wax_page.py • v0.8
+# -*- coding: utf-8 -*-
 # ─────────────────────────────────────────────────────────────────────────
 from collections import defaultdict
 import re
@@ -23,6 +24,7 @@ from config import CSS_TREE
 from widgets.production_task_form import ProductionTaskEditForm
 
 class WaxPage(QWidget):
+    
     def __init__(self):
         super().__init__()
         self.last_created_task_ref = None
@@ -30,7 +32,7 @@ class WaxPage(QWidget):
         self.close_job_refs = []
         self._task_select_callback = None
         from core.wax_bridge import WaxBridge
-        self.wax_bridge = WaxBridge(config.BRIDGE)  # ← добавляем это
+        self.wax_bridge = WaxBridge(config.BRIDGE)
 
         self.warehouses = config.BRIDGE.list_catalog_items("Склады")
         self.norm_types = (
@@ -784,10 +786,6 @@ class WaxPage(QWidget):
 
     # ------------------------------------------------------------------
     def _create_wax_jobs(self):
-        # Для создания наряда достаточно выбранного задания.
-        # Проверка ORDERS_POOL мешала создавать наряды для уже существующих
-        # заданий, поэтому её убрали.
-
         if not hasattr(self, "combo_3d_master") or not hasattr(self, "combo_form_master"):
             QMessageBox.warning(self, "Ошибка", "Создание нарядов отключено")
             return
@@ -802,21 +800,20 @@ class WaxPage(QWidget):
         if not warehouse:
             QMessageBox.warning(self, "Ошибка", "Выберите склад.")
             return
-
-
         if not self.last_created_task_ref:
-
             QMessageBox.warning(self, "Ошибка", "Нет выбранного задания для создания нарядов.")
             return
 
         print("[DEBUG] last_created_task_ref =", self.last_created_task_ref)
         norm_type = self.combo_norm_type.currentText().strip()
-        result = config.BRIDGE.create_wax_jobs_from_task(
-            self.last_created_task_ref,
-            master_3d,
-            master_resin,
-            warehouse,
-            norm_type,
+
+        result = self.wax_bridge.create_wax_jobs_from_task(
+            self.last_created_task_ref.Ref,
+            {
+                "3D": master_3d,
+                "Пресс-форма": master_resin,
+            },
+            config.CURRENT_USER
         )
 
         if result:
