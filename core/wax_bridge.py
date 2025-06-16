@@ -307,6 +307,9 @@ class WaxBridge:
                     accepted_table.Заполнить()
                     accepted_table.ЗаполнитьПоВыданному()
                     filled = True
+                    # Сначала стандартное заполнение таблицы "Принято"
+                    doc.ТоварыПринято.Заполнить()
+                    doc.ТоварыПринято.ЗаполнитьПоВыданному()
                 except Exception as exc:
                     log(f"[close_wax_jobs] ⚠ Заполнение встроенным методом: {exc}")
 

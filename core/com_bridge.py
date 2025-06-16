@@ -808,6 +808,8 @@ class COM1CBridge:
 
     def close_wax_jobs(self, job_refs: list) -> list[str]:
         """Закрывает наряды, заполняя таблицу \"Принято\" и проводя документ."""
+        """Закрывает наряды через стандартное заполнение табличной части
+        "Принято" и проведение документа."""
         closed: list[str] = []
 
         for ref in job_refs:
@@ -817,9 +819,7 @@ class COM1CBridge:
                     log("[close_wax_jobs] ❌ Не удалось получить документ по ссылке")
                     continue
 
-                issued_table = getattr(doc, "ТоварыВыдано", None)
                 accepted_table = getattr(doc, "ТоварыПринято", None)
-
                 if not accepted_table:
                     log(f"[close_wax_jobs] ⚠ Не найдена табличная часть 'Принято' для {doc.Номер}")
                     continue
@@ -867,6 +867,12 @@ class COM1CBridge:
 
                         if enum_norm and hasattr(new_row, "ВидНорматива"):
                             new_row.ВидНорматива = enum_norm
+                try:
+                    # Используем встроенные методы 1С для заполнения данных
+                    accepted_table.Заполнить()
+                    accepted_table.ЗаполнитьПоВыданному()
+                except Exception as exc:
+                    log(f"[close_wax_jobs] ⚠ Заполнение: {exc}")
 
                 if hasattr(doc, "Закрыт"):
                     doc.Закрыт = True
