@@ -296,6 +296,8 @@ class WaxBridge:
                     log("[close_wax_jobs] ❌ Не удалось получить документ по ссылке")
                     continue
                 try:
+                    # Сначала стандартное заполнение таблицы "Принято"
+                    doc.ТоварыПринято.Заполнить()
                     doc.ТоварыПринято.ЗаполнитьПоВыданному()
                 except Exception as exc:
                     log(f"[close_wax_jobs] ⚠ Заполнение: {exc}")
