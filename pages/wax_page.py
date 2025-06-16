@@ -29,6 +29,9 @@ class WaxPage(QWidget):
         self.jobs_page = None
         self.close_job_refs = []
         self._task_select_callback = None
+        from core.wax_bridge import WaxBridge
+        self.wax_bridge = WaxBridge(config.BRIDGE)  # ← добавляем это
+
         self.warehouses = config.BRIDGE.list_catalog_items("Склады")
         self.norm_types = (
             config.BRIDGE.list_enum_values("ВидыНормативовНоменклатуры")
@@ -927,7 +930,7 @@ class WaxPage(QWidget):
             QMessageBox.warning(self, "Ошибка", "Нет выбранных нарядов")
             return
 
-        result = config.BRIDGE.close_wax_jobs(job_refs)
+        result = self.wax_bridge.close_wax_jobs(job_refs)
         if result:
             QMessageBox.information(self, "Успех", "Закрыты наряды: " + ", ".join(result))
             self.refresh()
