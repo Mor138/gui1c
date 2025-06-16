@@ -145,37 +145,6 @@ class COM1CBridge:
                 elif not found or obj.Date > found.Date:
                     found = obj
         return found
-
-    def _find_document_by_number_cached(self, doc_name: str, number: str):
-        """Находит документ по номеру с кешированием."""
-        cache = getattr(self, "_doc_cache", {})
-        doc_cache = cache.setdefault(doc_name, {})
-        if number in doc_cache:
-            return doc_cache[number]
-
-        doc_manager = getattr(self.documents, doc_name, None)
-        if not doc_manager:
-            log(f"[cache] Документ '{doc_name}' не найден")
-            return None
-
-        try:
-            ref = doc_manager.FindByNumber(str(number))
-            if ref:
-                obj = ref.GetObject()
-                doc_cache[number] = obj
-                self._doc_cache = cache
-                return obj
-        except Exception:
-            pass
-
-        selection = doc_manager.Select()
-        while selection.Next():
-            obj = selection.GetObject()
-            if str(obj.Number).strip() == str(number).strip():
-                doc_cache[number] = obj
-                self._doc_cache = cache
-                return obj
-        return None
         
     def _find_doc(self, doc_name: str, num: str):
         """Находит документ по имени и номеру"""
@@ -838,9 +807,7 @@ class COM1CBridge:
         return result
 
     def close_wax_jobs(self, job_refs: list) -> list[str]:
-        """Закрывает наряды, заполняя таблицу \"Принято\" и проводя документ."""
-        """Закрывает наряды через стандартное заполнение табличной части
-        "Принято" и проведение документа."""
+        """Закрывает наряды: копирует строки из 'Выдано' в 'Принято', устанавливает ВидНорматива и проводит."""
         closed: list[str] = []
 
         for ref in job_refs:
@@ -852,68 +819,53 @@ class COM1CBridge:
 
                 issued_table = getattr(doc, "ТоварыВыдано", None)
                 accepted_table = getattr(doc, "ТоварыПринято", None)
-                if not accepted_table:
-                    log(f"[close_wax_jobs] ⚠ Не найдена табличная часть 'Принято' для {doc.Номер}")
+
+                if not issued_table or not accepted_table:
+                    log(f"[close_wax_jobs] ⚠ Не найдены табличные части для {doc.Номер}")
                     continue
 
-                filled = False
-                try:
-                    # Сначала пытаемся использовать стандартные методы 1С
-                    accepted_table.Заполнить()
-                    accepted_table.ЗаполнитьПоВыданному()
-                    filled = True
-                except Exception as exc:
-                    log(f"[close_wax_jobs] ⚠ Заполнение встроенным методом: {exc}")
+                accepted_table.Clear()
+                enum_norm = self.get_enum_by_description("ВидыНормативовНоменклатуры", "Номенклатура")
 
-                if not filled and issued_table:
-                    # Ручное копирование строк из \"Выдано\"
-                    accepted_table.Clear()
-                    enum_norm = self.get_enum_by_description(
-                        "ВидыНормативовНоменклатуры", "Номенклатура"
+                for r in issued_table:
+                    if not getattr(r, "Номенклатура", None):
+                        continue
+                    if getattr(r, "Количество", 0) == 0:
+                        continue
+
+                    new_row = accepted_table.Add()
+                    # Копируем базовые поля
+                    for attr in ["Номенклатура", "Размер", "Проба", "ЦветМеталла", "Характеристика", "ДатаПринятия"]:
+                        if hasattr(r, attr) and hasattr(new_row, attr):
+                            setattr(new_row, attr, getattr(r, attr))
+
+                    # Количество — обязательно
+                    if hasattr(r, "Количество") and hasattr(new_row, "Количество"):
+                        new_row.Количество = r.Количество
+
+                    # Вес — копируем только если он явно задан и != 0
+                    if hasattr(r, "Вес") and hasattr(new_row, "Вес"):
+                        вес = getattr(r, "Вес", None)
+                        if вес is not None and вес != 0:
+                            new_row.Вес = вес
+
+                    # ВидНорматива — как "Номенклатура"
+                    if enum_norm and hasattr(new_row, "ВидНорматива"):
+                        new_row.ВидНорматива = enum_norm
+
+                # Логируем содержимое Принято
+                log(f"[close_wax_jobs] 👉 Принято ({doc.Номер}):")
+                for r in accepted_table:
+                    summary = ", ".join(
+                        f"{k}={getattr(r, k, '')}" for k in
+                        ["Номенклатура", "Размер", "Проба", "ЦветМеталла", "Количество", "Вес", "ВидНорматива"]
+                        if hasattr(r, k)
                     )
-                    for r in issued_table:
-                        if not getattr(r, "Номенклатура", None):
-                            continue
-                        if getattr(r, "Количество", 0) == 0:
-                            continue
+                    log(f"   - {summary}")
 
-                        new_row = accepted_table.Add()
-                        for attr in (
-                            "Номенклатура",
-                            "Размер",
-                            "Проба",
-                            "ЦветМеталла",
-                            "Характеристика",
-                            "ДатаПринятия",
-                        ):
-                            if hasattr(r, attr) and hasattr(new_row, attr):
-                                setattr(new_row, attr, getattr(r, attr))
-
-                        if hasattr(r, "Количество") and hasattr(new_row, "Количество"):
-                            new_row.Количество = r.Количество
-
-                        if hasattr(r, "Вес") and hasattr(new_row, "Вес"):
-                            вес = getattr(r, "Вес", None)
-                            if вес is not None and вес != 0:
-                                new_row.Вес = вес
-
-                        if enum_norm and hasattr(new_row, "ВидНорматива"):
-                            new_row.ВидНорматива = enum_norm
-                try:
-                    # Используем встроенные методы 1С для заполнения данных
-                    accepted_table.Заполнить()
-                    accepted_table.ЗаполнитьПоВыданному()
-                except Exception as exc:
-                    log(f"[close_wax_jobs] ⚠ Заполнение: {exc}")
-
+                # Устанавливаем флаг закрытия
                 if hasattr(doc, "Закрыт"):
                     doc.Закрыт = True
-
-                try:
-                    doc.Write()
-                    log(f"[close_wax_jobs] ✅ Записан документ {doc.Номер}")
-                except Exception as exc:
-                    log(f"[close_wax_jobs] ⚠ Ошибка при записи: {exc}")
 
                 doc.Провести()
                 closed.append(str(doc.Номер))
@@ -1250,28 +1202,21 @@ class COM1CBridge:
                 except Exception as exc:
                     log(f"[create_wax_job_from_task] ⚠ Ошибка получения заказа: {exc}")
 
-            # Организация и склад могут быть в задании. Если нет — берём из заказа
-            org = getattr(task, "Организация", None)
-            wh = getattr(task, "Склад", None)
-
-            if (org is None or wh is None) and order_obj:
+            # Подстановка организации и склада ТОЛЬКО из заказа
+            if order_obj:
                 try:
-                    org = org or getattr(order_obj, "Организация", None)
-                    wh = wh or getattr(order_obj, "Склад", None)
-                except Exception as exc:
-                    log(f"[create_wax_job_from_task] ⚠ Ошибка получения данных заказа: {exc}")
-
-            if org is not None:
-                try:
-                    doc.Организация = org if hasattr(org, "Ref") else org
-                    log(f"[create_wax_job_from_task] ✅ Установлена организация: {safe_str(org)}")
+                    org = getattr(order_obj, "Организация", None)
+                    if org:
+                        doc.Организация = org if hasattr(org, "Ref") else org
+                        log(f"[create_wax_job_from_task] ✅ Установлена организация: {safe_str(org)}")
                 except Exception as e:
                     log(f"[create_wax_job_from_task] ⚠ Не удалось установить организацию: {e}")
 
-            if wh is not None:
                 try:
-                    doc.Склад = wh if hasattr(wh, "Ref") else wh
-                    log(f"[create_wax_job_from_task] ✅ Установлен склад: {safe_str(wh)}")
+                    wh = getattr(order_obj, "Склад", None)
+                    if wh:
+                        doc.Склад = wh if hasattr(wh, "Ref") else wh
+                        log(f"[create_wax_job_from_task] ✅ Установлен склад: {safe_str(wh)}")
                 except Exception as e:
                     log(f"[create_wax_job_from_task] ⚠ Не удалось установить склад: {e}")
 
@@ -1324,8 +1269,138 @@ class COM1CBridge:
             log(f"[get_object_property] Ошибка получения {prop_name}: {e}")
             return None
     # ------------------------------------------------------------------
+
+    def create_wax_jobs_from_task(
+        self,
+        task_ref,
+        master_3d: str,
+        master_form: str,
+        warehouse: str | None = None,
+        norm_type: str = "Номенклатура",
+    ) -> list[str]:
+        """Создаёт два наряда из одного задания по артикулу."""
+        mapping = {"3D печать": master_3d, "Пресс-форма": master_form}
+        result: list[str] = []
+
+        # Получаем объект и ссылку задания
+        try:
+            if isinstance(task_ref, str):
+                task = self.connection.GetObject(task_ref)
+            elif hasattr(task_ref, "Продукция"):
+                task = task_ref
+            elif hasattr(task_ref, "GetObject"):
+                task = task_ref.GetObject()
+            else:
+                log("[create_wax_jobs_from_task] ❌ Неверный тип ссылки")
+                return []
+            task_ref_link = task.Ref
+        except Exception as exc:
+            log(f"[create_wax_jobs_from_task] ❌ Ошибка доступа к заданию: {exc}")
+            return []
+
+        # Получаем данные для шапки наряда
+        org = getattr(task, "Организация", None)
+        wh = getattr(task, "Склад", None)
+        responsible = getattr(task, "Ответственный", None)
+
+        # Попытка получить значения из связанного заказа, если их нет в задании
+        order_ref = (
+            getattr(task, "ЗаказВПроизводство", None)
+            or getattr(task, "ДокументОснование", None)
+        )
+        if (org is None or wh is None) and order_ref and hasattr(order_ref, "GetObject"):
+            try:
+                order_obj = order_ref.GetObject()
+                org = org or getattr(order_obj, "Организация", None)
+                wh = wh or getattr(order_obj, "Склад", None)
+                responsible = responsible or getattr(order_obj, "Ответственный", None)
+            except Exception as e:
+                log(
+                    f"[create_wax_jobs_from_task] ⚠ Не удалось получить данные из заказа: {e}"
+                )
+
+        section = getattr(task, "ПроизводственныйУчасток", None)
+        if warehouse:
+            wh = self.get_ref_by_description("Склады", warehouse) or wh
+
+        rows_by_method = {"3D печать": [], "Пресс-форма": []}
+        for row in task.Продукция:
+            art = safe_str(getattr(row.Номенклатура, "Артикул", "")).lower()
+            method = "3D печать" if "д" in art or "d" in art else "Пресс-форма"
+            rows_by_method[method].append(row)
+
+        for method, rows in rows_by_method.items():
+            if not rows:
+                continue
+            try:
+                job = self.documents.НарядВосковыеИзделия.CreateDocument()
+
+                # Заполнение шапки наряда
+                job.Дата = datetime.now()
+                job.ДокументОснование = task_ref_link
+                job.ЗаданиеНаПроизводство = task_ref_link
+                if org is not None:
+                    try:
+                        job.Организация = org
+                    except Exception as exc:
+                        log(
+                            f"[create_wax_jobs_from_task] ⚠ Не удалось установить организацию: {exc}"
+                        )
+                if wh is not None:
+                    try:
+                        job.Склад = wh
+                    except Exception as exc:
+                        log(
+                            f"[create_wax_jobs_from_task] ⚠ Не удалось установить склад: {exc}"
+                        )
+                if section:
+                    job.ПроизводственныйУчасток = section
+                if responsible:
+                    job.Ответственный = responsible
+                job.ТехОперация = self.get_ref("ТехОперации", method)
+                job.Сотрудник = self.get_ref("ФизическиеЛица", mapping.get(method, ""))
+                job.Комментарий = f"Создан автоматически для {method}"
+
+                # Заполнение табличной части вручную
+                for r in rows:
+                    row = job.ТоварыВыдано.Add()
+                    row.Номенклатура = r.Номенклатура
+                    row.Количество = r.Количество
+                    row.Размер = r.Размер
+                    row.Проба = r.Проба
+                    row.ЦветМеталла = r.ЦветМеталла
+                    if hasattr(r, "ХарактеристикаВставок"):
+                        row.ХарактеристикаВставок = r.ХарактеристикаВставок
+                    if hasattr(r, "Вес"):
+                        row.Вес = r.Вес
+
+                # ---- Подстановка вида норматива для всех строк
+                enum_norm = self.get_enum_by_description(
+                    "ВидыНормативовНоменклатуры", norm_type
+                )
+                if enum_norm:
+                    for row in job.ТоварыВыдано:
+                        row.ВидНорматива = enum_norm
+
+
+                job.Write()
+                result.append(str(job.Номер))
+                log(f"[create_wax_jobs_from_task] ✅ Создан наряд {method}: №{job.Номер}")
+            except Exception as exc:
+                log(f"[create_wax_jobs_from_task] ❌ Ошибка для {method}: {exc}")
+        return result
+
     def _find_task_by_number(self, number: str):
-        return self._find_document_by_number_cached("ЗаданиеНаПроизводство", number)
+        doc_manager = getattr(self.connection.Documents, "ЗаданиеНаПроизводство", None)
+        if doc_manager is None:
+            log("❌ Документ 'ЗаданиеНаПроизводство' не найден")
+            return None
+        selection = doc_manager.Select()
+        while selection.Next():
+            obj = selection.GetObject()
+            if str(obj.Number).strip() == number.strip():
+                return obj
+        return None
 
     def post_task(self, number: str) -> bool:
         obj = self._find_task_by_number(number)
@@ -1340,21 +1415,6 @@ class COM1CBridge:
         except Exception as e:
             log(f"❌ Ошибка при проведении задания №{number}: {e}")
             return False
-            
-    def find_documents_by_attribute(self, doc_type, attr_name, value):
-        result = []
-        try:
-            docs = getattr(self.connection.Documents, doc_type)
-            selection = docs.Select()
-            while not selection.Eof:
-                doc_ref = selection.Ref
-                doc_obj = doc_ref.GetObject()
-                if hasattr(doc_obj, attr_name) and getattr(doc_obj, attr_name) == value:
-                    result.append(doc_ref)
-                selection.Next()
-        except Exception as e:
-            log(f"[find_documents_by_attribute] ❌ Ошибка при поиске: {e}")
-        return result     
 
     def undo_post_task(self, number: str) -> bool:
         obj = self._find_task_by_number(number)
@@ -1426,7 +1486,16 @@ class COM1CBridge:
     # -------------------------------------------------------------
 
     def _find_wax_job_by_number(self, number: str):
-        return self._find_document_by_number_cached("НарядВосковыеИзделия", number)
+        doc_manager = getattr(self.connection.Documents, "НарядВосковыеИзделия", None)
+        if doc_manager is None:
+            log("❌ Документ 'НарядВосковыеИзделия' не найден")
+            return None
+        selection = doc_manager.Select()
+        while selection.Next():
+            obj = selection.GetObject()
+            if str(obj.Number).strip() == str(number).strip():
+                return obj
+        return None
 
     def post_wax_job(self, number: str) -> bool:
         obj = self._find_wax_job_by_number(number)
