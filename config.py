@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import os
 from pathlib import Path
 from core.logger import logger  # инициализация логирования
@@ -13,7 +12,7 @@ ONEC_PATH = os.getenv("ONEC_PATH", "C:/Users/Mor/Desktop/1C/proiz")
 
 # Глобальный экземпляр COM‑моста
 BRIDGE = None
-CURRENT_USER = "Администратор"  # или нужное имя, точно как в 1С
+
 
 def init_bridge(user: str, password: str, base_path: str | None = None):
     """Инициализирует подключение к 1С с указанными учётными данными."""
@@ -108,7 +107,19 @@ def load_employee_logins() -> list[str]:
         logger.error("Не удалось загрузить логины из XML: %s", exc)
         return fallback
 
+
+    """Загружает логины сотрудников из дампа конфигурации."""
+    try:
+        users = config_parser.get_catalog_items("Пользователи")
+        return users or ["Администратор"]
+    except Exception as exc:  # безопасность на случай проблем парсинга
+        logger.error("Не удалось загрузить логины сотрудников: %s", exc)
+        return ["Администратор"]
+
+
 EMPLOYEE_LOGINS = load_employee_logins()
+
+
 # ------------------------------------------------------------------
 # Список сотрудников из справочника "ФизическиеЛица"
 def load_employees(limit: int = 200) -> list[str]:
