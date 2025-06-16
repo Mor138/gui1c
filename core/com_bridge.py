@@ -805,6 +805,96 @@ class COM1CBridge:
 
         log(f"[find_wax_jobs_by_task] найдено {len(result)} нарядов для задания {task_str}")
         return result
+<<<<<<< HEAD
+=======
+
+    def close_wax_jobs(self, job_refs: list) -> list[str]:
+        """Закрывает наряды, заполняя таблицу \"Принято\" и проводя документ."""
+        """Закрывает наряды через стандартное заполнение табличной части
+        "Принято" и проведение документа."""
+        closed: list[str] = []
+
+        for ref in job_refs:
+            try:
+                doc = self.get_object_from_ref(ref)
+                if not doc:
+                    log("[close_wax_jobs] ❌ Не удалось получить документ по ссылке")
+                    continue
+
+                issued_table = getattr(doc, "ТоварыВыдано", None)
+                accepted_table = getattr(doc, "ТоварыПринято", None)
+                if not accepted_table:
+                    log(f"[close_wax_jobs] ⚠ Не найдена табличная часть 'Принято' для {doc.Номер}")
+                    continue
+
+                filled = False
+                try:
+                    # Сначала пытаемся использовать стандартные методы 1С
+                    accepted_table.Заполнить()
+                    accepted_table.ЗаполнитьПоВыданному()
+                    filled = True
+                except Exception as exc:
+                    log(f"[close_wax_jobs] ⚠ Заполнение встроенным методом: {exc}")
+
+                if not filled and issued_table:
+                    # Ручное копирование строк из \"Выдано\"
+                    accepted_table.Clear()
+                    enum_norm = self.get_enum_by_description(
+                        "ВидыНормативовНоменклатуры", "Номенклатура"
+                    )
+                    for r in issued_table:
+                        if not getattr(r, "Номенклатура", None):
+                            continue
+                        if getattr(r, "Количество", 0) == 0:
+                            continue
+
+                        new_row = accepted_table.Add()
+                        for attr in (
+                            "Номенклатура",
+                            "Размер",
+                            "Проба",
+                            "ЦветМеталла",
+                            "Характеристика",
+                            "ДатаПринятия",
+                        ):
+                            if hasattr(r, attr) and hasattr(new_row, attr):
+                                setattr(new_row, attr, getattr(r, attr))
+
+                        if hasattr(r, "Количество") and hasattr(new_row, "Количество"):
+                            new_row.Количество = r.Количество
+
+                        if hasattr(r, "Вес") and hasattr(new_row, "Вес"):
+                            вес = getattr(r, "Вес", None)
+                            if вес is not None and вес != 0:
+                                new_row.Вес = вес
+
+                        if enum_norm and hasattr(new_row, "ВидНорматива"):
+                            new_row.ВидНорматива = enum_norm
+                try:
+                    # Используем встроенные методы 1С для заполнения данных
+                    accepted_table.Заполнить()
+                    accepted_table.ЗаполнитьПоВыданному()
+                except Exception as exc:
+                    log(f"[close_wax_jobs] ⚠ Заполнение: {exc}")
+
+                if hasattr(doc, "Закрыт"):
+                    doc.Закрыт = True
+
+                try:
+                    doc.Write()
+                    log(f"[close_wax_jobs] ✅ Записан документ {doc.Номер}")
+                except Exception as exc:
+                    log(f"[close_wax_jobs] ⚠ Ошибка при записи: {exc}")
+
+                doc.Провести()
+                closed.append(str(doc.Номер))
+                log(f"[close_wax_jobs] ✅ Наряд {doc.Номер} успешно закрыт и проведён")
+
+            except Exception as e:
+                log(f"[close_wax_jobs] ❌ Ошибка при закрытии: {e}")
+
+        return closed
+>>>>>>> 75a3d721737704321baec80b1267c10d613b6cc8
         
     def get_ref_by_description(self, catalog_name: str, description: str):
         """Возвращает ссылку на элемент каталога по описанию с кешированием."""
@@ -1132,21 +1222,28 @@ class COM1CBridge:
                 except Exception as exc:
                     log(f"[create_wax_job_from_task] ⚠ Ошибка получения заказа: {exc}")
 
-            # Подстановка организации и склада ТОЛЬКО из заказа
-            if order_obj:
+            # Организация и склад могут быть в задании. Если нет — берём из заказа
+            org = getattr(task, "Организация", None)
+            wh = getattr(task, "Склад", None)
+
+            if (org is None or wh is None) and order_obj:
                 try:
-                    org = getattr(order_obj, "Организация", None)
-                    if org:
-                        doc.Организация = org if hasattr(org, "Ref") else org
-                        log(f"[create_wax_job_from_task] ✅ Установлена организация: {safe_str(org)}")
+                    org = org or getattr(order_obj, "Организация", None)
+                    wh = wh or getattr(order_obj, "Склад", None)
+                except Exception as exc:
+                    log(f"[create_wax_job_from_task] ⚠ Ошибка получения данных заказа: {exc}")
+
+            if org is not None:
+                try:
+                    doc.Организация = org if hasattr(org, "Ref") else org
+                    log(f"[create_wax_job_from_task] ✅ Установлена организация: {safe_str(org)}")
                 except Exception as e:
                     log(f"[create_wax_job_from_task] ⚠ Не удалось установить организацию: {e}")
 
+            if wh is not None:
                 try:
-                    wh = getattr(order_obj, "Склад", None)
-                    if wh:
-                        doc.Склад = wh if hasattr(wh, "Ref") else wh
-                        log(f"[create_wax_job_from_task] ✅ Установлен склад: {safe_str(wh)}")
+                    doc.Склад = wh if hasattr(wh, "Ref") else wh
+                    log(f"[create_wax_job_from_task] ✅ Установлен склад: {safe_str(wh)}")
                 except Exception as e:
                     log(f"[create_wax_job_from_task] ⚠ Не удалось установить склад: {e}")
 
@@ -1228,26 +1325,29 @@ class COM1CBridge:
             log(f"[create_wax_jobs_from_task] ❌ Ошибка доступа к заданию: {exc}")
             return []
 
-        # Получаем данные для шапки наряда
-        org = getattr(task, "Организация", None)
-        wh = getattr(task, "Склад", None)
-        responsible = getattr(task, "Ответственный", None)
-
-        # Попытка получить значения из связанного заказа, если их нет в задании
+        # Шапка может брать организацию/склад из задания или из заказа-основания
         order_ref = (
             getattr(task, "ЗаказВПроизводство", None)
             or getattr(task, "ДокументОснование", None)
         )
-        if (org is None or wh is None) and order_ref and hasattr(order_ref, "GetObject"):
+        order_obj = None
+        if order_ref and hasattr(order_ref, "GetObject"):
             try:
                 order_obj = order_ref.GetObject()
+                log("[create_wax_jobs_from_task] ✅ Получен заказ-основание")
+            except Exception as exc:
+                log(f"[create_wax_jobs_from_task] ⚠ Ошибка получения заказа: {exc}")
+
+        org = getattr(task, "Организация", None)
+        wh = getattr(task, "Склад", None)
+        responsible = getattr(task, "Ответственный", None)
+        if (org is None or wh is None) and order_obj:
+            try:
                 org = org or getattr(order_obj, "Организация", None)
                 wh = wh or getattr(order_obj, "Склад", None)
                 responsible = responsible or getattr(order_obj, "Ответственный", None)
             except Exception as e:
-                log(
-                    f"[create_wax_jobs_from_task] ⚠ Не удалось получить данные из заказа: {e}"
-                )
+                log(f"[create_wax_jobs_from_task] ⚠ Не удалось получить данные из заказа: {e}")
 
         section = getattr(task, "ПроизводственныйУчасток", None)
         if warehouse:
