@@ -878,6 +878,12 @@ class COM1CBridge:
                 if hasattr(doc, "Закрыт"):
                     doc.Закрыт = True
 
+                try:
+                    doc.Write()
+                    log(f"[close_wax_jobs] ✅ Записан документ {doc.Номер}")
+                except Exception as exc:
+                    log(f"[close_wax_jobs] ⚠ Ошибка при записи: {exc}")
+
                 doc.Провести()
                 closed.append(str(doc.Номер))
                 log(f"[close_wax_jobs] ✅ Наряд {doc.Номер} успешно закрыт и проведён")
@@ -1213,21 +1219,28 @@ class COM1CBridge:
                 except Exception as exc:
                     log(f"[create_wax_job_from_task] ⚠ Ошибка получения заказа: {exc}")
 
-            # Подстановка организации и склада ТОЛЬКО из заказа
-            if order_obj:
+            # Организация и склад могут быть в задании. Если нет — берём из заказа
+            org = getattr(task, "Организация", None)
+            wh = getattr(task, "Склад", None)
+
+            if (org is None or wh is None) and order_obj:
                 try:
-                    org = getattr(order_obj, "Организация", None)
-                    if org:
-                        doc.Организация = org if hasattr(org, "Ref") else org
-                        log(f"[create_wax_job_from_task] ✅ Установлена организация: {safe_str(org)}")
+                    org = org or getattr(order_obj, "Организация", None)
+                    wh = wh or getattr(order_obj, "Склад", None)
+                except Exception as exc:
+                    log(f"[create_wax_job_from_task] ⚠ Ошибка получения данных заказа: {exc}")
+
+            if org is not None:
+                try:
+                    doc.Организация = org if hasattr(org, "Ref") else org
+                    log(f"[create_wax_job_from_task] ✅ Установлена организация: {safe_str(org)}")
                 except Exception as e:
                     log(f"[create_wax_job_from_task] ⚠ Не удалось установить организацию: {e}")
 
+            if wh is not None:
                 try:
-                    wh = getattr(order_obj, "Склад", None)
-                    if wh:
-                        doc.Склад = wh if hasattr(wh, "Ref") else wh
-                        log(f"[create_wax_job_from_task] ✅ Установлен склад: {safe_str(wh)}")
+                    doc.Склад = wh if hasattr(wh, "Ref") else wh
+                    log(f"[create_wax_job_from_task] ✅ Установлен склад: {safe_str(wh)}")
                 except Exception as e:
                     log(f"[create_wax_job_from_task] ⚠ Не удалось установить склад: {e}")
 
@@ -1309,26 +1322,29 @@ class COM1CBridge:
             log(f"[create_wax_jobs_from_task] ❌ Ошибка доступа к заданию: {exc}")
             return []
 
-        # Получаем данные для шапки наряда
-        org = getattr(task, "Организация", None)
-        wh = getattr(task, "Склад", None)
-        responsible = getattr(task, "Ответственный", None)
-
-        # Попытка получить значения из связанного заказа, если их нет в задании
+        # Шапка может брать организацию/склад из задания или из заказа-основания
         order_ref = (
             getattr(task, "ЗаказВПроизводство", None)
             or getattr(task, "ДокументОснование", None)
         )
-        if (org is None or wh is None) and order_ref and hasattr(order_ref, "GetObject"):
+        order_obj = None
+        if order_ref and hasattr(order_ref, "GetObject"):
             try:
                 order_obj = order_ref.GetObject()
+                log("[create_wax_jobs_from_task] ✅ Получен заказ-основание")
+            except Exception as exc:
+                log(f"[create_wax_jobs_from_task] ⚠ Ошибка получения заказа: {exc}")
+
+        org = getattr(task, "Организация", None)
+        wh = getattr(task, "Склад", None)
+        responsible = getattr(task, "Ответственный", None)
+        if (org is None or wh is None) and order_obj:
+            try:
                 org = org or getattr(order_obj, "Организация", None)
                 wh = wh or getattr(order_obj, "Склад", None)
                 responsible = responsible or getattr(order_obj, "Ответственный", None)
             except Exception as e:
-                log(
-                    f"[create_wax_jobs_from_task] ⚠ Не удалось получить данные из заказа: {e}"
-                )
+                log(f"[create_wax_jobs_from_task] ⚠ Не удалось получить данные из заказа: {e}")
 
         section = getattr(task, "ПроизводственныйУчасток", None)
         if warehouse:
