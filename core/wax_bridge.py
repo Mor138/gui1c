@@ -295,12 +295,58 @@ class WaxBridge:
                 if not doc:
                     log("[close_wax_jobs] ❌ Не удалось получить документ по ссылке")
                     continue
+
+                issued_table = getattr(doc, "ТоварыВыдано", None)
+                accepted_table = getattr(doc, "ТоварыПринято", None)
+                if not accepted_table:
+                    log(f"[close_wax_jobs] ⚠ Не найдена табличная часть 'Принято' для {doc.Номер}")
+                    continue
+
+                filled = False
                 try:
+                    accepted_table.Заполнить()
+                    accepted_table.ЗаполнитьПоВыданному()
+                    filled = True
                     # Сначала стандартное заполнение таблицы "Принято"
                     doc.ТоварыПринято.Заполнить()
                     doc.ТоварыПринято.ЗаполнитьПоВыданному()
                 except Exception as exc:
-                    log(f"[close_wax_jobs] ⚠ Заполнение: {exc}")
+                    log(f"[close_wax_jobs] ⚠ Заполнение встроенным методом: {exc}")
+
+                if not filled and issued_table:
+                    accepted_table.Clear()
+                    enum_norm = self.bridge.get_enum_by_description(
+                        "ВидыНормативовНоменклатуры", "Номенклатура"
+                    )
+                    for r in issued_table:
+                        if not getattr(r, "Номенклатура", None):
+                            continue
+                        if getattr(r, "Количество", 0) == 0:
+                            continue
+
+                        new_row = accepted_table.Add()
+                        for attr in (
+                            "Номенклатура",
+                            "Размер",
+                            "Проба",
+                            "ЦветМеталла",
+                            "Характеристика",
+                            "ДатаПринятия",
+                        ):
+                            if hasattr(r, attr) and hasattr(new_row, attr):
+                                setattr(new_row, attr, getattr(r, attr))
+
+                        if hasattr(r, "Количество") and hasattr(new_row, "Количество"):
+                            new_row.Количество = r.Количество
+
+                        if hasattr(r, "Вес") and hasattr(new_row, "Вес"):
+                            вес = getattr(r, "Вес", None)
+                            if вес is not None and вес != 0:
+                                new_row.Вес = вес
+
+                        if enum_norm and hasattr(new_row, "ВидНорматива"):
+                            new_row.ВидНорматива = enum_norm
+
                 try:
                     doc.Закрыт = True
                 except Exception:

@@ -807,6 +807,7 @@ class COM1CBridge:
         return result
 
     def close_wax_jobs(self, job_refs: list) -> list[str]:
+        """Закрывает наряды, заполняя таблицу \"Принято\" и проводя документ."""
         """Закрывает наряды через стандартное заполнение табличной части
         "Принято" и проведение документа."""
         closed: list[str] = []
@@ -823,6 +824,49 @@ class COM1CBridge:
                     log(f"[close_wax_jobs] ⚠ Не найдена табличная часть 'Принято' для {doc.Номер}")
                     continue
 
+                filled = False
+                try:
+                    # Сначала пытаемся использовать стандартные методы 1С
+                    accepted_table.Заполнить()
+                    accepted_table.ЗаполнитьПоВыданному()
+                    filled = True
+                except Exception as exc:
+                    log(f"[close_wax_jobs] ⚠ Заполнение встроенным методом: {exc}")
+
+                if not filled and issued_table:
+                    # Ручное копирование строк из \"Выдано\"
+                    accepted_table.Clear()
+                    enum_norm = self.get_enum_by_description(
+                        "ВидыНормативовНоменклатуры", "Номенклатура"
+                    )
+                    for r in issued_table:
+                        if not getattr(r, "Номенклатура", None):
+                            continue
+                        if getattr(r, "Количество", 0) == 0:
+                            continue
+
+                        new_row = accepted_table.Add()
+                        for attr in (
+                            "Номенклатура",
+                            "Размер",
+                            "Проба",
+                            "ЦветМеталла",
+                            "Характеристика",
+                            "ДатаПринятия",
+                        ):
+                            if hasattr(r, attr) and hasattr(new_row, attr):
+                                setattr(new_row, attr, getattr(r, attr))
+
+                        if hasattr(r, "Количество") and hasattr(new_row, "Количество"):
+                            new_row.Количество = r.Количество
+
+                        if hasattr(r, "Вес") and hasattr(new_row, "Вес"):
+                            вес = getattr(r, "Вес", None)
+                            if вес is not None and вес != 0:
+                                new_row.Вес = вес
+
+                        if enum_norm and hasattr(new_row, "ВидНорматива"):
+                            new_row.ВидНорматива = enum_norm
                 try:
                     # Используем встроенные методы 1С для заполнения данных
                     accepted_table.Заполнить()
@@ -830,7 +874,6 @@ class COM1CBridge:
                 except Exception as exc:
                     log(f"[close_wax_jobs] ⚠ Заполнение: {exc}")
 
-                # Устанавливаем флаг закрытия
                 if hasattr(doc, "Закрыт"):
                     doc.Закрыт = True
 
