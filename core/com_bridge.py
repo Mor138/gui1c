@@ -1293,130 +1293,6 @@ class COM1CBridge:
             log(f"[get_object_property] Ошибка получения {prop_name}: {e}")
             return None
     # ------------------------------------------------------------------
-
-    def create_wax_jobs_from_task(
-        self,
-        task_ref,
-        master_3d: str,
-        master_form: str,
-        warehouse: str | None = None,
-        norm_type: str = "Номенклатура",
-    ) -> list[str]:
-        """Создаёт два наряда из одного задания по артикулу."""
-        mapping = {"3D печать": master_3d, "Пресс-форма": master_form}
-        result: list[str] = []
-
-        # Получаем объект и ссылку задания
-        try:
-            if isinstance(task_ref, str):
-                task = self.connection.GetObject(task_ref)
-            elif hasattr(task_ref, "Продукция"):
-                task = task_ref
-            elif hasattr(task_ref, "GetObject"):
-                task = task_ref.GetObject()
-            else:
-                log("[create_wax_jobs_from_task] ❌ Неверный тип ссылки")
-                return []
-            task_ref_link = task.Ref
-        except Exception as exc:
-            log(f"[create_wax_jobs_from_task] ❌ Ошибка доступа к заданию: {exc}")
-            return []
-
-        # Шапка может брать организацию/склад из задания или из заказа-основания
-        order_ref = (
-            getattr(task, "ЗаказВПроизводство", None)
-            or getattr(task, "ДокументОснование", None)
-        )
-        order_obj = None
-        if order_ref and hasattr(order_ref, "GetObject"):
-            try:
-                order_obj = order_ref.GetObject()
-                log("[create_wax_jobs_from_task] ✅ Получен заказ-основание")
-            except Exception as exc:
-                log(f"[create_wax_jobs_from_task] ⚠ Ошибка получения заказа: {exc}")
-
-        org = getattr(task, "Организация", None)
-        wh = getattr(task, "Склад", None)
-        responsible = getattr(task, "Ответственный", None)
-        if (org is None or wh is None) and order_obj:
-            try:
-                org = org or getattr(order_obj, "Организация", None)
-                wh = wh or getattr(order_obj, "Склад", None)
-                responsible = responsible or getattr(order_obj, "Ответственный", None)
-            except Exception as e:
-                log(f"[create_wax_jobs_from_task] ⚠ Не удалось получить данные из заказа: {e}")
-
-        section = getattr(task, "ПроизводственныйУчасток", None)
-        if warehouse:
-            wh = self.get_ref_by_description("Склады", warehouse) or wh
-
-        rows_by_method = {"3D печать": [], "Пресс-форма": []}
-        for row in task.Продукция:
-            art = safe_str(getattr(row.Номенклатура, "Артикул", "")).lower()
-            method = "3D печать" if "д" in art or "d" in art else "Пресс-форма"
-            rows_by_method[method].append(row)
-
-        for method, rows in rows_by_method.items():
-            if not rows:
-                continue
-            try:
-                job = self.documents.НарядВосковыеИзделия.CreateDocument()
-
-                # Заполнение шапки наряда
-                job.Дата = datetime.now()
-                job.ДокументОснование = task_ref_link
-                job.ЗаданиеНаПроизводство = task_ref_link
-                if org is not None:
-                    try:
-                        job.Организация = org
-                    except Exception as exc:
-                        log(
-                            f"[create_wax_jobs_from_task] ⚠ Не удалось установить организацию: {exc}"
-                        )
-                if wh is not None:
-                    try:
-                        job.Склад = wh
-                    except Exception as exc:
-                        log(
-                            f"[create_wax_jobs_from_task] ⚠ Не удалось установить склад: {exc}"
-                        )
-                if section:
-                    job.ПроизводственныйУчасток = section
-                if responsible:
-                    job.Ответственный = responsible
-                job.ТехОперация = self.get_ref("ТехОперации", method)
-                job.Сотрудник = self.get_ref("ФизическиеЛица", mapping.get(method, ""))
-                job.Комментарий = f"Создан автоматически для {method}"
-
-                # Заполнение табличной части вручную
-                for r in rows:
-                    row = job.ТоварыВыдано.Add()
-                    row.Номенклатура = r.Номенклатура
-                    row.Количество = r.Количество
-                    row.Размер = r.Размер
-                    row.Проба = r.Проба
-                    row.ЦветМеталла = r.ЦветМеталла
-                    if hasattr(r, "ХарактеристикаВставок"):
-                        row.ХарактеристикаВставок = r.ХарактеристикаВставок
-                    if hasattr(r, "Вес"):
-                        row.Вес = r.Вес
-
-                # ---- Подстановка вида норматива для всех строк
-                enum_norm = self.get_enum_by_description(
-                    "ВидыНормативовНоменклатуры", norm_type
-                )
-                if enum_norm:
-                    for row in job.ТоварыВыдано:
-                        row.ВидНорматива = enum_norm
-
-
-                job.Write()
-                result.append(str(job.Номер))
-                log(f"[create_wax_jobs_from_task] ✅ Создан наряд {method}: №{job.Номер}")
-            except Exception as exc:
-                log(f"[create_wax_jobs_from_task] ❌ Ошибка для {method}: {exc}")
-        return result
-
     def _find_task_by_number(self, number: str):
         doc_manager = getattr(self.connection.Documents, "ЗаданиеНаПроизводство", None)
         if doc_manager is None:
@@ -1442,6 +1318,21 @@ class COM1CBridge:
         except Exception as e:
             log(f"❌ Ошибка при проведении задания №{number}: {e}")
             return False
+            
+    def find_documents_by_attribute(self, doc_type, attr_name, value):
+        result = []
+        try:
+            docs = getattr(self.connection.Documents, doc_type)
+            selection = docs.Select()
+            while not selection.Eof():
+                doc_ref = selection.Ref
+                doc_obj = doc_ref.GetObject()
+                if hasattr(doc_obj, attr_name) and getattr(doc_obj, attr_name) == value:
+                    result.append(doc_ref)
+                selection.Next()
+        except Exception as e:
+            log(f"[find_documents_by_attribute] ❌ Ошибка при поиске: {e}")
+        return result     
 
     def undo_post_task(self, number: str) -> bool:
         obj = self._find_task_by_number(number)
