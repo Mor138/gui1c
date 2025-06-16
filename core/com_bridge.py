@@ -819,6 +819,7 @@ class COM1CBridge:
                     log("[close_wax_jobs] ❌ Не удалось получить документ по ссылке")
                     continue
 
+                issued_table = getattr(doc, "ТоварыВыдано", None)
                 accepted_table = getattr(doc, "ТоварыПринято", None)
                 if not accepted_table:
                     log(f"[close_wax_jobs] ⚠ Не найдена табличная часть 'Принято' для {doc.Номер}")
