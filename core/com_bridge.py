@@ -1346,7 +1346,7 @@ class COM1CBridge:
         try:
             docs = getattr(self.connection.Documents, doc_type)
             selection = docs.Select()
-            while not selection.Eof():
+            while not selection.Eof:
                 doc_ref = selection.Ref
                 doc_obj = doc_ref.GetObject()
                 if hasattr(doc_obj, attr_name) and getattr(doc_obj, attr_name) == value:
