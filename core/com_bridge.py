@@ -145,6 +145,37 @@ class COM1CBridge:
                 elif not found or obj.Date > found.Date:
                     found = obj
         return found
+
+    def _find_document_by_number_cached(self, doc_name: str, number: str):
+        """Находит документ по номеру с кешированием."""
+        cache = getattr(self, "_doc_cache", {})
+        doc_cache = cache.setdefault(doc_name, {})
+        if number in doc_cache:
+            return doc_cache[number]
+
+        doc_manager = getattr(self.documents, doc_name, None)
+        if not doc_manager:
+            log(f"[cache] Документ '{doc_name}' не найден")
+            return None
+
+        try:
+            ref = doc_manager.FindByNumber(str(number))
+            if ref:
+                obj = ref.GetObject()
+                doc_cache[number] = obj
+                self._doc_cache = cache
+                return obj
+        except Exception:
+            pass
+
+        selection = doc_manager.Select()
+        while selection.Next():
+            obj = selection.GetObject()
+            if str(obj.Number).strip() == str(number).strip():
+                doc_cache[number] = obj
+                self._doc_cache = cache
+                return obj
+        return None
         
     def _find_doc(self, doc_name: str, num: str):
         """Находит документ по имени и номеру"""
@@ -1294,16 +1325,7 @@ class COM1CBridge:
             return None
     # ------------------------------------------------------------------
     def _find_task_by_number(self, number: str):
-        doc_manager = getattr(self.connection.Documents, "ЗаданиеНаПроизводство", None)
-        if doc_manager is None:
-            log("❌ Документ 'ЗаданиеНаПроизводство' не найден")
-            return None
-        selection = doc_manager.Select()
-        while selection.Next():
-            obj = selection.GetObject()
-            if str(obj.Number).strip() == number.strip():
-                return obj
-        return None
+        return self._find_document_by_number_cached("ЗаданиеНаПроизводство", number)
 
     def post_task(self, number: str) -> bool:
         obj = self._find_task_by_number(number)
@@ -1404,16 +1426,7 @@ class COM1CBridge:
     # -------------------------------------------------------------
 
     def _find_wax_job_by_number(self, number: str):
-        doc_manager = getattr(self.connection.Documents, "НарядВосковыеИзделия", None)
-        if doc_manager is None:
-            log("❌ Документ 'НарядВосковыеИзделия' не найден")
-            return None
-        selection = doc_manager.Select()
-        while selection.Next():
-            obj = selection.GetObject()
-            if str(obj.Number).strip() == str(number).strip():
-                return obj
-        return None
+        return self._find_document_by_number_cached("НарядВосковыеИзделия", number)
 
     def post_wax_job(self, number: str) -> bool:
         obj = self._find_wax_job_by_number(number)
