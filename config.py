@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 from pathlib import Path
 from core.logger import logger  # инициализация логирования
@@ -12,7 +13,7 @@ ONEC_PATH = os.getenv("ONEC_PATH", "C:/Users/Mor/Desktop/1C/proiz")
 
 # Глобальный экземпляр COM‑моста
 BRIDGE = None
-
+CURRENT_USER = "Администратор"  # или нужное имя, точно как в 1С
 
 def init_bridge(user: str, password: str, base_path: str | None = None):
     """Инициализирует подключение к 1С с указанными учётными данными."""
