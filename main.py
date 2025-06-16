@@ -4,12 +4,8 @@
 ##############################################################################
 #  Jewelry MES — оболочка + страницы интерфейса                     • PyQt5 •
 ##############################################################################
+
 import sys
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
-    sys.stderr.reconfigure(encoding="utf-8")
-import sys
-import os
 from pathlib import Path
 
 # Добавляем пути для импорта
@@ -129,9 +125,6 @@ class Main(QMainWindow):
 
 # Точка входа
 if __name__ == "__main__":
-    if os.name != "nt":
-        print("Только для Windows")
-        sys.exit()
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
     app = QApplication(sys.argv); app.setStyle("Fusion")
 
