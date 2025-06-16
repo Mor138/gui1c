@@ -288,6 +288,7 @@ class WaxBridge:
         return result
 
     def close_wax_jobs(self, job_refs: list) -> list[str]:
+        """Закрывает наряды, принимая изделия из вкладки "Выдано"."""
         closed: list[str] = []
         for ref in job_refs:
             try:
@@ -299,10 +300,33 @@ class WaxBridge:
                     doc.ТоварыПринято.ЗаполнитьПоВыданному()
                 except Exception as exc:
                     log(f"[close_wax_jobs] ⚠ Заполнение: {exc}")
+                    try:
+                        issued = getattr(doc, "ТоварыВыдано", None)
+                        accepted = getattr(doc, "ТоварыПринято", None)
+                        if issued is not None and accepted is not None:
+                            for row in issued:
+                                new_row = accepted.Add()
+                                for attr in (
+                                    "Номенклатура",
+                                    "Размер",
+                                    "Проба",
+                                    "ЦветМеталла",
+                                    "Количество",
+                                    "Вес",
+                                    "ВидНорматива",
+                                    "ХарактеристикаВставок",
+                                ):
+                                    if hasattr(row, attr) and hasattr(new_row, attr):
+                                        setattr(new_row, attr, getattr(row, attr))
+                    except Exception as e_fill:
+                        log(f"[close_wax_jobs] ⚠ Ручное заполнение: {e_fill}")
+
                 try:
                     doc.Закрыт = True
                 except Exception:
                     pass
+
+                doc.Write()
                 doc.Провести()
                 closed.append(str(doc.Номер))
                 log(f"[close_wax_jobs] ✅ {doc.Номер}")
@@ -453,6 +477,40 @@ class WaxBridge:
                 responsible = responsible or getattr(order_obj, "Ответственный", None)
             except Exception as e:
                 log(f"[create_wax_jobs_from_task] ⚠ Не удалось получить данные из заказа: {e}")
+
+        # Заполнение значений по умолчанию, если они не определены
+        if org is None:
+            try:
+                orgs = self.bridge.list_catalog_items("Организации", 1)
+                if orgs:
+                    org = orgs[0]["Ref"]
+                    log(
+                        f"[create_wax_jobs_from_task] ⚠ Установлена организация по умолчанию: {orgs[0]['Description']}"
+                    )
+            except Exception as exc:
+                log(f"[create_wax_jobs_from_task] ⚠ Не удалось установить организацию: {exc}")
+
+        if wh is None:
+            try:
+                whs = self.bridge.list_catalog_items("Склады", 1)
+                if whs:
+                    wh = whs[0]["Ref"]
+                    log(
+                        f"[create_wax_jobs_from_task] ⚠ Установлен склад по умолчанию: {whs[0]['Description']}"
+                    )
+            except Exception as exc:
+                log(f"[create_wax_jobs_from_task] ⚠ Не удалось установить склад: {exc}")
+
+        if responsible is None:
+            try:
+                users = self.bridge.list_catalog_items("Пользователи", 1)
+                if users:
+                    responsible = users[0]["Ref"]
+                    log(
+                        f"[create_wax_jobs_from_task] ⚠ Установлен ответственный по умолчанию: {users[0]['Description']}"
+                    )
+            except Exception as exc:
+                log(f"[create_wax_jobs_from_task] ⚠ Не удалось установить ответственного: {exc}")
 
         section = getattr(task, "ПроизводственныйУчасток", None)
         if warehouse:
