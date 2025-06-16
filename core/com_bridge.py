@@ -807,7 +807,7 @@ class COM1CBridge:
         return result
 
     def close_wax_jobs(self, job_refs: list) -> list[str]:
-        """Закрывает наряды: копирует строки из 'Выдано' в 'Принято', устанавливает ВидНорматива и проводит."""
+        """Закрывает наряды, заполняя таблицу \"Принято\" и проводя документ."""
         closed: list[str] = []
 
         for ref in job_refs:
@@ -820,50 +820,54 @@ class COM1CBridge:
                 issued_table = getattr(doc, "ТоварыВыдано", None)
                 accepted_table = getattr(doc, "ТоварыПринято", None)
 
-                if not issued_table or not accepted_table:
-                    log(f"[close_wax_jobs] ⚠ Не найдены табличные части для {doc.Номер}")
+                if not accepted_table:
+                    log(f"[close_wax_jobs] ⚠ Не найдена табличная часть 'Принято' для {doc.Номер}")
                     continue
 
-                accepted_table.Clear()
-                enum_norm = self.get_enum_by_description("ВидыНормативовНоменклатуры", "Номенклатура")
+                filled = False
+                try:
+                    # Сначала пытаемся использовать стандартные методы 1С
+                    accepted_table.Заполнить()
+                    accepted_table.ЗаполнитьПоВыданному()
+                    filled = True
+                except Exception as exc:
+                    log(f"[close_wax_jobs] ⚠ Заполнение встроенным методом: {exc}")
 
-                for r in issued_table:
-                    if not getattr(r, "Номенклатура", None):
-                        continue
-                    if getattr(r, "Количество", 0) == 0:
-                        continue
-
-                    new_row = accepted_table.Add()
-                    # Копируем базовые поля
-                    for attr in ["Номенклатура", "Размер", "Проба", "ЦветМеталла", "Характеристика", "ДатаПринятия"]:
-                        if hasattr(r, attr) and hasattr(new_row, attr):
-                            setattr(new_row, attr, getattr(r, attr))
-
-                    # Количество — обязательно
-                    if hasattr(r, "Количество") and hasattr(new_row, "Количество"):
-                        new_row.Количество = r.Количество
-
-                    # Вес — копируем только если он явно задан и != 0
-                    if hasattr(r, "Вес") and hasattr(new_row, "Вес"):
-                        вес = getattr(r, "Вес", None)
-                        if вес is not None and вес != 0:
-                            new_row.Вес = вес
-
-                    # ВидНорматива — как "Номенклатура"
-                    if enum_norm and hasattr(new_row, "ВидНорматива"):
-                        new_row.ВидНорматива = enum_norm
-
-                # Логируем содержимое Принято
-                log(f"[close_wax_jobs] 👉 Принято ({doc.Номер}):")
-                for r in accepted_table:
-                    summary = ", ".join(
-                        f"{k}={getattr(r, k, '')}" for k in
-                        ["Номенклатура", "Размер", "Проба", "ЦветМеталла", "Количество", "Вес", "ВидНорматива"]
-                        if hasattr(r, k)
+                if not filled and issued_table:
+                    # Ручное копирование строк из \"Выдано\"
+                    accepted_table.Clear()
+                    enum_norm = self.get_enum_by_description(
+                        "ВидыНормативовНоменклатуры", "Номенклатура"
                     )
-                    log(f"   - {summary}")
+                    for r in issued_table:
+                        if not getattr(r, "Номенклатура", None):
+                            continue
+                        if getattr(r, "Количество", 0) == 0:
+                            continue
 
-                # Устанавливаем флаг закрытия
+                        new_row = accepted_table.Add()
+                        for attr in (
+                            "Номенклатура",
+                            "Размер",
+                            "Проба",
+                            "ЦветМеталла",
+                            "Характеристика",
+                            "ДатаПринятия",
+                        ):
+                            if hasattr(r, attr) and hasattr(new_row, attr):
+                                setattr(new_row, attr, getattr(r, attr))
+
+                        if hasattr(r, "Количество") and hasattr(new_row, "Количество"):
+                            new_row.Количество = r.Количество
+
+                        if hasattr(r, "Вес") and hasattr(new_row, "Вес"):
+                            вес = getattr(r, "Вес", None)
+                            if вес is not None and вес != 0:
+                                new_row.Вес = вес
+
+                        if enum_norm and hasattr(new_row, "ВидНорматива"):
+                            new_row.ВидНорматива = enum_norm
+
                 if hasattr(doc, "Закрыт"):
                     doc.Закрыт = True
 
