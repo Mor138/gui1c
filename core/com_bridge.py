@@ -805,8 +805,6 @@ class COM1CBridge:
 
         log(f"[find_wax_jobs_by_task] найдено {len(result)} нарядов для задания {task_str}")
         return result
-<<<<<<< HEAD
-=======
 
     def close_wax_jobs(self, job_refs: list) -> list[str]:
         """Закрывает наряды, заполняя таблицу \"Принято\" и проводя документ."""
@@ -894,7 +892,6 @@ class COM1CBridge:
                 log(f"[close_wax_jobs] ❌ Ошибка при закрытии: {e}")
 
         return closed
->>>>>>> 75a3d721737704321baec80b1267c10d613b6cc8
         
     def get_ref_by_description(self, catalog_name: str, description: str):
         """Возвращает ссылку на элемент каталога по описанию с кешированием."""
