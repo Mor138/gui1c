@@ -161,93 +161,25 @@ class COM1CBridge:
         raise Exception(f"Документ '{doc_name}' с номером {num} не найден")    
 
     def undo_posting(self, number: str, date: str | None = None) -> bool:
-        obj = self._find_document_by_number("ЗаказВПроизводство", number, date)
-        if not obj:
-            log(f"[UndoPosting] Документ №{number} не найден")
-            return False
-        try:
-            obj.UndoPosting()
-            obj.Write()
-            log(f"✔ Проведение снято для заказа №{number}")
-            return True
-        except Exception as e:
-            log(f"❌ UndoPosting error: {e}")
-            return False
+        """Снимает проведение заказа через OrdersBridge."""
+        return self.orders_bridge.undo_posting(number, date)
 
     def delete_order_by_number(self, number: str, date: str | None = None) -> bool:
-        obj = self._find_document_by_number("ЗаказВПроизводство", number, date)
-        if not obj:
-            log(f"[Удаление] Заказ №{number} не найден")
-            return False
-        try:
-            if getattr(obj, "Проведен", False):
-                log(f"⚠ Документ проведён, снимаем проведение...")
-                self.undo_posting(number)
-            obj.Delete()
-            log(f"🗑 Документ удалён полностью")
-            return True
-        except Exception as e:
-            log(f"❌ Ошибка при удалении: {e}")
-            return False
+        """Удаляет заказ через OrdersBridge."""
+        return self.orders_bridge.delete_order_by_number(number, date)
 
     def post_order(self, number: str, date: str | None = None) -> bool:
-        obj = self._find_document_by_number("ЗаказВПроизводство", number, date)
-        if not obj:
-            log(f"[Проведение] Заказ №{number} не найден")
-            return False
-        try:
-            obj.Проведен = True  # <- ЯВНО УСТАНАВЛИВАЕМ ФЛАГ ПРОВЕДЕНИЯ
-            obj.Write()          # <- обычный Write без параметров
-            if getattr(obj, "Проведен", False):
-                log(f"[Проведение] Заказ №{number} успешно проведён через флаг Проведен")
-                return True
-            else:
-                log(f"[Проведение] Не удалось провести заказ №{number}")
-                return False
-        except Exception as e:
-            log(f"[Проведение] Ошибка при установке Проведен: {e}")
-            return False
+        """Проводит заказ через OrdersBridge."""
+        return self.orders_bridge.post_order(number, date)
             
 
     def mark_order_for_deletion(self, number: str, date: str | None = None) -> bool:
-        obj = self._find_document_by_number("ЗаказВПроизводство", number, date)
-        if not obj:
-            log(f"[Пометка] Документ №{number} не найден")
-            return False
-        try:
-            if getattr(obj, "Проведен", False):
-                log("⚠ Документ проведён. Снимаем проведение перед пометкой")
-                obj.UndoPosting()
-                obj.Write()
-            obj.DeletionMark = VARIANT(VT_BOOL, True)
-            obj.Write()
-            if getattr(obj, "DeletionMark", False):
-                log(f"🗑 Документ №{number} помечен на удаление")
-                return True
-            else:
-                log(f"❌ Не удалось установить пометку на удаление")
-                return False
-        except Exception as e:
-            log(f"❌ Ошибка при установке пометки: {e}")
-            return False
+        """Помечает заказ на удаление через OrdersBridge."""
+        return self.orders_bridge.mark_order_for_deletion(number, date)
             
     def unmark_order_deletion(self, number: str, date: str | None = None) -> bool:
-        obj = self._find_document_by_number("ЗаказВПроизводство", number, date)
-        if not obj:
-            log(f"[Снятие пометки] Документ №{number} не найден")
-            return False
-        try:
-            obj.DeletionMark = VARIANT(VT_BOOL, False)
-            obj.Write()
-            if not getattr(obj, "DeletionMark", True):
-                log(f"✅ Пометка на удаление снята с документа №{number}")
-                return True
-            else:
-                log(f"❌ Не удалось снять пометку")
-                return False
-        except Exception as e:
-            log(f"❌ Ошибка при снятии пометки: {e}")
-            return False        
+        """Снимает пометку удаления заказа через OrdersBridge."""
+        return self.orders_bridge.unmark_order_deletion(number, date)
 
     def get_articles(self):
         result = {}
@@ -789,92 +721,12 @@ class COM1CBridge:
         return result
 
     def find_wax_jobs_by_task(self, task_ref) -> list:
-        """Возвращает ссылки на наряды, у которых задание соответствует ``task_ref``."""
-        result: list = []
-
-        task_str = self.to_string(task_ref)
-        jobs = self.list_documents("НарядВосковыеИзделия")
-        for job in jobs:
-            try:
-                if hasattr(job, "ЗаданиеНаПроизводство"):
-                    job_task_ref = self.to_string(job.ЗаданиеНаПроизводство)
-                    if job_task_ref == task_str:
-                        result.append(job.Ref)
-            except Exception as e:
-                log(f"[find_wax_jobs_by_task] ❌ Ошибка: {e}")
-
-        log(f"[find_wax_jobs_by_task] найдено {len(result)} нарядов для задания {task_str}")
-        return result
+        """Возвращает наряды, связанные с заданием, через WaxBridge."""
+        return self.wax_bridge.find_wax_jobs_by_task(task_ref)
 
     def close_wax_jobs(self, job_refs: list) -> list[str]:
-        """Закрывает наряды: копирует строки из 'Выдано' в 'Принято', устанавливает ВидНорматива и проводит."""
-        closed: list[str] = []
-
-        for ref in job_refs:
-            try:
-                doc = self.get_object_from_ref(ref)
-                if not doc:
-                    log("[close_wax_jobs] ❌ Не удалось получить документ по ссылке")
-                    continue
-
-                issued_table = getattr(doc, "ТоварыВыдано", None)
-                accepted_table = getattr(doc, "ТоварыПринято", None)
-
-                if not issued_table or not accepted_table:
-                    log(f"[close_wax_jobs] ⚠ Не найдены табличные части для {doc.Номер}")
-                    continue
-
-                accepted_table.Clear()
-                enum_norm = self.get_enum_by_description("ВидыНормативовНоменклатуры", "Номенклатура")
-
-                for r in issued_table:
-                    if not getattr(r, "Номенклатура", None):
-                        continue
-                    if getattr(r, "Количество", 0) == 0:
-                        continue
-
-                    new_row = accepted_table.Add()
-                    # Копируем базовые поля
-                    for attr in ["Номенклатура", "Размер", "Проба", "ЦветМеталла", "Характеристика", "ДатаПринятия"]:
-                        if hasattr(r, attr) and hasattr(new_row, attr):
-                            setattr(new_row, attr, getattr(r, attr))
-
-                    # Количество — обязательно
-                    if hasattr(r, "Количество") and hasattr(new_row, "Количество"):
-                        new_row.Количество = r.Количество
-
-                    # Вес — копируем только если он явно задан и != 0
-                    if hasattr(r, "Вес") and hasattr(new_row, "Вес"):
-                        вес = getattr(r, "Вес", None)
-                        if вес is not None and вес != 0:
-                            new_row.Вес = вес
-
-                    # ВидНорматива — как "Номенклатура"
-                    if enum_norm and hasattr(new_row, "ВидНорматива"):
-                        new_row.ВидНорматива = enum_norm
-
-                # Логируем содержимое Принято
-                log(f"[close_wax_jobs] 👉 Принято ({doc.Номер}):")
-                for r in accepted_table:
-                    summary = ", ".join(
-                        f"{k}={getattr(r, k, '')}" for k in
-                        ["Номенклатура", "Размер", "Проба", "ЦветМеталла", "Количество", "Вес", "ВидНорматива"]
-                        if hasattr(r, k)
-                    )
-                    log(f"   - {summary}")
-
-                # Устанавливаем флаг закрытия
-                if hasattr(doc, "Закрыт"):
-                    doc.Закрыт = True
-
-                doc.Провести()
-                closed.append(str(doc.Номер))
-                log(f"[close_wax_jobs] ✅ Наряд {doc.Номер} успешно закрыт и проведён")
-
-            except Exception as e:
-                log(f"[close_wax_jobs] ❌ Ошибка при закрытии: {e}")
-
-        return closed
+        """Закрывает наряды через WaxBridge."""
+        return self.wax_bridge.close_wax_jobs(job_refs)
         
     def get_ref_by_description(self, catalog_name: str, description: str):
         """Возвращает ссылку на элемент каталога по описанию с кешированием."""
@@ -1391,185 +1243,55 @@ class COM1CBridge:
         return result
 
     def _find_task_by_number(self, number: str):
-        doc_manager = getattr(self.connection.Documents, "ЗаданиеНаПроизводство", None)
-        if doc_manager is None:
-            log("❌ Документ 'ЗаданиеНаПроизводство' не найден")
-            return None
-        selection = doc_manager.Select()
-        while selection.Next():
-            obj = selection.GetObject()
-            if str(obj.Number).strip() == number.strip():
-                return obj
-        return None
+        """Ищет задание по номеру через WaxBridge."""
+        return self.wax_bridge._find_task_by_number(number)
 
     def post_task(self, number: str) -> bool:
-        obj = self._find_task_by_number(number)
-        if not obj:
-            log(f"[Проведение] ❌ Задание №{number} не найдено")
-            return False
-        try:
-            obj.Проведен = True
-            obj.Write()
-            log(f"[Проведение] ✅ Задание №{number} проведено")
-            return True
-        except Exception as e:
-            log(f"❌ Ошибка при проведении задания №{number}: {e}")
-            return False
+        """Проводит задание через WaxBridge."""
+        return self.wax_bridge.post_task(number)
 
     def undo_post_task(self, number: str) -> bool:
-        obj = self._find_task_by_number(number)
-        if not obj:
-            log(f"[Снятие проведения] ❌ Задание №{number} не найдено")
-            return False
-        try:
-            obj.Проведен = False
-            obj.Write()
-            log(f"[Снятие проведения] ✅ Задание №{number} отменено")
-            return True
-        except Exception as e:
-            log(f"❌ Ошибка при снятии проведения задания №{number}: {e}")
-            return False
+        """Снимает проведение задания через WaxBridge."""
+        return self.wax_bridge.undo_post_task(number)
 
     def mark_task_for_deletion(self, number: str) -> bool:
-        obj = self._find_task_by_number(number)
-        if not obj:
-            log(f"[Пометка удаления] ❌ Задание №{number} не найдено")
-            return False
-        try:
-            obj.DeletionMark = True
-            obj.Write()
-            log(f"[Пометка удаления] ✅ Задание №{number} помечено на удаление")
-            return True
-        except Exception as e:
-            log(f"❌ Ошибка при пометке на удаление задания №{number}: {e}")
-            return False
+        """Помечает задание на удаление через WaxBridge."""
+        return self.wax_bridge.mark_task_for_deletion(number)
 
     def unmark_task_deletion(self, number: str) -> bool:
-        obj = self._find_task_by_number(number)
-        if not obj:
-            log(f"[Снятие пометки] ❌ Задание №{number} не найдено")
-            return False
-        try:
-            obj.DeletionMark = False
-            obj.Write()
-            log(f"[Снятие пометки] ✅ Задание №{number} восстановлено")
-            return True
-        except Exception as e:
-            log(f"❌ Ошибка при снятии пометки задания №{number}: {e}")
-            return False
+        """Снимает пометку удаления задания через WaxBridge."""
+        return self.wax_bridge.unmark_task_deletion(number)
 
     def delete_task(self, number: str) -> bool:
-        obj = self._find_task_by_number(number)
-        if not obj:
-            log(f"[Удаление] ❌ Задание №{number} не найдено")
-            return False
-        try:
-            # Обязательно снять проведение, если стоит
-            if getattr(obj, "Проведен", False):
-                obj.Проведен = False
-                obj.Write()
-
-            # Пометить на удаление (иначе 1С не даст удалить)
-            obj.DeletionMark = True
-            obj.Write()
-
-            # Теперь можно удалить
-            obj.Delete()
-            log(f"[Удаление] ✅ Задание №{number} удалено")
-            return True
-        except Exception as e:
-            log(f"❌ Ошибка при удалении задания №{number}: {e}")
-            return False
+        """Удаляет задание через WaxBridge."""
+        return self.wax_bridge.delete_task(number)
 
     # -------------------------------------------------------------
     # Методы для работы с нарядами
     # -------------------------------------------------------------
 
     def _find_wax_job_by_number(self, number: str):
-        doc_manager = getattr(self.connection.Documents, "НарядВосковыеИзделия", None)
-        if doc_manager is None:
-            log("❌ Документ 'НарядВосковыеИзделия' не найден")
-            return None
-        selection = doc_manager.Select()
-        while selection.Next():
-            obj = selection.GetObject()
-            if str(obj.Number).strip() == str(number).strip():
-                return obj
-        return None
+        """Ищет наряд по номеру через WaxBridge."""
+        return self.wax_bridge._find_wax_job_by_number(number)
 
     def post_wax_job(self, number: str) -> bool:
-        obj = self._find_wax_job_by_number(number)
-        if not obj:
-            log(f"[Проведение] ❌ Наряд №{number} не найден")
-            return False
-        try:
-            obj.Проведен = True
-            obj.Write()
-            log(f"[Проведение] ✅ Наряд №{number} проведён")
-            return True
-        except Exception as e:
-            log(f"❌ Ошибка при проведении наряда №{number}: {e}")
-            return False
+        """Проводит наряд через WaxBridge."""
+        return self.wax_bridge.post_wax_job(number)
 
     def undo_post_wax_job(self, number: str) -> bool:
-        obj = self._find_wax_job_by_number(number)
-        if not obj:
-            log(f"[Снятие проведения] ❌ Наряд №{number} не найден")
-            return False
-        try:
-            obj.Проведен = False
-            obj.Write()
-            log(f"[Снятие проведения] ✅ Наряд №{number} отменён")
-            return True
-        except Exception as e:
-            log(f"❌ Ошибка при отмене проведения наряда №{number}: {e}")
-            return False
+        """Отменяет проведение наряда через WaxBridge."""
+        return self.wax_bridge.undo_post_wax_job(number)
 
     def mark_wax_job_for_deletion(self, number: str) -> bool:
-        obj = self._find_wax_job_by_number(number)
-        if not obj:
-            log(f"[Пометка удаления] ❌ Наряд №{number} не найден")
-            return False
-        try:
-            obj.DeletionMark = True
-            obj.Write()
-            log(f"[Пометка удаления] ✅ Наряд №{number} помечен на удаление")
-            return True
-        except Exception as e:
-            log(f"❌ Ошибка при пометке наряда №{number}: {e}")
-            return False
+        """Помечает наряд на удаление через WaxBridge."""
+        return self.wax_bridge.mark_wax_job_for_deletion(number)
 
     def unmark_wax_job_deletion(self, number: str) -> bool:
-        obj = self._find_wax_job_by_number(number)
-        if not obj:
-            log(f"[Снятие пометки] ❌ Наряд №{number} не найден")
-            return False
-        try:
-            obj.DeletionMark = False
-            obj.Write()
-            log(f"[Снятие пометки] ✅ Наряд №{number} восстановлен")
-            return True
-        except Exception as e:
-            log(f"❌ Ошибка при снятии пометки наряда №{number}: {e}")
-            return False
+        """Снимает пометку удаления наряда через WaxBridge."""
+        return self.wax_bridge.unmark_wax_job_deletion(number)
 
     def delete_wax_job(self, number: str) -> bool:
-        obj = self._find_wax_job_by_number(number)
-        if not obj:
-            log(f"[Удаление] ❌ Наряд №{number} не найден")
-            return False
-        try:
-            if getattr(obj, "Проведен", False):
-                obj.Проведен = False
-                obj.Write()
-
-            obj.DeletionMark = True
-            obj.Write()
-            obj.Delete()
-            log(f"[Удаление] ✅ Наряд №{number} удалён")
-            return True
-        except Exception as e:
-            log(f"❌ Ошибка при удалении наряда №{number}: {e}")
-            return False
+        """Удаляет наряд через WaxBridge."""
+        return self.wax_bridge.delete_wax_job(number)
             
             
