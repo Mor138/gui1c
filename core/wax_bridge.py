@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 from __future__ import annotations
 from typing import Any
 from .com_bridge import log, safe_str
@@ -490,122 +491,90 @@ class WaxBridge:
             log(f"❌ Ошибка создания Наряда: {e}")
             return ""
 
-    def create_wax_jobs_from_task(
-        self,
-        task_ref,
-        master_3d: str,
-        master_form: str,
-        warehouse: str | None = None,
-        norm_type: str = "Номенклатура",
-    ) -> list[str]:
-        mapping = {"3D печать": master_3d, "Пресс-форма": master_form}
-        result: list[str] = []
+    def create_wax_jobs_from_task(self, task_ref, methods_map: dict[str, str], user_name: str) -> list:
+        result = []
+        task_obj = self.bridge.get_object_from_ref(task_ref)
+        if not task_obj:
+            raise Exception("Не удалось получить объект задания из ссылки")
 
-        try:
-            if isinstance(task_ref, str):
-                task = self.bridge.connection.GetObject(task_ref)
-            elif hasattr(task_ref, "Продукция"):
-                task = task_ref
-            elif hasattr(task_ref, "GetObject"):
-                task = task_ref.GetObject()
-            else:
-                log("[create_wax_jobs_from_task] ❌ Неверный тип ссылки")
-                return []
-            task_ref_link = task.Ref
-        except Exception as exc:
-            log(f"[create_wax_jobs_from_task] ❌ Ошибка доступа к заданию: {exc}")
-            return []
+        from datetime import datetime
+        print(f"[DEBUG] loaded wax_bridge from: {__file__}")
 
-        order_ref = getattr(task, "ЗаказВПроизводство", None) or getattr(task, "ДокументОснование", None)
-        order_obj = None
-        if order_ref and hasattr(order_ref, "GetObject"):
-            try:
-                order_obj = order_ref.GetObject()
-                log("[create_wax_jobs_from_task] ✅ Получен заказ-основание")
-            except Exception as exc:
-                log(f"[create_wax_jobs_from_task] ⚠ Ошибка получения заказа: {exc}")
+        orders = self.bridge.find_documents_by_attribute("ЗаказВПроизводство", "Задание", task_ref)
+        order_ref = orders[0] if orders else None
+        if not order_ref:
+            log("[create_wax_jobs_from_task] ⚠ Не найден заказ-основание")
+        else:
+            log("[create_wax_jobs_from_task] ✅ Получен заказ-основание")
 
-        org = getattr(task, "Организация", None)
-        wh = getattr(task, "Склад", None)
-        responsible = getattr(task, "Ответственный", None)
-        if (org is None or wh is None) and order_obj:
-            try:
-                org = org or getattr(order_obj, "Организация", None)
-                wh = wh or getattr(order_obj, "Склад", None)
-                responsible = responsible or getattr(order_obj, "Ответственный", None)
-            except Exception as e:
-                log(f"[create_wax_jobs_from_task] ⚠ Не удалось получить данные из заказа: {e}")
+        rows = getattr(task_obj, "Товары", [])
+        if not rows:
+            raise Exception("В задании нет строк")
 
-        section = getattr(task, "ПроизводственныйУчасток", None)
-        if warehouse:
-            wh = self.bridge.get_ref_by_description("Склады", warehouse) or wh
+        methods = {}
+        for row in rows:
+            method = str(getattr(row, "МетодИзготовления", None))
+            if method not in methods:
+                methods[method] = []
+            methods[method].append(row)
 
-        rows_by_method = {"3D печать": [], "Пресс-форма": []}
-        for row in task.Продукция:
-            art = safe_str(getattr(row.Номенклатура, "Артикул", "")).lower()
-            method = "3D печать" if "д" in art or "d" in art else "Пресс-форма"
-            rows_by_method[method].append(row)
+        for method, method_rows in methods.items():
+            doc = self.bridge.create_document_object("НарядВосковыеИзделия")
+            doc.Дата = datetime.now()
+            doc.Задание = task_ref
+            if order_ref:
+                doc.Заказ = order_ref
 
-        for method, rows in rows_by_method.items():
-            if not rows:
-                continue
-            try:
-                job = self.bridge.connection.Documents.НарядВосковыеИзделия.CreateDocument()
+            # Установим метод изготовления
+            if hasattr(doc, "МетодИзготовления"):
+                method_enum = self.bridge.get_enum_by_ref("МетодыИзготовления", methods_map[method])
+                doc.МетодИзготовления = method_enum
 
-                job.Дата = datetime.now()
-                job.ДокументОснование = task_ref_link
-                job.ЗаданиеНаПроизводство = task_ref_link
-                if org is not None:
-                    try:
-                        job.Организация = org
-                    except Exception as exc:
-                        log(f"[create_wax_jobs_from_task] ⚠ Не удалось установить организацию: {exc}")
-                if wh is not None:
-                    try:
-                        job.Склад = wh
-                    except Exception as exc:
-                        log(f"[create_wax_jobs_from_task] ⚠ Не удалось установить склад: {exc}")
-                if section:
-                    job.ПроизводственныйУчасток = section
-                if responsible:
-                    job.Ответственный = responsible
-                job.ТехОперация = self.bridge.get_ref("ТехОперации", method)
-                job.Сотрудник = self.bridge.get_ref("ФизическиеЛица", mapping.get(method, ""))
-                job.Комментарий = f"Создан автоматически для {method}"
+            # Установим организацию
+            orgs = self.bridge.list_catalog_items("Организации")
+            if orgs:
+                doc.Организация = orgs[0]["Ref"]
+                log(f"[create_wax_jobs_from_task] ✅ Установлена организация: {orgs[0]['Description']}")
 
-                for r in rows:
-                    row = job.ТоварыВыдано.Add()
-                    row.Номенклатура = r.Номенклатура
-                    row.Количество = r.Количество
-                    row.Размер = r.Размер
-                    row.Проба = r.Проба
-                    row.ЦветМеталла = r.ЦветМеталла
-                    if hasattr(r, "ХарактеристикаВставок"):
-                        row.ХарактеристикаВставок = r.ХарактеристикаВставок
-                    if hasattr(r, "Вес"):
-                        row.Вес = r.Вес
+            # Установим склад
+            whs = self.bridge.list_catalog_items("Склады")
+            if whs:
+                doc.Склад = whs[0]["Ref"]
+                log(f"[create_wax_jobs_from_task] ✅ Установлен склад: {whs[0]['Description']}")
 
-                enum_norm = self.bridge.get_enum_by_description(
-                    "ВидыНормативовНоменклатуры", norm_type
-                )
-                if enum_norm:
-                    for row in job.ТоварыВыдано:
-                        row.ВидНорматива = enum_norm
+            # Установим ответственного
+            users = self.bridge.list_catalog_items("Пользователи")
+            found_user = next((u for u in users if u["Description"] == user_name), None)
+            if found_user:
+                doc.Ответственный = found_user["Ref"]
+                log(f"[create_wax_jobs_from_task] ✅ Ответственный: {found_user['Description']}")
+            elif users:
+                doc.Ответственный = users[0]["Ref"]
+                log(f"[create_wax_jobs_from_task] ⚠ Установлен дефолтный ответственный: {users[0]['Description']}")
 
-                for row in job.ТоварыВыдано:
-                    nomenclature = getattr(row, "Номенклатура", None)
-                    if nomenclature is not None:
-                        type_enum = self.bridge.get_object_property(nomenclature, "ТипНоменклатуры")
-                        enum = self.bridge.get_enum_by_description(
-                            "ВидыНормативовНоменклатуры",
-                            "Номенклатура" if safe_str(type_enum) == "Продукция" else "Комплектующее",
-                        )
-                        if enum:
-                            row.ВидНорматива = enum
+            tab = getattr(doc, "Товары", None)
+            if not tab:
+                raise Exception("Нет табличной части Товары в наряде")
 
-                job.Write()
-                result.append(str(job.Номер))
-                log(f"[create_wax_jobs_from_task] ✅ Создан наряд {method}: №{job.Номер}")
-            except Exception as exc:
-                log(f"[create_wax_jobs_from_task] ❌ Ошибка для {method}: {exc}")
+            for r in method_rows:
+                if not getattr(r, "Номенклатура", None):
+                    continue
+
+                new_row = tab.Add()
+                for attr in ("Номенклатура", "Размер", "Проба", "ЦветМеталла", "Характеристика"):
+                    if hasattr(r, attr) and hasattr(new_row, attr):
+                        setattr(new_row, attr, getattr(r, attr))
+
+                if hasattr(new_row, "Количество"):
+                    new_row.Количество = r.Количество
+
+                if hasattr(new_row, "Вес"):
+                    new_row.Вес = r.Вес
+
+            doc.Write()
+            doc.Провести()
+            result.append(doc.Ref)
+
+            log(f"[create_wax_jobs_from_task] ✅ Создан наряд {method}: №{doc.Номер}")
+
         return result
