@@ -2,6 +2,7 @@
 # ─────────────────────────────────────────────────────────────────────────
 from collections import defaultdict
 import re
+from core.logger import logger
 from PyQt5.QtCore    import Qt
 from PyQt5.QtGui     import QFont
 from PyQt5.QtWidgets import (
@@ -387,7 +388,7 @@ class WaxPage(QWidget):
             item = self.tree_tasks.topLevelItem(i)
             if item.checkState(0) == Qt.Checked:
                 result.append(item.text(1))  # Номер
-        print("[DEBUG] Отмечены задания:", result)
+        logger.debug("[DEBUG] Отмечены задания: %s", result)
         return result
 
     def _selected_job_code(self):
@@ -406,31 +407,31 @@ class WaxPage(QWidget):
     
     def _post_selected_tasks(self):
         for num in self._get_checked_tasks():
-            print(f"[DEBUG] Проведение: {num}")
+            logger.debug("[DEBUG] Проведение: %s", num)
             config.BRIDGE.post_task(num)
         self._fill_tasks_tree()
 
     def _unpost_selected_tasks(self):
         for num in self._get_checked_tasks():
-            print(f"[DEBUG] Проведение: {num}")
+            logger.debug("[DEBUG] Проведение: %s", num)
             config.BRIDGE.undo_post_task(num)
         self._fill_tasks_tree()
 
     def _mark_selected_tasks(self):
         for num in self._get_checked_tasks():
-            print(f"[DEBUG] Проведение: {num}")
+            logger.debug("[DEBUG] Проведение: %s", num)
             config.BRIDGE.mark_task_for_deletion(num)
         self._fill_tasks_tree()
 
     def _unmark_selected_tasks(self):
         for num in self._get_checked_tasks():
-            print(f"[DEBUG] Проведение: {num}")
+            logger.debug("[DEBUG] Проведение: %s", num)
             config.BRIDGE.unmark_task_deletion(num)
         self._fill_tasks_tree()
 
     def _delete_selected_tasks(self):
         for num in self._get_checked_tasks():
-            print(f"[DEBUG] Проведение: {num}")
+            logger.debug("[DEBUG] Проведение: %s", num)
             config.BRIDGE.delete_task(num)
         self._fill_tasks_tree()
 
