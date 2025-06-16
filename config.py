@@ -107,19 +107,7 @@ def load_employee_logins() -> list[str]:
         logger.error("Не удалось загрузить логины из XML: %s", exc)
         return fallback
 
-
-    """Загружает логины сотрудников из дампа конфигурации."""
-    try:
-        users = config_parser.get_catalog_items("Пользователи")
-        return users or ["Администратор"]
-    except Exception as exc:  # безопасность на случай проблем парсинга
-        logger.error("Не удалось загрузить логины сотрудников: %s", exc)
-        return ["Администратор"]
-
-
 EMPLOYEE_LOGINS = load_employee_logins()
-
-
 # ------------------------------------------------------------------
 # Список сотрудников из справочника "ФизическиеЛица"
 def load_employees(limit: int = 200) -> list[str]:
