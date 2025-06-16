@@ -288,7 +288,9 @@ class WaxBridge:
         return result
 
     def close_wax_jobs(self, job_refs: list) -> list[str]:
+        from datetime import datetime
         closed: list[str] = []
+
         for ref in job_refs:
             try:
                 doc = self.bridge.get_object_from_ref(ref)
@@ -302,22 +304,20 @@ class WaxBridge:
                     log(f"[close_wax_jobs] ⚠ Не найдена табличная часть 'Принято' для {doc.Номер}")
                     continue
 
+                # Попробуем штатно заполнить
                 filled = False
                 try:
                     accepted_table.Заполнить()
                     accepted_table.ЗаполнитьПоВыданному()
                     filled = True
-                    # Сначала стандартное заполнение таблицы "Принято"
-                    doc.ТоварыПринято.Заполнить()
-                    doc.ТоварыПринято.ЗаполнитьПоВыданному()
+                    log(f"[close_wax_jobs] ✅ Табличная часть Принято заполнена встроенно")
                 except Exception as exc:
-                    log(f"[close_wax_jobs] ⚠ Заполнение встроенным методом: {exc}")
+                    log(f"[close_wax_jobs] ⚠ Встроенное заполнение не удалось: {exc}")
 
+                # Если не удалось — заполним вручную
                 if not filled and issued_table:
                     accepted_table.Clear()
-                    enum_norm = self.bridge.get_enum_by_description(
-                        "ВидыНормативовНоменклатуры", "Номенклатура"
-                    )
+                    enum_norm = self.bridge.get_enum_by_description("ВидыНормативовНоменклатуры", "Номенклатура")
                     for r in issued_table:
                         if not getattr(r, "Номенклатура", None):
                             continue
@@ -325,16 +325,12 @@ class WaxBridge:
                             continue
 
                         new_row = accepted_table.Add()
-                        for attr in (
-                            "Номенклатура",
-                            "Размер",
-                            "Проба",
-                            "ЦветМеталла",
-                            "Характеристика",
-                            "ДатаПринятия",
-                        ):
+                        for attr in ("Номенклатура", "Размер", "Проба", "ЦветМеталла", "Характеристика"):
                             if hasattr(r, attr) and hasattr(new_row, attr):
                                 setattr(new_row, attr, getattr(r, attr))
+
+                        if hasattr(new_row, "ДатаПринятия"):
+                            new_row.ДатаПринятия = datetime.now()
 
                         if hasattr(r, "Количество") and hasattr(new_row, "Количество"):
                             new_row.Количество = r.Количество
@@ -347,22 +343,41 @@ class WaxBridge:
                         if enum_norm and hasattr(new_row, "ВидНорматива"):
                             new_row.ВидНорматива = enum_norm
 
+                # Установим признак "Закрыт"
                 try:
                     doc.Закрыт = True
                 except Exception:
                     pass
 
-                try:
-                    doc.Write()
-                    log(f"[close_wax_jobs] ✅ Записан документ {doc.Номер}")
-                except Exception as exc:
-                    log(f"[close_wax_jobs] ⚠ Ошибка при записи: {exc}")
+                # Установим организацию, склад, ответственного, если не заданы
+                if not getattr(doc, "Организация", None):
+                    orgs = self.bridge.list_catalog_items("Организации")
+                    if orgs:
+                        doc.Организация = orgs[0]["Ref"]
+                        log(f"[close_wax_jobs] ✅ Установлена организация: {orgs[0]['Description']}")
 
+                if not getattr(doc, "Склад", None):
+                    whs = self.bridge.list_catalog_items("Склады")
+                    if whs:
+                        doc.Склад = whs[0]["Ref"]
+                        log(f"[close_wax_jobs] ✅ Установлен склад: {whs[0]['Description']}")
+
+                if not getattr(doc, "Ответственный", None):
+                    users = self.bridge.list_catalog_items("Пользователи")
+                    if users:
+                        doc.Ответственный = users[0]["Ref"]
+                        log(f"[close_wax_jobs] ✅ Установлен ответственный: {users[0]['Description']}")
+
+                # Запись и проведение
+                doc.Write()
+                log(f"[close_wax_jobs] ✅ Записан документ {doc.Номер}")
                 doc.Провести()
                 closed.append(str(doc.Номер))
-                log(f"[close_wax_jobs] ✅ {doc.Номер}")
+                log(f"[close_wax_jobs] ✅ Проведён документ {doc.Номер}")
+
             except Exception as e:
-                log(f"[close_wax_jobs] ❌ {e}")
+                log(f"[close_wax_jobs] ❌ Ошибка при закрытии наряда: {e}")
+
         return closed
 
     def get_wax_job_lines(self, doc_num: str) -> list[dict]:
