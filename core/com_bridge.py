@@ -1083,8 +1083,8 @@ class COM1CBridge:
                 r.ЦветМеталла = row.ЦветМеталла
                 r.Вес = row.Вес
 
+            doc.Проведен = True
             doc.Write()
-            doc.Провести()
             log(f"✅ Создан НарядВосковыеИзделия №{doc.Number}")
             return str(doc.Number)
         except Exception as e:
@@ -1235,6 +1235,7 @@ class COM1CBridge:
                         row.ВидНорматива = enum_norm
 
 
+                job.Проведен = True
                 job.Write()
                 result.append(str(job.Номер))
                 log(f"[create_wax_jobs_from_task] ✅ Создан наряд {method}: №{job.Номер}")

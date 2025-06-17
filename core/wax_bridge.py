@@ -326,8 +326,8 @@ class WaxBridge:
                 except Exception:
                     pass
 
+                doc.Проведен = True
                 doc.Write()
-                doc.Провести()
                 closed.append(str(doc.Номер))
                 log(f"[close_wax_jobs] ✅ {doc.Номер}")
             except Exception as e:
@@ -430,8 +430,8 @@ class WaxBridge:
                 r.ЦветМеталла = row.ЦветМеталла
                 r.Вес = row.Вес
 
+            doc.Проведен = True
             doc.Write()
-            doc.Провести()
             log(f"✅ Создан НарядВосковыеИзделия №{doc.Number}")
             return str(doc.Number)
         except Exception as e:
@@ -579,6 +579,7 @@ class WaxBridge:
                         if enum:
                             row.ВидНорматива = enum
 
+                job.Проведен = True
                 job.Write()
                 result.append(str(job.Номер))
                 log(f"[create_wax_jobs_from_task] ✅ Создан наряд {method}: №{job.Номер}")
