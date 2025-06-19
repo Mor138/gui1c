@@ -72,6 +72,7 @@ class WaxPage(QWidget):
         self._fill_tasks_tree()
         self._fill_jobs_tree()
         self._fill_parties_tree()
+        self._fill_assembly_tree()
 
     # ------------------------------------------------------------------
     def _ui(self):
@@ -334,9 +335,31 @@ class WaxPage(QWidget):
 
         j1.addLayout(btn_bar_jobs)
 
+        # --- sub-tab: сборка ёлок ---
+        self.tab_tree = QWidget(); tree_layout = QVBoxLayout(self.tab_tree)
+        lbl_tree = QLabel("Сборка ёлок")
+        lbl_tree.setFont(QFont("Arial", 16, QFont.Bold))
+        tree_layout.addWidget(lbl_tree)
+
+        self.tree_assembly = QTreeWidget()
+        self.tree_assembly.setHeaderLabels(["Параметры", "Кол-во", "Вес"])
+        self.tree_assembly.header().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.tree_assembly.setStyleSheet(CSS_TREE)
+        tree_layout.addWidget(self.tree_assembly, 1)
+
+        bar_tree = QHBoxLayout()
+        btn_form_trees = QPushButton("🌲 Сформировать ёлки")
+        btn_clear_trees = QPushButton("🧹 Очистить список")
+        btn_form_trees.clicked.connect(self._form_trees)
+        btn_clear_trees.clicked.connect(self._clear_assembly_pool)
+        for b in [btn_form_trees, btn_clear_trees]:
+            bar_tree.addWidget(b)
+        tree_layout.addLayout(bar_tree)
+
         self.tabs_jobs.addTab(tab_jobs_new, "Создание")
         self.tabs_jobs.addTab(tab_jobs_close, "Закрытие")
         self.tabs_jobs.addTab(tab_jobs_list, "Наряды (восковые изделия)")
+        self.tabs_jobs.addTab(self.tab_tree, "Сборка ёлок")
         self.tabs.addTab(self.tab_jobs, "Наряды восковых изделий по методам")
 
         # подключения сигналов
@@ -476,7 +499,12 @@ class WaxPage(QWidget):
         num = item.text(0).strip()
         if not num:
             return
-        self.populate_jobs_tree(num)
+        if item.text(2).strip() != "✅":
+            QMessageBox.warning(self, "Ошибка", "Наряд не закрыт")
+            return
+        self._add_job_to_assembly(num)
+        if hasattr(self, "tabs_jobs"):
+            self.tabs_jobs.setCurrentWidget(self.tab_tree)
 
     def _send_task_to_work(self):
         """Переносит выбранное задание на вкладку создания нарядов."""
@@ -932,6 +960,60 @@ class WaxPage(QWidget):
             self.refresh()
         else:
             QMessageBox.critical(self, "Ошибка", "Не удалось закрыть наряды")
+
+    # ------------------------------------------------------------------
+    def _add_job_to_assembly(self, job_num: str):
+        """Добавляет наряд в очередь сборки ёлок."""
+        from logic.state import ASSEMBLY_POOL
+        for pack in ORDERS_POOL:
+            for j in pack["docs"].get("wax_jobs", []):
+                if j.get("wax_job") == job_num and j not in ASSEMBLY_POOL:
+                    ASSEMBLY_POOL.append(j.copy())
+
+        self._fill_assembly_tree()
+
+    def _fill_assembly_tree(self):
+        if not hasattr(self, "tree_assembly"):
+            return
+        from logic.state import ASSEMBLY_POOL
+        self.tree_assembly.clear()
+
+        grouped = defaultdict(lambda: dict(qty=0, weight=0, jobs=[]))
+        for j in ASSEMBLY_POOL:
+            key = (j.get("metal"), j.get("hallmark"), j.get("color"))
+            grouped[key]["qty"] += j.get("qty", 0)
+            grouped[key]["weight"] += j.get("weight", 0)
+            grouped[key]["jobs"].append(j["wax_job"])
+
+        for (metal, hallmark, color), data in grouped.items():
+            root = QTreeWidgetItem(
+                self.tree_assembly,
+                [f"{metal} {hallmark} {color}", str(data["qty"]),
+                 f"{data['weight']:.{config.WEIGHT_DECIMALS}f}"]
+            )
+            root.setExpanded(True)
+            for j in [x for x in ASSEMBLY_POOL if (x.get("metal"), x.get("hallmark"), x.get("color")) == (metal, hallmark, color)]:
+                QTreeWidgetItem(root, [j["wax_job"], str(j.get("qty", 0)), f"{j.get('weight', 0):.{config.WEIGHT_DECIMALS}f}"])
+
+    def _clear_assembly_pool(self):
+        from logic.state import ASSEMBLY_POOL
+        ASSEMBLY_POOL.clear()
+        self._fill_assembly_tree()
+
+    def _form_trees(self):
+        """Формирует ёлки из собранных нарядов."""
+        from logic.state import ASSEMBLY_POOL
+        if not ASSEMBLY_POOL:
+            QMessageBox.information(self, "Сборка", "Нет нарядов для сборки")
+            return
+        grouped = defaultdict(list)
+        for j in ASSEMBLY_POOL:
+            key = (j.get("metal"), j.get("hallmark"), j.get("color"))
+            grouped[key].append(j)
+        count = len(grouped)
+        ASSEMBLY_POOL.clear()
+        self._fill_assembly_tree()
+        QMessageBox.information(self, "Сборка ёлок", f"Сформировано {count} ёлок")
 
     # ------------------------------------------------------------------
     def _not_implemented(self):
