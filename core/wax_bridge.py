@@ -321,6 +321,15 @@ class WaxBridge:
                     except Exception as e_fill:
                         log(f"[close_wax_jobs] ⚠ Ручное заполнение: {e_fill}")
 
+                # Записываем текущую дату в поле 'Период' табличной части
+                try:
+                    from datetime import datetime
+                    for accepted_row in getattr(doc, "ТоварыПринято", []):
+                        if hasattr(accepted_row, "Период"):
+                            accepted_row.Период = datetime.now()
+                except Exception as exc:
+                    log(f"[close_wax_jobs] ⚠ Не удалось установить дату принятия: {exc}")
+
                 try:
                     doc.Закрыт = True
                 except Exception:
