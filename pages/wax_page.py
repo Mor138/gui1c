@@ -506,9 +506,6 @@ class WaxPage(QWidget):
 
         log(f"[UI] Отправка нарядов в сборку: {', '.join(jobs)}")
 
-            QMessageBox.warning(self, "Ошибка", "Выберите наряды")
-            return
-
         added = False
         for num in jobs:
             item_obj = None
