@@ -529,6 +529,8 @@ class WaxPage(QWidget):
             return
         if hasattr(self, "tabs_jobs"):
             self.tabs_jobs.setCurrentWidget(self.tab_tree)
+            # сразу формируем ёлки без выхода на список нарядов
+            self._form_trees(return_to_jobs=False)
     def _send_task_to_work(self):
         """Переносит выбранное задание на вкладку создания нарядов."""
         item = self.tree_tasks.currentItem()
@@ -1024,8 +1026,11 @@ class WaxPage(QWidget):
         ASSEMBLY_POOL.clear()
         self._fill_assembly_tree()
 
-    def _form_trees(self):
-        """Формирует ёлки из собранных нарядов."""
+    def _form_trees(self, return_to_jobs: bool = True):
+        """Формирует ёлки из собранных нарядов.
+
+        :param return_to_jobs: после формирования вернуться к списку нарядов
+        """
         from logic.state import ASSEMBLY_POOL
         if not ASSEMBLY_POOL:
             QMessageBox.information(self, "Сборка", "Нет нарядов для сборки")
@@ -1039,7 +1044,7 @@ class WaxPage(QWidget):
         self._fill_assembly_tree()
         log(f"[UI] Сформировано {count} ёлок")
         QMessageBox.information(self, "Сборка ёлок", f"Сформировано {count} ёлок")
-        if hasattr(self, "tabs_jobs"):
+        if return_to_jobs and hasattr(self, "tabs_jobs"):
             # после формирования возвращаемся к выбору нарядов
             self.tabs_jobs.setCurrentIndex(2)
 
