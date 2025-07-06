@@ -170,6 +170,7 @@ def log_event(job_code: str, stage: str, user: str | None = None, extra: Dict[st
     job["signed_log"].append(rec)
 
 
+
 def load_wax_job_from_1c(job_num: str) -> list[dict]:
     """Загружает наряд из 1С и агрегирует данные по металлу, пробе и цвету."""
     rows = config.BRIDGE.get_wax_job_lines(job_num)
@@ -198,6 +199,7 @@ def load_wax_job_from_1c(job_num: str) -> list[dict]:
             )
         )
     return result
+
 
 
 def form_wax_trees(jobs: list[dict]) -> list[dict]:

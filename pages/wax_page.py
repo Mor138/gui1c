@@ -1004,26 +1004,12 @@ class WaxPage(QWidget):
             for j in WAX_JOBS_POOL:
                 if j.get("wax_job") == job_num and j not in ASSEMBLY_POOL:
                     ASSEMBLY_POOL.append(j.copy())
-                    log(
-                        f"[UI] Добавлен наряд {job_num} в очередь сборки (поиск в WAX_JOBS_POOL)"
-                    )
+
                     added = True
                     break
 
         if not added:
-            from logic.production_docs import load_wax_job_from_1c
 
-            loaded = load_wax_job_from_1c(job_num)
-            if loaded:
-                for record in loaded:
-                    if record not in ASSEMBLY_POOL:
-                        ASSEMBLY_POOL.append(record)
-                log(
-                    f"[UI] Добавлен наряд {job_num} в очередь сборки (загружено из 1С)"
-                )
-                added = True
-
-        if not added:
             log(f"[UI] ❌ Наряд {job_num} не найден для добавления в сборку")
 
         self._fill_assembly_tree()
