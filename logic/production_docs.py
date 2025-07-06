@@ -6,7 +6,7 @@ from copy import deepcopy
 from typing import Dict, Any, List, Tuple
 from uuid import uuid4
 
-from catalogs import NOMENCLATURE                      # метод 3d / rubber
+from catalogs import NOMENCLATURE, metal_by_hallmark  # метод 3d / rubber
 from core.logger import logger
 import config
 
@@ -168,6 +168,38 @@ def log_event(job_code: str, stage: str, user: str | None = None, extra: Dict[st
     if extra:
         rec.update(extra)
     job["signed_log"].append(rec)
+
+
+
+def load_wax_job_from_1c(job_num: str) -> list[dict]:
+    """Загружает наряд из 1С и агрегирует данные по металлу, пробе и цвету."""
+    rows = config.BRIDGE.get_wax_job_lines(job_num)
+    if not rows:
+        return []
+
+    grouped: dict[tuple[str, str, str], dict[str, float]] = defaultdict(lambda: dict(qty=0.0, weight=0.0))
+    for r in rows:
+        hallmark = str(r.get("sample", ""))
+        color = str(r.get("color", ""))
+        metal = metal_by_hallmark(hallmark) or ""
+        key = (metal, hallmark, color)
+        grouped[key]["qty"] += r.get("qty", 0)
+        grouped[key]["weight"] += r.get("weight", 0)
+
+    result = []
+    for (metal, hallmark, color), vals in grouped.items():
+        result.append(
+            dict(
+                wax_job=job_num,
+                metal=metal,
+                hallmark=hallmark,
+                color=color,
+                qty=int(vals["qty"]),
+                weight=round(vals["weight"], config.WEIGHT_DECIMALS),
+            )
+        )
+    return result
+
 
 
 def form_wax_trees(jobs: list[dict]) -> list[dict]:

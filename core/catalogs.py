@@ -62,6 +62,13 @@ def hallmarks(metal: str) -> list[str]:
 def colors(metal: str) -> list[str]:
     return _METALS.get(metal, {}).get("colors", [])
 
+def metal_by_hallmark(hallmark: str) -> str | None:
+    """Возвращает металл по коду пробы."""
+    for m, data in _METALS.items():
+        if hallmark in data.get("hallmarks", []):
+            return m
+    return None
+
 INSERTS = ["Нет", "Фианит", "Бриллиант", "Сапфир", "Изумруд"]
 
 # ─────────────  Номенклатура изделий  ─────────────
