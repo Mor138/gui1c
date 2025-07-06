@@ -529,8 +529,6 @@ class WaxPage(QWidget):
             return
         if hasattr(self, "tabs_jobs"):
             self.tabs_jobs.setCurrentWidget(self.tab_tree)
-            # сразу формируем ёлки без выхода на список нарядов
-            self._form_trees(return_to_jobs=False)
     def _send_task_to_work(self):
         """Переносит выбранное задание на вкладку создания нарядов."""
         item = self.tree_tasks.currentItem()
