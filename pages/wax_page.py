@@ -492,20 +492,33 @@ class WaxPage(QWidget):
         self._fill_jobs_tree()
 
     def _send_job_to_work(self):
-        item = self.tree_jobs.currentItem()
-        if not item:
-            QMessageBox.warning(self, "Ошибка", "Выберите наряд")
+        """Перенос выбранные наряды на вкладку сборки ёлок."""
+        jobs = self._get_checked_jobs()
+        if not jobs:
+            item = self.tree_jobs.currentItem()
+            if item:
+                jobs = [item.text(0).strip()]
+        if not jobs:
+            QMessageBox.warning(self, "Ошибка", "Выберите наряды")
             return
-        num = item.text(0).strip()
-        if not num:
+
+        added = False
+        for num in jobs:
+            item_obj = None
+            for i in range(self.tree_jobs.topLevelItemCount()):
+                it = self.tree_jobs.topLevelItem(i)
+                if it.text(0).strip() == num:
+                    item_obj = it
+                    break
+            if item_obj and item_obj.text(2).strip() != "✅":
+                QMessageBox.warning(self, "Ошибка", f"Наряд {num} не закрыт")
+                continue
+            self._add_job_to_assembly(num)
+            added = True
+        if not added:
             return
-        if item.text(2).strip() != "✅":
-            QMessageBox.warning(self, "Ошибка", "Наряд не закрыт")
-            return
-        self._add_job_to_assembly(num)
         if hasattr(self, "tabs_jobs"):
             self.tabs_jobs.setCurrentWidget(self.tab_tree)
-
     def _send_task_to_work(self):
         """Переносит выбранное задание на вкладку создания нарядов."""
         item = self.tree_tasks.currentItem()
