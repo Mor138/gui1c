@@ -988,11 +988,28 @@ class WaxPage(QWidget):
     def _add_job_to_assembly(self, job_num: str):
         """Добавляет наряд в очередь сборки ёлок."""
         from logic.state import ASSEMBLY_POOL
+
+        added = False
         for pack in ORDERS_POOL:
             for j in pack["docs"].get("wax_jobs", []):
                 if j.get("wax_job") == job_num and j not in ASSEMBLY_POOL:
                     ASSEMBLY_POOL.append(j.copy())
                     log(f"[UI] Добавлен наряд {job_num} в очередь сборки")
+                    added = True
+                    break
+            if added:
+                break
+
+        if not added:
+            for j in WAX_JOBS_POOL:
+                if j.get("wax_job") == job_num and j not in ASSEMBLY_POOL:
+                    ASSEMBLY_POOL.append(j.copy())
+                    log(f"[UI] Добавлен наряд {job_num} в очередь сборки (поиск в WAX_JOBS_POOL)")
+                    added = True
+                    break
+
+        if not added:
+            log(f"[UI] ❌ Наряд {job_num} не найден для добавления в сборку")
 
         self._fill_assembly_tree()
 
