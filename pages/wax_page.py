@@ -499,11 +499,16 @@ class WaxPage(QWidget):
             if item:
                 jobs = [item.text(0).strip()]
         if not jobs:
+
             log("[UI] ❌ Не выбраны наряды для отправки в сборку")
             QMessageBox.warning(self, "Ошибка", "Выберите наряды")
             return
 
         log(f"[UI] Отправка нарядов в сборку: {', '.join(jobs)}")
+
+            QMessageBox.warning(self, "Ошибка", "Выберите наряды")
+            return
+
         added = False
         for num in jobs:
             item_obj = None
@@ -513,13 +518,17 @@ class WaxPage(QWidget):
                     item_obj = it
                     break
             if item_obj and item_obj.text(2).strip() != "✅":
+
                 log(f"[UI] Наряд {num} не закрыт")
+
                 QMessageBox.warning(self, "Ошибка", f"Наряд {num} не закрыт")
                 continue
             self._add_job_to_assembly(num)
             added = True
         if not added:
+
             log("[UI] ❌ Не удалось добавить наряды в сборку")
+
             return
         if hasattr(self, "tabs_jobs"):
             self.tabs_jobs.setCurrentWidget(self.tab_tree)
