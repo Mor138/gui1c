@@ -492,20 +492,37 @@ class WaxPage(QWidget):
         self._fill_jobs_tree()
 
     def _send_job_to_work(self):
-        item = self.tree_jobs.currentItem()
-        if not item:
-            QMessageBox.warning(self, "Ошибка", "Выберите наряд")
+        """Перенос выбранные наряды на вкладку сборки ёлок."""
+        jobs = self._get_checked_jobs()
+        if not jobs:
+            item = self.tree_jobs.currentItem()
+            if item:
+                jobs = [item.text(0).strip()]
+        if not jobs:
+            log("[UI] ❌ Не выбраны наряды для отправки в сборку")
+            QMessageBox.warning(self, "Ошибка", "Выберите наряды")
             return
-        num = item.text(0).strip()
-        if not num:
+
+        log(f"[UI] Отправка нарядов в сборку: {', '.join(jobs)}")
+        added = False
+        for num in jobs:
+            item_obj = None
+            for i in range(self.tree_jobs.topLevelItemCount()):
+                it = self.tree_jobs.topLevelItem(i)
+                if it.text(0).strip() == num:
+                    item_obj = it
+                    break
+            if item_obj and item_obj.text(2).strip() != "✅":
+                log(f"[UI] Наряд {num} не закрыт")
+                QMessageBox.warning(self, "Ошибка", f"Наряд {num} не закрыт")
+                continue
+            self._add_job_to_assembly(num)
+            added = True
+        if not added:
+            log("[UI] ❌ Не удалось добавить наряды в сборку")
             return
-        if item.text(2).strip() != "✅":
-            QMessageBox.warning(self, "Ошибка", "Наряд не закрыт")
-            return
-        self._add_job_to_assembly(num)
         if hasattr(self, "tabs_jobs"):
             self.tabs_jobs.setCurrentWidget(self.tab_tree)
-
     def _send_task_to_work(self):
         """Переносит выбранное задание на вкладку создания нарядов."""
         item = self.tree_tasks.currentItem()
@@ -969,6 +986,7 @@ class WaxPage(QWidget):
             for j in pack["docs"].get("wax_jobs", []):
                 if j.get("wax_job") == job_num and j not in ASSEMBLY_POOL:
                     ASSEMBLY_POOL.append(j.copy())
+                    log(f"[UI] Добавлен наряд {job_num} в очередь сборки")
 
         self._fill_assembly_tree()
 
@@ -1013,7 +1031,11 @@ class WaxPage(QWidget):
         count = len(grouped)
         ASSEMBLY_POOL.clear()
         self._fill_assembly_tree()
+        log(f"[UI] Сформировано {count} ёлок")
         QMessageBox.information(self, "Сборка ёлок", f"Сформировано {count} ёлок")
+        if hasattr(self, "tabs_jobs"):
+            # после формирования возвращаемся к выбору нарядов
+            self.tabs_jobs.setCurrentIndex(2)
 
     # ------------------------------------------------------------------
     def _not_implemented(self):
