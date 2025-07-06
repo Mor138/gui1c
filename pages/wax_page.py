@@ -529,8 +529,6 @@ class WaxPage(QWidget):
             return
         if hasattr(self, "tabs_jobs"):
             self.tabs_jobs.setCurrentWidget(self.tab_tree)
-            # сразу формируем ёлки без выхода на список нарядов
-            self._form_trees(return_to_jobs=False)
     def _send_task_to_work(self):
         """Переносит выбранное задание на вкладку создания нарядов."""
         item = self.tree_tasks.currentItem()
@@ -990,11 +988,28 @@ class WaxPage(QWidget):
     def _add_job_to_assembly(self, job_num: str):
         """Добавляет наряд в очередь сборки ёлок."""
         from logic.state import ASSEMBLY_POOL
+
+        added = False
         for pack in ORDERS_POOL:
             for j in pack["docs"].get("wax_jobs", []):
                 if j.get("wax_job") == job_num and j not in ASSEMBLY_POOL:
                     ASSEMBLY_POOL.append(j.copy())
                     log(f"[UI] Добавлен наряд {job_num} в очередь сборки")
+                    added = True
+                    break
+            if added:
+                break
+
+        if not added:
+            for j in WAX_JOBS_POOL:
+                if j.get("wax_job") == job_num and j not in ASSEMBLY_POOL:
+                    ASSEMBLY_POOL.append(j.copy())
+                    log(f"[UI] Добавлен наряд {job_num} в очередь сборки (поиск в WAX_JOBS_POOL)")
+                    added = True
+                    break
+
+        if not added:
+            log(f"[UI] ❌ Наряд {job_num} не найден для добавления в сборку")
 
         self._fill_assembly_tree()
 
@@ -1022,8 +1037,9 @@ class WaxPage(QWidget):
                 QTreeWidgetItem(root, [j["wax_job"], str(j.get("qty", 0)), f"{j.get('weight', 0):.{config.WEIGHT_DECIMALS}f}"])
 
     def _clear_assembly_pool(self):
-        from logic.state import ASSEMBLY_POOL
+        from logic.state import ASSEMBLY_POOL, TREES_POOL
         ASSEMBLY_POOL.clear()
+        TREES_POOL.clear()
         self._fill_assembly_tree()
 
     def _form_trees(self, return_to_jobs: bool = True):
@@ -1035,15 +1051,23 @@ class WaxPage(QWidget):
         if not ASSEMBLY_POOL:
             QMessageBox.information(self, "Сборка", "Нет нарядов для сборки")
             return
-        grouped = defaultdict(list)
-        for j in ASSEMBLY_POOL:
-            key = (j.get("metal"), j.get("hallmark"), j.get("color"))
-            grouped[key].append(j)
-        count = len(grouped)
+        from logic import production_docs
+
+        trees = production_docs.form_wax_trees(ASSEMBLY_POOL)
         ASSEMBLY_POOL.clear()
         self._fill_assembly_tree()
+
+        count = len(trees)
         log(f"[UI] Сформировано {count} ёлок")
-        QMessageBox.information(self, "Сборка ёлок", f"Сформировано {count} ёлок")
+        if count:
+            tree_codes = ", ".join(t["tree_code"] for t in trees)
+            QMessageBox.information(
+                self,
+                "Сборка ёлок",
+                f"Сформировано {count} ёлок: {tree_codes}",
+            )
+        else:
+            QMessageBox.information(self, "Сборка ёлок", "Ёлки не сформированы")
         if return_to_jobs and hasattr(self, "tabs_jobs"):
             # после формирования возвращаемся к выбору нарядов
             self.tabs_jobs.setCurrentIndex(2)
